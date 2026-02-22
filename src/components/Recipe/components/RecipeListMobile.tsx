@@ -386,7 +386,7 @@ export function RecipeListMobile(props: Props) {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="divide-y divide-white/10">
               {filteredRecipes.map((r) => {
                 const fav = !!r.is_favorite;
                 const visible = r.is_visible !== false;
@@ -394,110 +394,98 @@ export function RecipeListMobile(props: Props) {
                 return (
                   <div
                     key={r.id}
-                    className="relative rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.30)] overflow-hidden"
+                    className="group py-4"
                     draggable={false} // IMPORTANT sur mobile (évite les taps foireux iOS)
                     onDrop={(e) => onDropToFolder(r.folder_id ?? null, e)}
                     onDragOver={(e) => e.preventDefault()}
                   >
-                    {/* WRAPPER cliquable = div (PAS button) */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onOpenRecipe(r.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") onOpenRecipe(r.id);
-                      }}
-                      className="p-5 cursor-pointer"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-base font-semibold text-slate-100 truncate">
-                            {safeTitle(r)}
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/15 ring-1 ring-white/10 text-slate-100">
-                              <Tag className="w-3.5 h-3.5" />
-                              {r.category || "Autre"}
-                            </span>
-                          </div>
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      {/* Zone cliquable */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onOpenRecipe(r.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") onOpenRecipe(r.id);
+                        }}
+                        className="min-w-0 flex-1 outline-none"
+                      >
+                        <div className="text-[15px] font-medium tracking-tight text-white truncate">
+                          {r.title || "Sans titre"}
                         </div>
 
-                        {/* Bouton ⋯ (séparé) */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSheetRecipe(r);
-                          }}
-                          className="h-11 w-11 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center text-slate-200"
-                          aria-label="Actions"
-                          title="Actions"
-                        >
-                          <MoreVertical className="w-5 h-5" />
-                        </button>
-                      </div>
+                        <div className="mt-1 text-xs text-white/50 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="inline-flex items-center gap-1">
+                            <Tag className="w-3.5 h-3.5 text-white/40" />
+                            {r.category || "Autre"}
+                          </span>
+                                             
+                          <span className="text-white/25">•</span>
 
-                      <div className="mt-4 flex items-center justify-between text-sm text-slate-200/80">
-                        <div className="inline-flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-slate-300/70" />
-                          <span>{recipeSubtitle(r)}</span>
-                        </div>
-                        <div className="text-slate-200/70">
-                          {r.servings ?? "—"} couverts
+                          <span>{r.servings ?? "—"} couverts</span>
                         </div>
                       </div>
 
-                      {/* Quick actions row */}
-                      <div className="mt-5 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => onShareToGroup(r.id, e)}
-                          className="h-11 w-11 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center text-slate-200"
-                          title="Partager"
-                        >
-                          <Users className="w-5 h-5" />
-                        </button>
+                      {/* Menu ⋯ */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSheetRecipe(r);
+                        }}
+                        className="h-9 w-9 rounded-full bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition inline-flex items-center justify-center text-white/60 hover:text-white"
+                        aria-label="Actions"
+                        title="Actions"
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+                    </div>
 
-                        <button
-                          type="button"
-                          onClick={(e) => onToggleFavorite(r.id, fav, e)}
-                          className={cn(
-                            "h-11 w-11 rounded-2xl ring-1 transition inline-flex items-center justify-center",
-                            fav
-                              ? "bg-amber-400/15 ring-amber-300/20 text-amber-100"
-                              : "bg-white/[0.05] ring-white/10 hover:bg-white/[0.08] text-slate-200"
-                          )}
-                          title="Favori"
-                        >
-                          <Heart className={cn("w-5 h-5", fav && "fill-current")} />
-                        </button>
+                    {/* Quick actions */}
+                    <div className="mt-3 flex items-center gap-3 text-white/60">
+                      <button
+                        type="button"
+                        onClick={(e) => onShareToGroup(r.id, e)}
+                        className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
+                        title="Partager"
+                      >
+                        <Users className="w-5 h-5" />
+                      </button>
 
-                        <button
-                          type="button"
-                          onClick={(e) => onToggleVisibility(r.id, visible, e)}
-                          className="h-11 w-11 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center text-slate-200"
-                          title={visible ? "Visible" : "Masquée"}
-                        >
-                          {visible ? (
-                            <Eye className="w-5 h-5" />
-                          ) : (
-                            <EyeOff className="w-5 h-5" />
-                          )}
-                        </button>
+                      <button
+                        type="button"
+                        onClick={(e) => onToggleFavorite(r.id, fav, e)}
+                        className={cn(
+                          "h-10 w-10 rounded-full transition inline-flex items-center justify-center",
+                          fav
+                            ? "text-amber-300 hover:bg-amber-400/10"
+                            : "hover:bg-white/[0.06] hover:text-white"
+                        )}
+                        title="Favori"
+                      >
+                        <Heart className={cn("w-5 h-5", fav && "fill-current")} />
+                      </button>
 
-                        <div className="flex-1" />
+                      <button
+                        type="button"
+                        onClick={(e) => onToggleVisibility(r.id, visible, e)}
+                        className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
+                        title={visible ? "Visible" : "Masquée"}
+                      >
+                        {visible ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                      </button>
 
-                        <button
-                          type="button"
-                          onClick={(e) => onTrash(r.id, e)}
-                          className="h-11 w-11 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-red-500/10 hover:ring-red-500/20 transition inline-flex items-center justify-center text-slate-200"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
+                      <div className="flex-1" />
+
+                      <button
+                        type="button"
+                        onClick={(e) => onTrash(r.id, e)}
+                        className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 );

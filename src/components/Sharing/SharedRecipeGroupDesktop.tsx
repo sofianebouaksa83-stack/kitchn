@@ -13,7 +13,7 @@ import {
   Search,
   Plus,
   Clock,
-  Users,
+  Eye,
   Tag,
   AlertCircle,
   Folder,
@@ -21,7 +21,6 @@ import {
   Heart,
   Share2,
   Trash2,
-  X,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
@@ -258,7 +257,7 @@ const { data: mapData } = await supabase
     await supabase.from("work_group_folders").delete().eq("id", folderId);
 
     await supabase
-      .from("recipe_folders")
+      .from("work_group_folder_recipes")
       .delete()
       .eq("group_id", groupId)
       .eq("folder_id", folderId);
@@ -292,13 +291,13 @@ const { data: mapData } = await supabase
     if (!user) return;
 
     await supabase
-      .from("recipe_folders")
+      .from("work_group_folder_recipes")
       .delete()
       .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
 
     if (folderId) {
-      await supabase.from("recipe_folders").insert({
+      await supabase.from("work_group_folder_recipes").insert({
         group_id: groupId,
         recipe_id: recipeId,
         folder_id: folderId,
@@ -321,7 +320,7 @@ const { data: mapData } = await supabase
       .eq("recipe_id", recipeId);
 
     await supabase
-      .from("recipe_folders")
+      .from("work_group_folder_recipes")
       .delete()
       .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
@@ -587,120 +586,115 @@ const { data: mapData } = await supabase
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredRecipes.map((r) => (
-                    <div
-                      key={r.id}
-                      draggable
-                      onDragStart={() => handleDragStart(r.id)}
-                      className="rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.30)] overflow-hidden"
-                    >
+                <div className="rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 overflow-hidden">
+                  {filteredRecipes.map((r) => {
+                    const title = r.title || "Sans titre";
+                    const category = r.category || "Sans catégorie";
+                    const prep = r.prep_time ?? 0;
+                    const cook = r.cook_time ?? 0;
+                    const servings = r.servings ?? "—";
+
+                    return (
                       <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setViewingRecipeId(r.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            setViewingRecipeId(r.id);
-                          }
-                        }}
-                        className="p-5 cursor-pointer"
+                        key={r.id}
+                        draggable
+                        onDragStart={() => handleDragStart(r.id)}
+                        className="group px-5 py-4 border-b border-white/10 last:border-b-0 hover:bg-white/[0.04] transition-colors"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-base font-semibold text-slate-100 truncate">
-                              {r.title || "Sans titre"}
+                        <div className="flex items-start justify-between gap-4">
+                          {/* Left click zone */}
+                          <button
+                            type="button"
+                            onClick={() => setViewingRecipeId(r.id)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="text-[15px] font-medium tracking-tight text-slate-100 truncate">
+                              {title}
                             </div>
-
-                            <div className="mt-3">
-                              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/15 ring-1 ring-white/10 text-slate-100">
+                            <div className="mt-1 text-xs text-slate-300/60 flex items-center gap-2 flex-wrap">
+                              <span className="inline-flex items-center gap-1.5">
                                 <Tag className="w-3.5 h-3.5" />
-                                {r.category || "Sans catégorie"}
+                                {category}
                               </span>
+                              <span className="opacity-60">•</span>
+                              <span className="inline-flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5" />
+                                {prep}min / {cook}min
+                              </span>
+                              <span className="opacity-60">•</span>
+                              <span>{servings} couverts</span>
+                            </div>
+                          </button>
+
+                          {/* Right actions: Apple/Linear style */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                void handleToggleFavorite(r.id, !!r.is_favorite);
+                              }}
+                              className="h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition"
+                              title="Favori"
+                            >
+                              <Heart
+                                className={cn(
+                                  "w-4.5 h-4.5",
+                                  r.is_favorite
+                                    ? "text-amber-300"
+                                    : "text-slate-200/80"
+                                )}
+                                fill={r.is_favorite ? "currentColor" : "none"}
+                              />
+                            </button>
+
+                            <div className="hidden lg:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                className={cn(ui.iconBtn, "h-10 w-10")}
+                                title="Voir"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setViewingRecipeId(r.id);
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                className={cn(ui.iconBtn, "h-10 w-10")}
+                                title="Partager"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setActiveRecipeId(r.id);
+                                  setShowGroupsModal(true);
+                                }}
+                              >
+                                <Share2 className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                className={cn(ui.iconBtnDanger, "h-10 w-10")}
+                                title="Retirer du groupe"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void handleRemoveFromGroup(r.id);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              void handleToggleFavorite(r.id, !!r.is_favorite);
-                            }}
-                            className="h-11 w-11 inline-flex items-center justify-center rounded-2xl bg-black/15 ring-1 ring-white/10 hover:bg-black/20 active:scale-[0.98] transition"
-                            title="Favori"
-                          >
-                            <Heart
-                              className={cn(
-                                "w-5 h-5",
-                                r.is_favorite ? "text-red-400" : "text-slate-200"
-                              )}
-                              fill={r.is_favorite ? "currentColor" : "none"}
-                            />
-                          </button>
-                        </div>
-
-                        <div className="mt-4 flex items-center justify-between text-sm text-slate-200/80">
-                          <div className="inline-flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-slate-300/70" />
-                            <span>
-                              Prépa {r.prep_time ?? 0}min · Cuisson{" "}
-                              {r.cook_time ?? 0}min
-                            </span>
-                          </div>
-                          <div className="text-slate-200/70">
-                            {r.servings ?? "—"} couverts
-                          </div>
                         </div>
                       </div>
-
-                      <div className="px-5 pb-5 pt-1">
-                        <div className="h-px bg-white/10 mb-4" />
-
-                        <div className="flex items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            className={cn(ui.iconBtn, "h-11 w-11")}
-                            title="Voir"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setViewingRecipeId(r.id);
-                            }}
-                          >
-                            <Users className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            className={cn(ui.iconBtn, "h-11 w-11")}
-                            title="Partager"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setActiveRecipeId(r.id);
-                              setShowGroupsModal(true);
-                            }}
-                          >
-                            <Share2 className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            className={cn(ui.iconBtnDanger, "h-11 w-11")}
-                            title="Retirer du groupe"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              void handleRemoveFromGroup(r.id);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

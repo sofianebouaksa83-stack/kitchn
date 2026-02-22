@@ -3,7 +3,6 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { supabase, type Recipe, type Ingredient } from "../../../lib/supabase";
 import { Plus } from "lucide-react";
 
-import { RecipeScaler } from "./RecipeScaler";
 import RecipeDisplay from "./RecipeDisplay";
 import { RecipeGroupsModal } from "./RecipeGroupsModal";
 
@@ -39,8 +38,6 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Toutes");
 
-  const [selectedRecipe, setSelectedRecipe] =
-    useState<RecipeWithIngredients | null>(null);
   const [viewingRecipe, setViewingRecipe] = useState<string | null>(null);
 
   const [folders, setFolders] = useState<RecipeFolder[]>([]);
@@ -69,8 +66,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       setFolderMenuOpenId(null);
     }
     document.addEventListener("mousedown", onDocMouseDown as any);
-    return () =>
-      document.removeEventListener("mousedown", onDocMouseDown as any);
+    return () => document.removeEventListener("mousedown", onDocMouseDown as any);
   }, [folderMenuOpenId]);
 
   useEffect(() => {
@@ -293,10 +289,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       setShowNewFolderInput(false);
     } catch (err: any) {
       console.error("[RecipeList] Error creating folder:", err);
-      alert(
-        err?.message ??
-          "Impossible de créer le dossier (RLS / contrainte DB)."
-      );
+      alert(err?.message ?? "Impossible de créer le dossier (RLS / contrainte DB).");
     }
   }
 
@@ -343,9 +336,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
 
       setFolders((prev) => prev.filter((f) => f.id !== folderId));
       setRecipes((prev) =>
-        prev.map((r) =>
-          r.folder_id === folderId ? { ...r, folder_id: null } : r
-        )
+        prev.map((r) => (r.folder_id === folderId ? { ...r, folder_id: null } : r))
       );
 
       if (selectedFolder === folderId) setSelectedFolder(null);
@@ -441,18 +432,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
   }
 
   if (viewingRecipe) {
-    return (
-      <RecipeDisplay
-        recipeId={viewingRecipe}
-        onBack={() => setViewingRecipe(null)}
-      />
-    );
-  }
-
-  if (selectedRecipe) {
-    return (
-      <RecipeScaler recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />
-    );
+    return <RecipeDisplay recipeId={viewingRecipe} onBack={() => setViewingRecipe(null)} />;
   }
 
   // -----------------------------
@@ -536,7 +516,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
         />
       </div>
 
-      {/* ✅ DESKTOP = plus de “carte de fond” (on enlève PageShell variant="panel") */}
+      {/* ✅ DESKTOP = liste premium sur fond dashboard */}
       <div className="hidden lg:block">
         <div className={ui.dashboardBg}>
           <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>

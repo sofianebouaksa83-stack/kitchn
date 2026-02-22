@@ -9,13 +9,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
   Search,
-  Clock,
-  Users,
-  Tag,
-  AlertCircle,
+    Users,
+    AlertCircle,
   Folder,
   MoreVertical,
-  Heart,
+    Heart,
   Share2,
   Trash2,
   X,
@@ -656,122 +654,111 @@ export function SharedRecipeGroupMobile({
             </p>
           </div>
         ) : (
-          <div className="space-y-10">
-            {filteredRecipes.map((r) => (
+          <div className="mt-2 -mx-4">
+            {filteredRecipes.map((r, idx) => (
               <div
                 key={r.id}
-                draggable={false}
-                className="cursor-pointer"
+                className={cn(
+                  "group px-4 py-4 border-white/10 transition-colors",
+                  "hover:bg-white/[0.05] active:bg-white/[0.07]",
+                  idx === filteredRecipes.length - 1 ? "" : "border-b"
+                )}
                 onClick={() => setViewingRecipeId(r.id)}
+                role="button"
+                tabIndex={0}
               >
-                <div className="relative rounded-[32px] border ring-1 overflow-hidden border-white/10 ring-white/10 bg-white/[0.06] shadow-[0_22px_80px_rgba(0,0,0,0.35)]">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <h3 className="text-lg font-semibold text-slate-100 tracking-tight truncate">
-                          {r.title || "Sans titre"}
-                        </h3>
-
-                        <div className="mt-4">
-                          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium bg-black/15 ring-1 ring-white/10 text-slate-100">
-                            <Tag className="w-3.5 h-3.5" />
-                            {r.category || "Sans catégorie"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          void handleToggleFavorite(r.id, !!r.is_favorite);
-                        }}
-                        className="h-12 w-12 inline-flex items-center justify-center rounded-2xl bg-black/15 ring-1 ring-white/10 hover:bg-black/20 active:scale-[0.98] transition"
-                        title="Favori"
-                      >
-                        <Heart
-                          className={cn(
-                            "w-5 h-5",
-                            r.is_favorite ? "text-red-400" : "text-slate-200"
-                          )}
-                          fill={r.is_favorite ? "currentColor" : "none"}
-                        />
-                      </button>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[15px] font-medium tracking-tight text-slate-100 truncate">
+                      {r.title || "Sans titre"}
                     </div>
 
-                    <div className="mt-8 flex items-center justify-between text-sm text-slate-300/75">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        <span>
-                          Prép {r.prep_time ?? 0}min · Cuisson {r.cook_time ?? 0}min
-                        </span>
-                      </div>
-                      <div className="text-slate-300/70">
-                        {r.servings ?? "—"} couverts
-                      </div>
-                    </div>
-
-                    <div className="mt-6 h-px bg-white/10" />
-
-                    <div className="mt-5 flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        className={cn(ui.iconBtn, "h-11 w-11")}
-                        title="Voir"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setViewingRecipeId(r.id);
-                        }}
-                      >
-                        <Users className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        className={cn(ui.iconBtn, "h-11 w-11")}
-                        title="Partager"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setActiveRecipeId(r.id);
-                          setShowGroupsModal(true);
-                        }}
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        className={cn(ui.iconBtn, "h-11 w-11")}
-                        title="Déplacer"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDraggedRecipe(r.id);
-                          setSidebarOpen(true);
-                        }}
-                      >
-                        <Folder className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        className={cn(ui.iconBtnDanger, "h-11 w-11")}
-                        title="Retirer du groupe"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          void handleRemoveFromGroup(r.id);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="mt-1 text-xs text-slate-300/60">
+                      {(r.category || "Sans catégorie")} • Prép {r.prep_time ?? 0}min / {r.cook_time ?? 0}min • {r.servings ?? "—"} couverts
                     </div>
                   </div>
 
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-60" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void handleToggleFavorite(r.id, !!r.is_favorite);
+                    }}
+                    className="shrink-0 h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-white/[0.03] ring-1 ring-white/10 text-slate-200 hover:bg-white/[0.06] active:scale-[0.98] transition"
+                    title="Favori"
+                    aria-label="Favori"
+                  >
+                    <Heart
+                      className={cn(
+                        "w-4.5 h-4.5",
+                        r.is_favorite ? "text-amber-300" : "text-slate-200/80"
+                      )}
+                      fill={r.is_favorite ? "currentColor" : "none"}
+                    />
+                  </button>
+                </div>
+
+                <div className="mt-3 flex items-center gap-3 text-slate-200/70">
+                  <button
+                    type="button"
+                    className={cn(ui.iconBtn, "h-10 w-10")}
+                    title="Ouvrir"
+                    aria-label="Ouvrir"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setViewingRecipeId(r.id);
+                    }}
+                  >
+                    <Users className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={cn(ui.iconBtn, "h-10 w-10")}
+                    title="Partager"
+                    aria-label="Partager"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveRecipeId(r.id);
+                      setShowGroupsModal(true);
+                    }}
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={cn(ui.iconBtn, "h-10 w-10")}
+                    title="Déplacer"
+                    aria-label="Déplacer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDraggedRecipe(r.id);
+                      setSidebarOpen(true);
+                    }}
+                  >
+                    <Folder className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex-1" />
+
+                  <button
+                    type="button"
+                    className={cn(ui.iconBtnDanger, "h-10 w-10")}
+                    title="Retirer du groupe"
+                    aria-label="Retirer du groupe"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void handleRemoveFromGroup(r.id);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}

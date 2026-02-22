@@ -351,122 +351,118 @@ export function RecipeListDesktop(props: Props) {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="divide-y divide-white/10 border-t border-white/10">
             {filteredRecipes.map((recipe) => (
               <div
                 key={recipe.id}
                 draggable={userExists}
                 onDragStart={(e) => userExists && onDragStartRecipe(recipe.id, e)}
                 onClick={() => onOpenRecipe(recipe.id)}
-                className="cursor-pointer"
+                className={[
+                  "group cursor-pointer select-none",
+                  "px-4 py-4",
+                  "transition-colors hover:bg-white/5 active:bg-white/10",
+                ].join(" ")}
               >
-                <div
-                  className={[
-                    "relative rounded-3xl border ring-1 overflow-hidden",
-                    "border-white/10 ring-white/10 bg-white/[0.06]",
-                    "shadow-[0_18px_60px_rgba(0,0,0,0.30)]",
-                    "transition-transform duration-200 hover:-translate-y-1 active:scale-[0.99] hover:bg-white/[0.08]",
-                  ].join(" ")}
-                >
-                  <div className="p-5">
-                    <div className="flex items-start justify-between mb-4 gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-lg font-semibold text-slate-100 tracking-tight truncate">
-                          {recipe.title || "Sans titre"}
-                        </h3>
+                <div className="flex items-start justify-between gap-4">
+                  <button
+                    className="min-w-0 flex-1 text-left"
+                    type="button"
+                    onClick={() => onOpenRecipe(recipe.id)}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="min-w-0 truncate text-[15px] font-medium tracking-tight text-slate-100">
+                        {recipe.title || "Sans titre"}
+                      </h3>
 
-                        <div className="mt-2">
-                          <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-black/15 ring-1 ring-white/10 text-slate-100">
-                            {recipe.category || "Sans catégorie"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={(e) => onToggleFavorite(recipe.id, !!recipe.is_favorite, e)}
-                          className="h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-black/10 ring-1 ring-white/10 hover:bg-black/15 transition-colors"
-                          type="button"
-                          title="Favori"
-                        >
-                          <Heart
-                            className={`w-5 h-5 ${
-                              recipe.is_favorite ? "fill-red-500 text-red-500" : "text-slate-300/70"
-                            }`}
-                          />
-                        </button>
-
-                        <button
-                          onClick={(e) => onToggleVisibility(recipe.id, recipe.is_visible ?? true, e)}
-                          className="h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-black/10 ring-1 ring-white/10 hover:bg-black/15 transition-colors"
-                          type="button"
-                          title={recipe.is_visible === false ? "Masquée" : "Visible"}
-                        >
-                          {recipe.is_visible === false ? (
-                            <EyeOff className="w-5 h-5 text-slate-300/70" />
-                          ) : (
-                            <Eye className="w-5 h-5 text-slate-300/70" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-slate-300/80">
-                        <Clock className="w-4 h-4" />
-                        <span>
-                          Prép: {recipe.prep_time ?? 0}min · Cuisson: {recipe.cook_time ?? 0}min
+                      {recipe.category && (
+                        <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-black/15 ring-1 ring-white/10 text-slate-200/90">
+                          {recipe.category}
                         </span>
-                      </div>
-                      <div className="text-sm text-slate-300/80">
-                        {recipe.servings ?? "—"} couverts
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                      {userExists && (
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={(e) => onShareToGroup(recipe.id, e)}
-                            className="h-10 w-10 inline-flex items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800/70 transition-colors"
-                            title="Partager à un groupe"
-                            type="button"
-                          >
-                            <Users className="w-5 h-5" />
-                          </button>
-
-                          <button
-                            onClick={(e) => onDuplicate(recipe, e)}
-                            className="h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-black/10 ring-1 ring-white/10 text-slate-200 hover:bg-black/15 transition-colors"
-                            type="button"
-                            title="Dupliquer"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={(e) => onEdit(recipe.id, e)}
-                            className="h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-amber-500/10 ring-1 ring-amber-400/20 text-amber-200 hover:bg-amber-500/15 transition-colors"
-                            type="button"
-                            title="Modifier"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={(e) => onTrash(recipe.id, e)}
-                            className="h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-red-500/10 ring-1 ring-red-400/20 text-red-200 hover:bg-red-500/15 transition-colors"
-                            type="button"
-                            title="Supprimer / Retirer du dossier"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-60" />
+                    <p className="mt-1 text-xs text-white/50">
+                      Prép {recipe.prep_time ?? 0}min · Cuisson {recipe.cook_time ?? 0}min ·{" "}
+                      {recipe.servings ?? "—"} couverts
+                    </p>
+                  </button>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={(e) => onToggleFavorite(recipe.id, !!recipe.is_favorite, e)}
+                      className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                      type="button"
+                      title="Favori"
+                    >
+                      <Heart
+                        className={`w-5 h-5 ${
+                          recipe.is_favorite ? "fill-red-500 text-red-500" : "text-white/50"
+                        }`}
+                      />
+                    </button>
+
+                    <button
+                      onClick={(e) => onToggleVisibility(recipe.id, recipe.is_visible ?? true, e)}
+                      className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                      type="button"
+                      title={recipe.is_visible === false ? "Masquée" : "Visible"}
+                    >
+                      {recipe.is_visible === false ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+
+                    {userExists && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => onShareToGroup(recipe.id, e)}
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                          title="Partager à un groupe"
+                          type="button"
+                        >
+                          <Users className="w-5 h-5" />
+                        </button>
+
+                        <button
+                          onClick={(e) => onDuplicate(recipe, e)}
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                          type="button"
+                          title="Dupliquer"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={(e) => onEdit(recipe.id, e)}
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                          type="button"
+                          title="Modifier"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={(e) => onTrash(recipe.id, e)}
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                          type="button"
+                          title="Supprimer / Retirer du dossier"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                          type="button"
+                          title="Plus"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

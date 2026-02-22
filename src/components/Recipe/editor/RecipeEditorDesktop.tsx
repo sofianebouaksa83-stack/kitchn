@@ -12,7 +12,6 @@ import {
   ChevronUp,
   Tag,
 } from "lucide-react";
-
 import { useRecipeEditor, UNITS, CATEGORIES } from "./hooks/useRecipeEditor";
 
 type Props = {
@@ -22,8 +21,21 @@ type Props = {
   onCreated?: (id: string) => void;
 };
 
-export function RecipeEditorDesktop(props: Props) {
-  const { recipeId, onBack, onSave, onCreated } = props;
+const labelCls = "block text-[12px] font-medium text-slate-200/90 mb-2";
+
+const inputBase =
+  "w-full bg-white/[0.045] border border-white/10 text-slate-100 outline-none " +
+  "placeholder:text-slate-400/50 focus:border-amber-300/30 focus:ring-2 focus:ring-amber-300/20";
+
+const inputCls = `${inputBase} h-10 rounded-xl px-3 text-sm`;
+const inputNumCls = `${inputBase} h-10 rounded-xl px-3 text-sm`;
+const selectCls = `${inputBase} h-10 rounded-xl px-2 text-sm`;
+
+const textareaCls =
+  "w-full rounded-2xl bg-white/[0.045] border border-white/10 px-4 py-3 text-sm text-slate-100 outline-none " +
+  "placeholder:text-slate-400/50 focus:border-amber-300/30 focus:ring-2 focus:ring-amber-300/20 resize-none";
+
+export function RecipeEditorDesktop({ recipeId, onBack, onSave, onCreated }: Props) {
   const editor = useRecipeEditor({ recipeId, onSave, onCreated });
 
   const title = editor.isEdit
@@ -68,28 +80,21 @@ export function RecipeEditorDesktop(props: Props) {
             </div>
           )}
 
-          {/* Layout desktop (comme avant : un panel contenu) */}
           <div className="rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 p-6 space-y-8">
-          
-            {/* Infos recette */}
+            {/* Infos */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-200 mb-2">
-                  Titre de la recette *
-                </label>
+                <label className={labelCls}>Titre de la recette *</label>
                 <input
                   value={editor.title}
                   onChange={(e) => editor.setTitle(e.target.value)}
-                  placeholder="Ex: Langoustine flambée, bisque, pickles…"
-                  className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 px-4 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40"
+                  placeholder="Ex: Langoustine, bisque, pickles…"
+                  className={`${inputBase} h-11 rounded-2xl px-4`}
                 />
-                
               </div>
 
               <div>
-                <label className="block text-sm text-slate-200 mb-2">
-                  Couverts
-                </label>
+                <label className={labelCls}>Couverts</label>
                 <input
                   type="number"
                   min={1}
@@ -97,18 +102,16 @@ export function RecipeEditorDesktop(props: Props) {
                   onChange={(e) =>
                     editor.setServings(Math.max(1, Number(e.target.value || 1)))
                   }
-                  className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 px-4 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40"
+                  className={`${inputBase} h-11 rounded-2xl px-4`}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-slate-200 mb-2">
-                  Catégorie
-                </label>
+                <label className={labelCls}>Catégorie</label>
                 <select
                   value={editor.category}
                   onChange={(e) => editor.setCategory(e.target.value)}
-                  className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 px-4 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40"
+                  className={`${inputBase} h-11 rounded-2xl px-3`}
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c} className="bg-[#0B1020]">
@@ -120,86 +123,93 @@ export function RecipeEditorDesktop(props: Props) {
             </div>
 
             {/* Sections */}
-            <div className="rounded-3xl bg-white/[0.03] ring-1 ring-white/10 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-slate-100 font-semibold">
-                  Sections (sous-recettes)
+            <div className="rounded-3xl bg-white/[0.03] ring-1 ring-white/10 overflow-hidden">
+              <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-slate-100 font-semibold">Sections</div>
+                  <div className="text-xs text-slate-300/60 mt-0.5">
+                    Sous-recettes / éléments de la recette
+                  </div>
                 </div>
-                <button onClick={editor.addSection} className={ui.btnGhost} type="button">
+
+                <button
+                  onClick={editor.addSection}
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-xl bg-amber-300/10 text-amber-200 ring-1 ring-amber-300/20 hover:bg-amber-300/15 text-sm"
+                  type="button"
+                >
                   <Plus className="w-4 h-4" /> Ajouter
                 </button>
               </div>
 
-              <div className="mt-5 space-y-5">
+              <div className="border-t border-white/10">
                 {editor.sections.map((s, idx) => {
                   const ingList = editor.sectionIngredients[s.localId] ?? [];
+                  const isOnlySection = editor.sections.length === 1;
+
                   return (
-                    <div
-                      key={s.localId}
-                      className="rounded-[28px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden"
-                    >
-                      <div className="px-4 py-4 flex items-center justify-between gap-3 border-b border-white/10">
-                        <div className="text-slate-200 font-semibold">
-                          Section {idx + 1}
+                    <div key={s.localId} className="border-b border-white/10 last:border-b-0">
+                      {/* Header */}
+                      <div className="px-5 py-4 flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-xl bg-white/5 ring-1 ring-white/10 flex items-center justify-center text-slate-200 font-semibold text-sm">
+                          {idx + 1}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => editor.toggleCollapse(s.localId)}
-                            className="h-10 w-10 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-slate-200 inline-flex items-center justify-center"
-                            type="button"
-                            title={s.collapsed ? "Déplier" : "Replier"}
-                          >
-                            {s.collapsed ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronUp className="w-4 h-4" />
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => editor.removeSection(s.localId)}
-                            className="h-10 w-10 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200 inline-flex items-center justify-center"
-                            type="button"
-                            title="Supprimer la section"
-                            disabled={editor.sections.length === 1}
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                        <div className="flex-1 min-w-0">
+                          <input
+                            value={s.title}
+                            onChange={(e) =>
+                              editor.setSections((prev) =>
+                                prev.map((x) =>
+                                  x.localId === s.localId ? { ...x, title: e.target.value } : x
+                                )
+                              )
+                            }
+                            placeholder="Nom de la section"
+                            className={inputCls}
+                          />
                         </div>
+
+                        <button
+                          onClick={() => editor.toggleCollapse(s.localId)}
+                          className="h-9 w-9 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-slate-200 inline-flex items-center justify-center"
+                          type="button"
+                          title={s.collapsed ? "Déplier" : "Replier"}
+                        >
+                          {s.collapsed ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronUp className="w-4 h-4" />
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => editor.removeSection(s.localId)}
+                          disabled={isOnlySection}
+                          className="h-9 w-9 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200/90 inline-flex items-center justify-center disabled:opacity-40"
+                          type="button"
+                          title="Supprimer la section"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
 
                       {!s.collapsed && (
-                        <div className="p-4 space-y-5">
-                          <div>
-                            <label className="block text-sm text-slate-200 mb-2">
-                              Nom de la section
-                            </label>
-                            <input
-                              value={s.title}
-                              onChange={(e) =>
-                                editor.setSections((prev) =>
-                                  prev.map((x) =>
-                                    x.localId === s.localId
-                                      ? { ...x, title: e.target.value }
-                                      : x
-                                  )
-                                )
-                              }
-                              placeholder="Nom de la section (ex: Foie gras)"
-                              className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 px-4 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40"
-                            />
-                          </div>
-
-                          <div>
-                            <div className="text-sm text-slate-200 mb-3 font-medium">
+                        <div className="px-5 pb-5">
+                          {/* Ingredients grid */}
+                          <div className="mt-2">
+                            <div className="text-[12px] text-slate-200 font-medium mb-3">
                               Ingrédients
                             </div>
 
-                            <div className="space-y-3">
-                              {ingList.map((ing, ingIdx) => (
-                                <div key={ing.localId} className="space-y-2">
-                                  <div className="flex gap-2">
+                            <div className="space-y-2">
+                              {ingList.map((ing, ingIdx) => {
+                                const isOnlyIng = ingList.length === 1;
+
+                                return (
+                                  <div
+                                    key={ing.localId}
+                                    className="grid grid-cols-[86px_96px_1fr_40px] gap-2 items-center rounded-2xl bg-white/[0.02] ring-1 ring-white/10 p-2"
+                                  >
                                     <input
                                       type="number"
                                       step="0.001"
@@ -213,9 +223,10 @@ export function RecipeEditorDesktop(props: Props) {
                                           e.target.value
                                         )
                                       }
-                                      className="w-28 h-11 rounded-2xl bg-white/5 border border-white/10 px-3 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40"
+                                      className={inputNumCls}
                                       placeholder="Qté"
                                     />
+
                                     <select
                                       value={ing.unit}
                                       onChange={(e) =>
@@ -226,7 +237,7 @@ export function RecipeEditorDesktop(props: Props) {
                                           e.target.value
                                         )
                                       }
-                                      className="w-32 h-11 rounded-2xl bg-white/5 border border-white/10 px-3 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40"
+                                      className={selectCls}
                                     >
                                       {UNITS.map((u) => (
                                         <option key={u} value={u} className="bg-[#0B1020]">
@@ -235,32 +246,32 @@ export function RecipeEditorDesktop(props: Props) {
                                       ))}
                                     </select>
 
+                                    <input
+                                      value={ing.designation}
+                                      onChange={(e) =>
+                                        editor.updateIngredient(
+                                          s.localId,
+                                          ingIdx,
+                                          "designation",
+                                          e.target.value
+                                        )
+                                      }
+                                      className={`${inputCls} min-w-0`}
+                                      placeholder="Ingrédient"
+                                    />
+
                                     <button
                                       onClick={() => editor.removeIngredient(s.localId, ingIdx)}
-                                      className="h-11 w-11 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200 inline-flex items-center justify-center"
+                                      disabled={isOnlyIng}
+                                      className="h-10 w-10 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200/90 inline-flex items-center justify-center disabled:opacity-40"
                                       type="button"
                                       title="Supprimer"
-                                      disabled={ingList.length === 1}
                                     >
                                       <X className="w-4 h-4" />
                                     </button>
                                   </div>
-
-                                  <input
-                                    value={ing.designation}
-                                    onChange={(e) =>
-                                      editor.updateIngredient(
-                                        s.localId,
-                                        ingIdx,
-                                        "designation",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full h-11 rounded-2xl bg-white/5 border border-white/10 px-3 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40"
-                                    placeholder="Nom de l'ingrédient"
-                                  />
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
 
                             <button
@@ -273,8 +284,9 @@ export function RecipeEditorDesktop(props: Props) {
                             </button>
                           </div>
 
-                          <div>
-                            <div className="text-sm text-slate-200 mb-2 font-medium">
+                          {/* Instructions */}
+                          <div className="mt-5">
+                            <div className="text-[12px] text-slate-200 font-medium mb-2">
                               Instructions
                             </div>
                             <textarea
@@ -289,8 +301,8 @@ export function RecipeEditorDesktop(props: Props) {
                                 )
                               }
                               rows={5}
-                              placeholder="Instructions pour cette section..."
-                              className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40 resize-none"
+                              placeholder="Étapes / cuisson / dressage…"
+                              className={textareaCls}
                             />
                           </div>
                         </div>
@@ -304,19 +316,19 @@ export function RecipeEditorDesktop(props: Props) {
             {/* Instructions générales */}
             <div className="rounded-3xl bg-white/[0.03] ring-1 ring-white/10 p-5">
               <div className="text-slate-100 font-semibold">
-                Instructions générales (optionnel)
+                Instructions générales{" "}
+                <span className="text-slate-300/60 font-normal">(optionnel)</span>
               </div>
               <textarea
                 value={editor.generalInstructions}
                 onChange={(e) => editor.setGeneralInstructions(e.target.value)}
                 rows={6}
-                placeholder="Instructions générales pour la recette complète..."
-                className="mt-4 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/40 resize-none"
+                placeholder="Notes globales / timing / organisation…"
+                className={`mt-4 ${textareaCls}`}
               />
             </div>
-          </div>
-          {/* ✅ Footer dans la MÊME carte */}
-            <div className="mt-10 pt-6 flex justify-end">
+
+            <div className="pt-2 flex justify-end">
               <button
                 onClick={editor.handleSave}
                 disabled={editor.saving}
@@ -327,9 +339,9 @@ export function RecipeEditorDesktop(props: Props) {
                 {editor.saving ? "Enregistrement…" : "Enregistrer"}
               </button>
             </div>
+          </div>
         </div>
       )}
     </PageShell>
   );
 }
-

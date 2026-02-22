@@ -1,5 +1,5 @@
 // =====================================
-// 2) RecipeDisplayMobile.tsx (nouveau)
+// 2) RecipeDisplayMobile.tsx (affiné)
 // =====================================
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
@@ -13,6 +13,7 @@ import {
   Minus,
   Plus,
   Pencil,
+  RotateCcw,
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
 
@@ -62,6 +63,11 @@ function cn(...classes: Array<string | undefined | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function safeTitle(t?: string | null) {
+  const s = (t || "").trim();
+  return s ? s : "Sans titre";
+}
+
 function fmtQty(q: number | null) {
   if (q === null || Number.isNaN(q)) return "—";
   const v = Math.round(q * 100) / 100;
@@ -69,9 +75,38 @@ function fmtQty(q: number | null) {
   return s.endsWith(".0") ? s.slice(0, -2) : s;
 }
 
-function safeTitle(t?: string | null) {
-  const s = (t || "").trim();
-  return s ? s : "Sans titre";
+function normUnit(u: string | null) {
+  return (u ?? "").trim();
+}
+
+function isQS(unit: string | null) {
+  const u = normUnit(unit).toLowerCase();
+  return u === "qs" || u === "q.s" || u === "q.s." || u === "quantité suffisante";
+}
+
+/**
+ * Règles d’affichage quantité :
+ * - Si unit = QS => afficher "QS" (jamais "0 QS") et ne pas scaler
+ * - Si qty = null :
+ *    - si unit existe => afficher unit (ex: "PM", "QS") sinon "—"
+ * - Si qty = 0 et pas QS => cacher (retourne "")
+ * - Sinon => afficher qty (scaled) + unit
+ */
+function formatQtyDisplay(qtyScaled: number | null, unit: string | null) {
+  const u = normUnit(unit);
+
+  if (isQS(unit)) return "QS";
+
+  if (qtyScaled === null) {
+    return u ? u : "—";
+  }
+
+  if (qtyScaled === 0) {
+    // évite les "0 g" / "0 ml" parasites
+    return "";
+  }
+
+  return `${fmtQty(qtyScaled)}${u ? ` ${u}` : ""}`.trim();
 }
 
 export default function RecipeDisplayMobile({
@@ -188,9 +223,9 @@ export default function RecipeDisplayMobile({
   );
   const ratio = useMemo(() => servings / baseServings, [servings, baseServings]);
 
-  const subtitle = useMemo(() => {
+  const meta = useMemo(() => {
     if (!recipe) return "";
-    const cat = recipe.category || "Sans catégorie";
+    const cat = (recipe.category || "Autre").trim() || "Autre";
     const prep = recipe.prep_time ?? 0;
     const cook = recipe.cook_time ?? 0;
     return `${cat} · Prépa ${prep}min · Cuisson ${cook}min`;
@@ -226,19 +261,19 @@ export default function RecipeDisplayMobile({
     });
   }
 
-  const stickyPad = desktopMode ? "" : "pb-28"; // place pour la barre sticky
+  const stickyPad = desktopMode ? "" : "pb-24"; // place pour la barre sticky
 
   return (
     <div className={cn("relative", desktopMode ? "" : "px-4", stickyPad)}>
-      {/* ✅ MOBILE HEADER plein écran (simple, lisible) */}
+      {/* ✅ Header compact (mobile) */}
       {!desktopMode && (
-        <div className="pt-2">
+        <div className="pt-3">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center gap-2 text-slate-200 hover:text-slate-100 transition"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-slate-100/90 backdrop-blur hover:bg-white/[0.06] transition active:scale-[0.99]"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
             <span className="text-sm font-medium">Retour</span>
           </button>
         </div>
@@ -256,24 +291,34 @@ export default function RecipeDisplayMobile({
         </div>
       ) : recipe ? (
         <>
-          {/* Title + meta */}
-          <div className={cn(desktopMode ? "mt-2" : "mt-6")}>
-            <div className="text-2xl font-semibold text-slate-100 tracking-tight">
-              {safeTitle(recipe.title)}
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-sm text-slate-300/75">
+          {/* Title + meta (plus compact & premium) */}
+          <div className={cn(desktopMode ? "mt-2" : "mt-4")}>
+            <div className="text-[13px] text-slate-300/70 flex items-center gap-2">
               <Tag className="w-4 h-4" />
-              <span className="truncate">{subtitle}</span>
+              <span className="truncate">{meta}</span>
+            </div>
+
+            <div className="mt-2 text-[22px] font-semibold text-slate-100 tracking-tight leading-[1.15] line-clamp-2">
+              {safeTitle(recipe.title)}
             </div>
           </div>
 
-          {/* Multiplier card (aéré) */}
-          <div className="mt-8 rounded-[28px] bg-white/[0.05] ring-1 ring-white/10 p-5">
-            <div className="flex items-center justify-between gap-4">
+          {/* Multiplier (horizontal premium) */}
+          <div className="mt-5 rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-4">
+            <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs text-slate-300/60">Multiplier</div>
-                <div className="mt-1 text-base font-semibold text-slate-100">
-                  ×{Math.round(ratio * 100) / 100}
+                <div className="text-[12px] text-slate-300/60">Multiplier</div>
+                <div className="mt-1 flex items-end gap-2">
+                  <div className="text-[18px] font-semibold text-slate-100">
+                    x{Math.round(ratio * 100) / 100}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setServings(baseServings)}
+                    className="text-[12px] text-slate-300/60 hover:text-slate-100 transition"
+                  >
+                    Base ({baseServings})
+                  </button>
                 </div>
               </div>
 
@@ -281,8 +326,9 @@ export default function RecipeDisplayMobile({
                 <button
                   type="button"
                   onClick={() => setServings((s) => Math.max(1, s - 1))}
-                  className="h-11 w-11 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                  className="h-10 w-10 rounded-full bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center active:scale-[0.98]"
                   aria-label="Diminuer"
+                  disabled={servings <= 1}
                 >
                   <Minus className="w-4 h-4 text-slate-100" />
                 </button>
@@ -290,40 +336,34 @@ export default function RecipeDisplayMobile({
                 <button
                   type="button"
                   onClick={() => setServings((s) => s + 1)}
-                  className="h-11 w-11 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 hover:bg-amber-500/20 transition inline-flex items-center justify-center"
+                  className="h-10 w-10 rounded-full bg-amber-500/15 ring-1 ring-amber-400/25 hover:bg-amber-500/20 transition inline-flex items-center justify-center active:scale-[0.98]"
                   aria-label="Augmenter"
                 >
                   <Plus className="w-4 h-4 text-amber-100" />
                 </button>
               </div>
             </div>
-
-            <button
-              onClick={() => setServings(baseServings)}
-              className="mt-3 text-xs text-slate-300/70 hover:text-slate-100 transition"
-              type="button"
-            >
-              Reset au nombre de base ({baseServings})
-            </button>
           </div>
 
-          {/* Allergens + Notes (accordéons simples) */}
+          {/* Allergènes + Notes (style secondaire) */}
           {recipe.allergens ? (
-            <div className="mt-6 rounded-[28px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden">
+            <div className="mt-3 rounded-[22px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowAllergens((v) => !v)}
-                className="w-full px-5 py-4 flex items-center justify-between text-left"
+                className="w-full px-4 py-3 flex items-center justify-between text-left"
               >
-                <div className="text-slate-100 font-semibold">Allergènes</div>
+                <div className="text-slate-100/90 font-medium text-[14px]">
+                  Allergènes
+                </div>
                 {showAllergens ? (
-                  <ChevronUp className="w-5 h-5 text-slate-200" />
+                  <ChevronUp className="w-5 h-5 text-slate-200/80" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-slate-200" />
+                  <ChevronDown className="w-5 h-5 text-slate-200/80" />
                 )}
               </button>
               {showAllergens && (
-                <div className="px-5 pb-5 text-sm text-slate-300/80 whitespace-pre-wrap">
+                <div className="px-4 pb-4 text-[13px] leading-6 text-slate-300/80 whitespace-pre-wrap">
                   {recipe.allergens}
                 </div>
               )}
@@ -331,128 +371,148 @@ export default function RecipeDisplayMobile({
           ) : null}
 
           {recipe.notes ? (
-            <div className="mt-4 rounded-[28px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden">
+            <div className="mt-2 rounded-[22px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowNotes((v) => !v)}
-                className="w-full px-5 py-4 flex items-center justify-between text-left"
+                className="w-full px-4 py-3 flex items-center justify-between text-left"
               >
-                <div className="text-slate-100 font-semibold">Notes</div>
+                <div className="text-slate-100/90 font-medium text-[14px]">
+                  Notes
+                </div>
                 {showNotes ? (
-                  <ChevronUp className="w-5 h-5 text-slate-200" />
+                  <ChevronUp className="w-5 h-5 text-slate-200/80" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-slate-200" />
+                  <ChevronDown className="w-5 h-5 text-slate-200/80" />
                 )}
               </button>
               {showNotes && (
-                <div className="px-5 pb-5 text-sm text-slate-300/80 whitespace-pre-wrap">
+                <div className="px-4 pb-4 text-[13px] leading-6 text-slate-300/80 whitespace-pre-wrap">
                   {recipe.notes}
                 </div>
               )}
             </div>
           ) : null}
 
-          {/* Sections list (accordéons) */}
-          <div className="mt-10 space-y-6">
+          {/* Sections (liste fine, compact) */}
+          <div className="mt-6 overflow-hidden rounded-[22px] bg-white/[0.04] ring-1 ring-white/10">
             {sections.length > 0 ? (
-              sections.map((section) => {
-                const open = openSectionIds.has(section.id);
-                const ings = sectionIngredients.get(section.id) ?? [];
+              <div className="divide-y divide-white/10">
+                {sections.map((section) => {
+                  const open = openSectionIds.has(section.id);
+                  const ings = sectionIngredients.get(section.id) ?? [];
 
-                return (
-                  <div
-                    key={section.id}
-                    className="rounded-[30px] bg-white/[0.06] ring-1 ring-white/10 overflow-hidden shadow-[0_18px_60px_rgba(0,0,0,0.22)]"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleSection(section.id)}
-                      className="w-full px-5 py-5 flex items-start justify-between gap-4 text-left"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-slate-100 font-semibold text-base">
-                          {section.title?.trim() ? section.title : "Sans titre"}
+                  // filtre 0 inutiles (sauf QS)
+                  const displayedIngs = ings.filter((ing) => {
+                    const u = (ing.unit ?? "").trim().toLowerCase();
+                    const qs = u === "qs" || u === "q.s" || u === "q.s." || u === "quantité suffisante";
+                    if (qs) return true;
+                    if (ing.quantity === null) return true;
+                    return ing.quantity !== 0;
+                  });
+
+                  return (
+                    <div key={section.id} className="bg-transparent">
+                      {/* Ligne section */}
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(section.id)}
+                        className="w-full px-4 py-4 flex items-center justify-between gap-3 text-left hover:bg-white/[0.03] transition"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-[14px] font-semibold text-slate-100 truncate">
+                            {section.title?.trim() ? section.title : "Sans titre"}
+                          </div>
+                          <div className="mt-1 text-[12px] text-slate-300/60">
+                            {displayedIngs.length} ingrédient(s)
+                          </div>
                         </div>
-                        <div className="mt-2 text-sm text-slate-300/70 flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          <span>{ings.length} ingrédient(s)</span>
+
+                        <div className="shrink-0 text-slate-200/70">
+                          {open ? (
+                            <ChevronUp className="w-5 h-5" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5" />
+                          )}
                         </div>
-                      </div>
+                      </button>
 
-                      <div className="shrink-0 h-10 w-10 rounded-2xl bg-black/15 ring-1 ring-white/10 flex items-center justify-center">
-                        {open ? (
-                          <ChevronUp className="w-5 h-5 text-slate-200" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-slate-200" />
-                        )}
-                      </div>
-                    </button>
-
-                    {open && (
-                      <div className="px-5 pb-6">
-                        <div className="h-px bg-white/10 mb-5" />
-
-                        <div>
-                          <div className="text-sm text-slate-200 font-medium mb-3">
+                      {/* Contenu déroulé (sans carte) */}
+                      {open && (
+                        <div className="px-4 pb-5">
+                          {/* Ingrédients */}
+                          <div className="text-[12px] text-slate-200/70 font-medium mb-2">
                             Ingrédients
                           </div>
 
-                          {ings.length === 0 ? (
-                            <div className="text-sm text-slate-300/70">
+                          {displayedIngs.length === 0 ? (
+                            <div className="text-[13px] text-slate-300/60">
                               Aucun ingrédient
                             </div>
                           ) : (
-                            <ul className="space-y-2">
-                              {ings.map((ing) => {
+                            <div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-black/10">
+                              {displayedIngs.map((ing) => {
+                                const u = (ing.unit ?? "").trim();
+                                const uLow = u.toLowerCase();
+                                const qs = uLow === "qs" || uLow === "q.s" || uLow === "q.s." || uLow === "quantité suffisante";
+
+                                // QS ne se scale pas
                                 const scaled =
-                                  ing.quantity === null
-                                    ? null
-                                    : ing.quantity * ratio;
+                                  qs || ing.quantity === null ? ing.quantity : (ing.quantity * ratio);
+
+                                // format affichage (QS / qty+unit)
+                                let right = "";
+                                if (qs) right = "QS";
+                                else if (scaled === null) right = u ? u : "—";
+                                else if (scaled === 0) right = "";
+                                else {
+                                  const v = Math.round(scaled * 100) / 100;
+                                  const s = String(v).endsWith(".0") ? String(v).slice(0, -2) : String(v);
+                                  right = `${s}${u ? ` ${u}` : ""}`.trim();
+                                }
+
+                                if (!right) return null;
 
                                 return (
-                                  <li
-                                    key={ing.id}
-                                    className="flex items-baseline justify-between gap-4"
-                                  >
-                                    <div className="text-slate-100">
+                                  <div key={ing.id} className="flex items-baseline justify-between gap-4 px-3 py-3">
+                                    <div className="min-w-0 text-slate-100/90 truncate">
                                       {ing.designation ?? "—"}
                                     </div>
-                                    <div className="text-slate-300/80 whitespace-nowrap">
-                                      {fmtQty(scaled)} {ing.unit ?? ""}
+                                    <div className="shrink-0 text-slate-200/75 font-semibold whitespace-nowrap text-[13px]">
+                                      {right}
                                     </div>
-                                  </li>
+                                  </div>
                                 );
                               })}
-                            </ul>
+                            </div>
                           )}
-                        </div>
 
-                        <div className="mt-7">
-                          <div className="text-sm text-slate-200 font-medium mb-3">
-                            Étapes
+                          {/* Étapes */}
+                          <div className="mt-5">
+                            <div className="text-[12px] text-slate-200/70 font-medium mb-2">
+                              Étapes
+                            </div>
+
+                            {section.instructions?.trim() ? (
+                              <div className="text-[13px] leading-7 text-slate-300/80 whitespace-pre-wrap">
+                                {section.instructions}
+                              </div>
+                            ) : (
+                              <div className="text-[13px] text-slate-300/55">
+                                Aucune instruction
+                              </div>
+                            )}
                           </div>
-
-                          {section.instructions?.trim() ? (
-                            <div className="text-sm leading-6 text-slate-300/80 whitespace-pre-wrap">
-                              {section.instructions}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-slate-300/60">
-                              Aucune instruction
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="rounded-[28px] bg-white/[0.04] ring-1 ring-white/10 p-6">
-                <div className="text-slate-100 font-semibold mb-2">
-                  Sections
-                </div>
-                <div className="text-sm text-slate-300/70">
+              <div className="p-5">
+                <div className="text-slate-100 font-semibold mb-2">Sections</div>
+                <div className="text-[13px] text-slate-300/70">
                   Aucune section (étape) n’a encore été ajoutée à cette recette.
                 </div>
               </div>
@@ -462,11 +522,11 @@ export default function RecipeDisplayMobile({
           {/* Sticky actions (mobile only) */}
           {!desktopMode && (
             <div className="fixed inset-x-0 bottom-0 z-[80] px-4 pb-4">
-              <div className="rounded-[26px] bg-[#0B1020]/95 backdrop-blur ring-1 ring-white/10 shadow-[0_-18px_60px_rgba(0,0,0,0.45)] p-3 flex items-center gap-2">
+              <div className="rounded-[22px] bg-[#0B1020]/70 backdrop-blur-2xl ring-1 ring-white/10 shadow-[0_-18px_60px_rgba(0,0,0,0.45)] px-3 py-2.5 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onBack}
-                  className={cn(ui.btnGhost, "flex-1 h-11 justify-center")}
+                  className={cn(ui.btnGhost, "flex-1 h-10 justify-center")}
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Retour
@@ -476,7 +536,7 @@ export default function RecipeDisplayMobile({
                   <button
                     type="button"
                     onClick={() => onEdit(recipe.id)}
-                    className={cn(ui.btnPrimary, "flex-1 h-11 justify-center")}
+                    className={cn(ui.btnPrimary, "flex-1 h-10 justify-center")}
                   >
                     <Pencil className="w-4 h-4" />
                     Modifier
@@ -485,11 +545,9 @@ export default function RecipeDisplayMobile({
                   <button
                     type="button"
                     onClick={() => setServings(baseServings)}
-                    className={cn(
-                      ui.btnGhost,
-                      "flex-1 h-11 justify-center"
-                    )}
+                    className={cn(ui.btnGhost, "flex-1 h-10 justify-center")}
                   >
+                    <RotateCcw className="w-4 h-4" />
                     Reset
                   </button>
                 )}
