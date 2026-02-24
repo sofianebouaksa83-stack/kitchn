@@ -32,10 +32,14 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<null | "google" | "apple">(null);
+
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const canReset = useMemo(() => email.trim().length > 3, [email]);
+
+  const disabledAll = loading || !!oauthLoading;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,7 +81,6 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
         redirectTo: window.location.origin + "/?reset=1",
       });
 
-
       if (error) throw error;
 
       setInfo("Email envoyé. Vérifie ta boîte mail (et les spams).");
@@ -85,6 +88,30 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
       setError(mapAuthError(err?.message));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleOAuth(provider: "google" | "apple") {
+    setError(null);
+    setInfo(null);
+    setOauthLoading(provider);
+
+    // ✅ Même logique que ton app (tu peux remplacer si tu as une route dédiée)
+    const redirectTo = window.location.origin;
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (error) throw error;
+      // si pas d'erreur, Supabase redirige → on ne fait rien ici
+    } catch (err: any) {
+      setError(mapAuthError(err?.message));
+      setOauthLoading(null);
     }
   }
 
@@ -114,7 +141,65 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="px-8 py-7 space-y-4">
+            <div className="px-8 pt-6">
+              {/* OAuth */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("google")}
+                  disabled={disabledAll}
+                  className="
+                    h-12 w-full rounded-2xl font-semibold
+                    bg-white text-slate-950
+                    border border-white/10
+                    hover:bg-white/95
+                    transition
+                    disabled:cursor-not-allowed disabled:opacity-60
+                  "
+                >
+                  {oauthLoading === "google" ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Loader className="h-5 w-5 animate-spin" />
+                      Connexion Google...
+                    </span>
+                  ) : (
+                    "Continuer avec Google"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("apple")}
+                  disabled={disabledAll}
+                  className="
+                    h-12 w-full rounded-2xl font-semibold
+                    bg-black/70 text-white
+                    border border-white/10
+                    hover:bg-black/60
+                    transition
+                    disabled:cursor-not-allowed disabled:opacity-60
+                  "
+                >
+                  {oauthLoading === "apple" ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Loader className="h-5 w-5 animate-spin" />
+                      Connexion Apple...
+                    </span>
+                  ) : (
+                    "Continuer avec Apple"
+                  )}
+                </button>
+              </div>
+
+              {/* Separator */}
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-white/10" />
+                <div className="text-xs font-semibold text-white/45">ou</div>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="px-8 pb-7 space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-100/90">
                   Email
@@ -127,7 +212,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="ex: chef@restaurant.com"
-                    disabled={loading}
+                    disabled={disabledAll}
                     className="
                       h-12 w-full rounded-2xl pl-11 pr-4
                       bg-white/5 border border-white/10
@@ -153,7 +238,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    disabled={loading}
+                    disabled={disabledAll}
                     className="
                       h-12 w-full rounded-2xl pl-11 pr-11
                       bg-white/5 border border-white/10
@@ -167,7 +252,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    disabled={loading}
+                    disabled={disabledAll}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-white/10 transition disabled:opacity-50"
                     aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                   >
@@ -187,7 +272,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRemember(e.target.checked)}
-                    disabled={loading}
+                    disabled={disabledAll}
                     className="
                       h-5 w-5 rounded-md
                       border border-white/15 bg-white/5
@@ -201,7 +286,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                 <button
                   type="button"
                   onClick={handleResetPassword}
-                  disabled={loading}
+                  disabled={disabledAll}
                   className="text-sm font-semibold text-yellow-300/90 hover:text-yellow-200 transition disabled:opacity-50"
                 >
                   Mot de passe oublié ?
@@ -222,7 +307,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={disabledAll}
                 className="
                   h-12 w-full rounded-2xl font-semibold
                   text-slate-950
@@ -247,7 +332,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                 <button
                   type="button"
                   onClick={() => onToggleMode?.()}
-                  disabled={loading}
+                  disabled={disabledAll}
                   className="text-sm font-semibold text-yellow-300/90 hover:text-yellow-200 transition disabled:opacity-50"
                 >
                   Créer un compte
