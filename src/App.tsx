@@ -7,6 +7,10 @@ import { RegisterForm } from "./components/Auth/RegisterForm";
 import { InvitationSignup } from "./components/Auth/InvitationSignup";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 
+// ✅ AJOUT : pages publiques (landing)
+import PrivacyPage from "./pages/Privacy";
+import TermsPage from "./pages/Terms";
+
 import { Navbar } from "./components/Layout/";
 
 import { RecipeList, RecipeEditorWithSections } from "./components/Recipe";
@@ -84,6 +88,10 @@ function MainApp() {
       if (hash === "/login") setAuthMode("login");
       if (hash === "/register") setAuthMode("register");
 
+      // ✅ Landing pages publiques (hash routing)
+      // Important: on laisse le rendu "non connecté" décider (privacy/terms)
+      if (hash === "/privacy" || hash === "/terms") return;
+
       // ✅ App routes (views)
       if (hash === "/subscription") setCurrentView("subscription");
       else if (hash === "/subscription/success") setCurrentView("subscription-success");
@@ -128,7 +136,7 @@ function MainApp() {
     );
   }
 
-  // ✅ Non connecté → Landing / Login / Register
+  // ✅ Non connecté → Landing / Login / Register / Privacy / Terms
   if (!user) {
     const hash = routeHash;
 
@@ -162,6 +170,15 @@ function MainApp() {
           }}
         />
       );
+    }
+
+    // ✅ pages publiques accessibles depuis la landing (footer)
+    if (hash === "/privacy") {
+      return <PrivacyPage />;
+    }
+
+    if (hash === "/terms") {
+      return <TermsPage />;
     }
 
     return (

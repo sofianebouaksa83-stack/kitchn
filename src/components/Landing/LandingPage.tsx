@@ -6,7 +6,6 @@ import { ui } from "../../styles/ui";
 import { ScrollShowcaseMobile } from "./ScrollShowcaseMobile";
 import { ScrollShowcaseDesktop } from "./ScrollShowcaseDesktop";
 
-
 function cn(...classes: Array<string | undefined | false>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -17,19 +16,25 @@ type LandingPageProps = {
   onLogin: () => void;
 };
 
-export function LandingPage({ brand = <img
-                src="/Logo_kitchn_horizontal.svg"
-                alt="KITCH'N"
-                className="h-11 sm:h-12 w-auto select-none"
-                draggable={false}
-              />, onStart, onLogin }: LandingPageProps) {
+export function LandingPage({
+  brand = (
+    <img
+      src="/Logo_kitchn_horizontal.svg"
+      alt="KITCH'N"
+      className="h-11 sm:h-12 w-auto select-none"
+      draggable={false}
+    />
+  ),
+  onStart,
+  onLogin,
+}: LandingPageProps) {
   const fadeUp = {
     hidden: { opacity: 0, y: 18, filter: "blur(6px)" },
     show: { opacity: 1, y: 0, filter: "blur(0px)" },
   };
 
   return (
-    <div className={cn(ui.pageBg, "relative  text-slate-100")}>
+    <div className={cn(ui.pageBg, "relative text-slate-100")}>
       {/* glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-44 left-1/2 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-amber-500/10 blur-3xl" />
@@ -54,7 +59,7 @@ export function LandingPage({ brand = <img
         </div>
 
         {/* HERO TEXT ONLY */}
-          <div className="mt-24 max-w-3xl mx-auto text-center">
+        <div className="mt-24 max-w-3xl mx-auto text-center">
           <motion.div
             variants={fadeUp}
             initial="hidden"
@@ -62,7 +67,7 @@ export function LandingPage({ brand = <img
             transition={{ duration: 0.6, ease: "easeOut" }}
             className={cn(ui.badge, "inline-flex mx-auto")}
           >
-            Conçu par un cuisinier, pour les cuisinier professionnelles
+            Conçu par un cuisinier, pour les cuisiniers professionnels
           </motion.div>
 
           <motion.h1
@@ -94,8 +99,8 @@ export function LandingPage({ brand = <img
             initial="hidden"
             animate="show"
             transition={{ duration: 0.7, delay: 0.18 }}
-            className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-
+            className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
+          >
             <button
               onClick={onStart}
               className={cn(ui.btnPrimary, "px-7 py-3 rounded-2xl")}
@@ -132,6 +137,36 @@ export function LandingPage({ brand = <img
           <ScrollShowcaseDesktop />
         </div>
       </div>
+
+    {/* FOOTER (Landing) */}
+    <footer className="relative mt-10 border-t border-white/10">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-white/55">
+            © {new Date().getFullYear()} KITCH&apos;N
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
+            <a
+              href="#/privacy"
+              className="text-white/55 hover:text-white/85 transition"
+            >
+              Politique de confidentialité
+            </a>
+            <a
+              href="#/terms"
+              className="text-white/55 hover:text-white/85 transition"
+            >
+              Conditions d’utilisation
+            </a>
+          </div>
+        </div>
+
+        <div className="mt-4 text-center text-xs text-white/35">
+          Pour ceux qui cuisinent avec passion.
+        </div>
+      </div>
+    </footer>
     </div>
   );
 }
