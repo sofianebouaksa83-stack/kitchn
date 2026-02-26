@@ -1,8 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
-import { ArrowLeft, Clock, Tag, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Tag,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { PageShell } from "../../Layout/PageShell";
 import { ui } from "../../../styles/ui";
+
+// ✅ Dropdown custom (shadcn/radix)
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../styles/ui/select";
 
 type Props = {
   recipeId: string;
@@ -51,6 +66,40 @@ function fmtQty(q: number | null) {
   return s.endsWith(".0") ? s.slice(0, -2) : s;
 }
 
+function normUnit(u: string | null) {
+  return (u ?? "").trim();
+}
+
+function isQS(unit: string | null) {
+  const u = normUnit(unit).toLowerCase();
+  return (
+    u === "qs" ||
+    u === "q.s" ||
+    u === "q.s." ||
+    u === "quantité suffisante"
+  );
+}
+
+function formatQtyDisplay(qtyScaled: number | null, unit: string | null) {
+  const u = normUnit(unit);
+
+  if (isQS(unit)) return "QS";
+  if (qtyScaled === null) return u ? u : "—";
+  if (qtyScaled === 0) return "";
+  return `${fmtQty(qtyScaled)}${u ? ` ${u}` : ""}`.trim();
+}
+
+function ingredientLabel(i: IngredientRow) {
+  const label = ((i.designation ?? "—").trim() || "—").toString();
+  const u = normUnit(i.unit);
+  const q = i.quantity ?? null;
+  return q !== null && Number.isFinite(q)
+    ? `${label} (${fmtQty(q)}${u ? ` ${u}` : ""})`
+    : label;
+}
+
+const CROSS_MANUAL_VALUE = "__manual__";
+
 export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props) {
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
@@ -59,8 +108,22 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Multiplication inline (comme avant)
+  // ✅ Multiplication inline
   const [servings, setServings] = useState<number>(4);
+
+  // Produit en croix
+  const [crossRefIngredientId, setCrossRefIngredientId] = useState<string>("");
+  const [crossBase, setCrossBase] = useState<number>(500);
+  const [crossHave, setCrossHave] = useState<string>("");
+
+  // ✅ Mes notes (privées par utilisateur)
+  const [myNote, setMyNote] = useState<string>("");
+  const [noteLoading, setNoteLoading] = useState<boolean>(true);
+  const [noteSaving, setNoteSaving] = useState<boolean>(false);
+  const [noteSavedAt, setNoteSavedAt] = useState<string | null>(null);
+
+  // ✅ sections accordion (fermées par défaut)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     void load();
@@ -107,7 +170,12 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
       setSections(sortedSections);
 
-      // ✅ reset servings sur la base
+      // ✅ sections fermées par défaut
+      const closed: Record<string, boolean> = {};
+      for (const s of sortedSections) closed[s.id] = false;
+      setOpenSections(closed);
+
+      // reset servings
       const base = Math.max(1, Number(r.servings ?? 1));
       setServings(base);
 
@@ -120,9 +188,8 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
       if (iErr) throw iErr;
       setIngredients((ing ?? []) as IngredientRow[]);
 
-      // ✅ liens section -> ingrédients
+      // liens section -> ingrédients
       const sectionIds = sortedSections.map((s) => s.id);
-
       if (sectionIds.length > 0) {
         const { data: lnk, error: lErr } = await supabase
           .from("section_ingredients")
@@ -135,12 +202,38 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
       } else {
         setLinks([]);
       }
+
+      // charger ma note
+      setNoteLoading(true);
+      const { data: authData, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+
+      const uid = authData.user?.id;
+      if (uid) {
+        const { data: noteRow, error: nErr } = await supabase
+          .from("recipe_user_notes")
+          .select("content, updated_at")
+          .eq("recipe_id", recipeId)
+          .eq("user_id", uid)
+          .maybeSingle();
+
+        if (!nErr) {
+          setMyNote(noteRow?.content ?? "");
+          setNoteSavedAt(noteRow?.updated_at ?? null);
+        }
+      }
+      setNoteLoading(false);
     } catch (e: any) {
       setError(e?.message ?? "Erreur");
       setRecipe(null);
       setIngredients([]);
       setSections([]);
       setLinks([]);
+      setOpenSections({});
+
+      setMyNote("");
+      setNoteSavedAt(null);
+      setNoteLoading(false);
     } finally {
       setLoading(false);
     }
@@ -151,6 +244,34 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
     [recipe?.servings]
   );
   const ratio = useMemo(() => servings / baseServings, [servings, baseServings]);
+
+  const refIngredient = useMemo(() => {
+    if (!crossRefIngredientId) return null;
+    return ingredients.find((i) => i.id === crossRefIngredientId) ?? null;
+  }, [crossRefIngredientId, ingredients]);
+
+  const refBaseQty = refIngredient?.quantity ?? null;
+  const refUnit = refIngredient?.unit ?? null;
+
+  const crossRatio = useMemo(() => {
+    const haveStr = crossHave.trim();
+    if (!haveStr) return null;
+
+    const have = Number(haveStr);
+    if (!Number.isFinite(have) || have <= 0) return null;
+
+    if (refIngredient) {
+      if (isQS(refUnit)) return null;
+      if (refBaseQty === null || !Number.isFinite(refBaseQty) || refBaseQty <= 0)
+        return null;
+      return have / refBaseQty;
+    }
+
+    if (!Number.isFinite(crossBase) || crossBase <= 0) return null;
+    return have / crossBase;
+  }, [crossHave, crossBase, refIngredient, refBaseQty, refUnit]);
+
+  const coefficient = crossRatio ?? ratio;
 
   const subtitle = useMemo(() => {
     if (!recipe) return null;
@@ -182,30 +303,89 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
     return map;
   }, [links, ingredientsById]);
 
-  return (
-    <PageShell
-      title={recipe?.title ?? "Recette"}
-      subtitle={subtitle}
-      icon={<Tag className="w-5 h-5 text-amber-200" />}
-      actions={
-        <div className="flex items-center gap-2">
-          <button onClick={onBack} className={ui.btnGhost} type="button">
-            <ArrowLeft className="w-4 h-4" />
-            Retour
-          </button>
+  const crossSelectableIngredients = useMemo(() => {
+    return ingredients
+      .filter((i) => i.quantity !== null && i.quantity > 0 && !isQS(i.unit))
+      .map((i) => ({
+        id: i.id,
+        label: ingredientLabel(i),
+      }));
+  }, [ingredients]);
 
-          {onEdit && recipe ? (
+  // auto-save notes (debounce)
+  useEffect(() => {
+    if (loading) return;
+    if (noteLoading) return;
+
+    const t = setTimeout(async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const uid = authData?.user?.id;
+      if (!uid) return;
+
+      setNoteSaving(true);
+
+      const { data, error: upErr } = await supabase
+        .from("recipe_user_notes")
+        .upsert(
+          { recipe_id: recipeId, user_id: uid, content: myNote },
+          { onConflict: "recipe_id,user_id" }
+        )
+        .select("updated_at")
+        .maybeSingle();
+
+      setNoteSaving(false);
+
+      if (!upErr) {
+        setNoteSavedAt(data?.updated_at ?? new Date().toISOString());
+      }
+    }, 500);
+
+    return () => clearTimeout(t);
+  }, [myNote, recipeId, loading, noteLoading]);
+
+  function toggleSection(id: string) {
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  return (
+    <PageShell withPanel={false} title={undefined} subtitle={undefined} icon={undefined} actions={undefined}>
+      {/* ✅ Header custom desktop (sans carte globale) */}
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <span className="h-11 w-11 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center shrink-0">
+                <Tag className="w-5 h-5 text-amber-200" />
+              </span>
+              <h1 className="text-xl font-semibold text-slate-100 truncate">
+                {recipe?.title ?? "Recette"}
+              </h1>
+            </div>
+
+            {subtitle ? (
+              <p className="text-sm text-slate-300/70 mt-2 max-w-3xl">{subtitle}</p>
+            ) : null}
+
             <button
-              onClick={() => onEdit(recipe.id)}
-              className={ui.btnPrimary}
+              onClick={onBack}
+              className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
               type="button"
             >
-              Modifier
+              <ArrowLeft className="w-4 h-4" />
+              Retour
             </button>
+          </div>
+
+          {onEdit && recipe ? (
+            <div className="shrink-0">
+              <button onClick={() => onEdit(recipe.id)} className={ui.btnPrimary} type="button">
+                Modifier
+              </button>
+            </div>
           ) : null}
         </div>
-      }
-    >
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center h-48">
           <div className="text-slate-300/80">Chargement…</div>
@@ -216,16 +396,20 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
           <div className="text-red-200">{error}</div>
         </div>
       ) : recipe ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Infos */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5 space-y-4">
-              {/* ✅ MULTIPLIER INLINE */}
-              <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 flex items-center justify-between">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* ✅ Col gauche : scaler “plat” */}
+          <div className="lg:col-span-1 space-y-5">
+            <div>
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-xs text-slate-300/60">Multiplier</div>
                   <div className="text-sm text-slate-100 font-semibold">
-                    ×{Math.round(ratio * 100) / 100}
+                    ×{Math.round(coefficient * 100) / 100}
+                  </div>
+                  <div className="mt-0.5 text-[12px] text-slate-300/55">
+                    {crossRatio
+                      ? `Produit en croix (x${Math.round(crossRatio * 100) / 100})`
+                      : `${servings} couvert(s) (base ${baseServings})`}
                   </div>
                 </div>
 
@@ -235,6 +419,7 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
                     className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition inline-flex items-center justify-center"
                     type="button"
                     aria-label="Diminuer"
+                    disabled={servings <= 1 || !!crossRatio}
                   >
                     –
                   </button>
@@ -243,127 +428,275 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
                     className="h-10 w-10 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 hover:bg-amber-500/20 transition inline-flex items-center justify-center text-amber-100"
                     type="button"
                     aria-label="Augmenter"
+                    disabled={!!crossRatio}
                   >
                     +
                   </button>
                 </div>
               </div>
 
+              <div className="mt-4 h-px bg-white/10" />
+            </div>
+
+            <div>
+              <div className="text-xs text-slate-300/60 mb-2">Ingrédient de référence</div>
+
+              <Select
+                value={crossRefIngredientId || CROSS_MANUAL_VALUE}
+                onValueChange={(v) => setCrossRefIngredientId(v === CROSS_MANUAL_VALUE ? "" : v)}
+              >
+                <SelectTrigger className="w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-sm text-slate-100 outline-none backdrop-blur-md hover:bg-white/[0.06] transition">
+                  <SelectValue placeholder="Manuel (pas d’ingrédient)" />
+                </SelectTrigger>
+
+                <SelectContent className="z-[9999] rounded-2xl border border-white/10 bg-slate-950/70 text-slate-100 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
+                  <SelectItem
+                    value={CROSS_MANUAL_VALUE}
+                    className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
+                  >
+                    Manuel (pas d’ingrédient)
+                  </SelectItem>
+
+                  {crossSelectableIngredients.map((opt) => (
+                    <SelectItem
+                      key={opt.id}
+                      value={opt.id}
+                      className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
+                    >
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {refIngredient ? (
+                <div className="mt-2 text-xs text-slate-300/60">
+                  Base auto : {fmtQty(refBaseQty)}
+                  {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {!refIngredient ? (
+                <div>
+                  <div className="text-xs text-slate-300/60">Base</div>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={crossBase}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setCrossBase(Number.isFinite(v) && v > 0 ? v : 1);
+                    }}
+                    className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 outline-none"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <div className="text-xs text-slate-300/60">Base (auto)</div>
+                  <div className="mt-1 h-11 flex items-center rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100">
+                    {fmtQty(refBaseQty)}
+                    {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs text-slate-300/60">
+                  J’ai{refIngredient && normUnit(refUnit) ? ` (${normUnit(refUnit)})` : ""}
+                </div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder={refIngredient ? "ex: 763" : "ex: 350"}
+                  value={crossHave}
+                  onChange={(e) => setCrossHave(e.target.value)}
+                  className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 outline-none placeholder:text-slate-300/40"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {crossRatio ? (
+                <button
+                  onClick={() => setCrossHave("")}
+                  className="w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/[0.06] transition"
+                  type="button"
+                >
+                  Désactiver le produit en croix
+                </button>
+              ) : null}
+
               <button
-                onClick={() => setServings(baseServings)}
+                onClick={() => {
+                  setServings(baseServings);
+                  setCrossHave("");
+                  setCrossBase(500);
+                  setCrossRefIngredientId("");
+                }}
                 className="w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/[0.06] transition"
                 type="button"
               >
                 Reset
               </button>
-
-              {recipe.allergens ? (
-                <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4">
-                  <div className="text-slate-100 font-semibold mb-2">
-                    Allergènes
-                  </div>
-                  <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
-                    {recipe.allergens}
-                  </div>
-                </div>
-              ) : null}
             </div>
+
+            {recipe.allergens ? (
+              <div className="pt-2">
+                <div className="text-sm text-slate-100 font-semibold mb-2">Allergènes</div>
+                <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
+                  {recipe.allergens}
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          {/* Contenu */}
+          {/* ✅ Col droite : accordion sections + notes */}
           <div className="lg:col-span-2 space-y-5">
-            <div className="space-y-4">
-              {sections.length > 0 ? (
-                sections.map((section) => {
+            {sections.length > 0 ? (
+              <div className="space-y-3">
+                {sections.map((section) => {
+                  const isOpen = !!openSections[section.id];
                   const ings = sectionIngredients.get(section.id) ?? [];
 
                   return (
                     <div
                       key={section.id}
-                      className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.25)]"
+                      className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.20)] overflow-hidden"
                     >
-                      <div className="text-slate-100 font-semibold">
-                        {section.title?.trim() ? section.title : "Sans titre"}
-                      </div>
-
-                      <div className="mt-4 h-px bg-white/10" />
-
-                      <div className="mt-4">
-                        <div className="text-sm text-slate-200 font-medium mb-2">
-                          Ingrédients
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(section.id)}
+                        className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-slate-100 font-semibold truncate">
+                            {section.title?.trim() ? section.title : "Sans titre"}
+                          </div>
+                          <div className="mt-0.5 text-[12px] text-slate-300/55">
+                            {ings.length} ingrédient(s)
+                            {section.instructions?.trim() ? " · Étapes" : ""}
+                          </div>
                         </div>
 
-                        {ings.length === 0 ? (
-                          <div className="text-sm text-slate-300/70">
-                            Aucun ingrédient
-                          </div>
-                        ) : (
-                          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
-                            {ings.map((ing) => {
-                              const scaled =
-                                ing.quantity === null
-                                  ? null
-                                  : ing.quantity * ratio;
-
-                              return (
-                                <li
-                                  key={ing.id}
-                                  className="flex items-baseline justify-between gap-3"
-                                >
-                                  <div className="text-slate-100">
-                                    {ing.designation ?? "—"}
-                                  </div>
-                                  <div className="text-slate-300/80 whitespace-nowrap">
-                                    {fmtQty(scaled)} {ing.unit ?? ""}
-                                  </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </div>
-
-                      <div className="mt-5">
-                        <div className="text-sm text-slate-200 font-medium mb-2">
-                          Étapes
+                        <div className="shrink-0 text-slate-300/70">
+                          {isOpen ? (
+                            <ChevronUp className="w-5 h-5" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5" />
+                          )}
                         </div>
-                        {section.instructions?.trim() ? (
-                          <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
-                            {section.instructions}
+                      </button>
+
+                      {isOpen ? (
+                        <div className="px-5 pb-5">
+                          <div className="h-px bg-white/10 mb-4" />
+
+                          <div>
+                            <div className="text-sm text-slate-200 font-medium mb-2">
+                              Ingrédients
+                            </div>
+
+                            {ings.length === 0 ? (
+                              <div className="text-sm text-slate-300/70">Aucun ingrédient</div>
+                            ) : (
+                              <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-1">
+                                {ings.map((ing) => {
+                                  const scaled =
+                                    isQS(ing.unit) || ing.quantity === null
+                                      ? ing.quantity
+                                      : ing.quantity * coefficient;
+
+                                  const right = formatQtyDisplay(scaled, ing.unit);
+                                  if (!right) return null;
+
+                                  return (
+                                    <li
+                                      key={ing.id}
+                                      className="flex items-baseline justify-between gap-3"
+                                    >
+                                      <div className="text-slate-100">{ing.designation ?? "—"}</div>
+                                      <div className="text-slate-300/80 whitespace-nowrap">
+                                        {right}
+                                      </div>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
                           </div>
-                        ) : (
-                          <div className="text-sm text-slate-300/60">
-                            Aucune instruction
+
+                          <div className="mt-4">
+                            <div className="text-sm text-slate-200 font-medium mb-2">
+                              Étapes
+                            </div>
+                            {section.instructions?.trim() ? (
+                              <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
+                                {section.instructions}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-slate-300/60">Aucune instruction</div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                   );
-                })
-              ) : (
-                <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-                  <div className="text-slate-100 font-semibold mb-2">
-                    Sections
-                  </div>
-                  <div className="text-sm text-slate-300/70">
-                    Aucune section (étape) n’a encore été ajoutée à cette recette.
-                  </div>
+                })}
+              </div>
+            ) : (
+              <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
+                <div className="text-slate-100 font-semibold mb-2">Sections</div>
+                <div className="text-sm text-slate-300/70">
+                  Aucune section (étape) n’a encore été ajoutée à cette recette.
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {recipe.notes ? (
               <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
                 <div className="text-slate-100 font-semibold mb-2">Notes</div>
-                <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
-                  {recipe.notes}
-                </div>
+                <div className="text-sm text-slate-300/80 whitespace-pre-wrap">{recipe.notes}</div>
               </div>
             ) : null}
+
+            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-slate-100 font-semibold">Mes notes</div>
+                <div className="text-xs text-slate-300/60">
+                  {noteLoading
+                    ? "Chargement…"
+                    : noteSaving
+                      ? "Enregistrement…"
+                      : noteSavedAt
+                        ? "Enregistré"
+                        : "—"}
+                </div>
+              </div>
+
+              <textarea
+                value={myNote}
+                onChange={(e) => setMyNote(e.target.value)}
+                placeholder="Écris tes notes ici…"
+                className="
+                  mt-3
+                  w-full min-h-[160px]
+                  rounded-2xl
+                  bg-white/[0.03]
+                  ring-1 ring-white/10
+                  px-4 py-3
+                  text-sm text-slate-100
+                  outline-none
+                  placeholder:text-slate-300/40
+                  backdrop-blur-md
+                  resize-y
+                "
+              />
+            </div>
           </div>
         </div>
       ) : null}
     </PageShell>
   );
 }
-

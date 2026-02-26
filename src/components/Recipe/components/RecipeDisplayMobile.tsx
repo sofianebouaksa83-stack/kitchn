@@ -1,28 +1,22 @@
-// =====================================
-// 2) RecipeDisplayMobile.tsx (affiné)
-// =====================================
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
-import {
-  ArrowLeft,
-  AlertCircle,
-  Clock,
-  Tag,
-  ChevronDown,
-  ChevronUp,
-  Minus,
-  Plus,
-  Pencil,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowLeft, Tag, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { PageShell } from "../../Layout/PageShell";
 import { ui } from "../../../styles/ui";
+
+// ✅ Dropdown custom (shadcn/radix)
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../styles/ui/select";
 
 type Props = {
   recipeId: string;
   onBack: () => void;
   onEdit?: (recipeId: string) => void;
-  /** utilisé quand affiché dans PageShell desktop */
-  desktopMode?: boolean;
 };
 
 type IngredientRow = {
@@ -59,15 +53,6 @@ type RecipeRow = {
   recipe_sections?: RecipeSectionRow[] | null;
 };
 
-function cn(...classes: Array<string | undefined | false>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function safeTitle(t?: string | null) {
-  const s = (t || "").trim();
-  return s ? s : "Sans titre";
-}
-
 function fmtQty(q: number | null) {
   if (q === null || Number.isNaN(q)) return "—";
   const v = Math.round(q * 100) / 100;
@@ -84,37 +69,26 @@ function isQS(unit: string | null) {
   return u === "qs" || u === "q.s" || u === "q.s." || u === "quantité suffisante";
 }
 
-/**
- * Règles d’affichage quantité :
- * - Si unit = QS => afficher "QS" (jamais "0 QS") et ne pas scaler
- * - Si qty = null :
- *    - si unit existe => afficher unit (ex: "PM", "QS") sinon "—"
- * - Si qty = 0 et pas QS => cacher (retourne "")
- * - Sinon => afficher qty (scaled) + unit
- */
 function formatQtyDisplay(qtyScaled: number | null, unit: string | null) {
   const u = normUnit(unit);
-
   if (isQS(unit)) return "QS";
-
-  if (qtyScaled === null) {
-    return u ? u : "—";
-  }
-
-  if (qtyScaled === 0) {
-    // évite les "0 g" / "0 ml" parasites
-    return "";
-  }
-
+  if (qtyScaled === null) return u ? u : "—";
+  if (qtyScaled === 0) return "";
   return `${fmtQty(qtyScaled)}${u ? ` ${u}` : ""}`.trim();
 }
 
-export default function RecipeDisplayMobile({
-  recipeId,
-  onBack,
-  onEdit,
-  desktopMode,
-}: Props) {
+function ingredientLabel(i: IngredientRow) {
+  const label = ((i.designation ?? "—").trim() || "—").toString();
+  const u = normUnit(i.unit);
+  const q = i.quantity ?? null;
+  return q !== null && Number.isFinite(q)
+    ? `${label} (${fmtQty(q)}${u ? ` ${u}` : ""})`
+    : label;
+}
+
+const CROSS_MANUAL_VALUE = "__manual__";
+
+export default function RecipeDisplayMobile({ recipeId, onBack, onEdit }: Props) {
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [sections, setSections] = useState<RecipeSectionRow[]>([]);
@@ -122,13 +96,22 @@ export default function RecipeDisplayMobile({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Multiplier (servings)
+  // ✅ Multiplication inline
   const [servings, setServings] = useState<number>(4);
 
-  // Accordéons
-  const [openSectionIds, setOpenSectionIds] = useState<Set<string>>(new Set());
-  const [showAllergens, setShowAllergens] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
+  // Produit en croix
+  const [crossRefIngredientId, setCrossRefIngredientId] = useState<string>("");
+  const [crossBase, setCrossBase] = useState<number>(500);
+  const [crossHave, setCrossHave] = useState<string>("");
+
+  // ✅ Mes notes (privées)
+  const [myNote, setMyNote] = useState<string>("");
+  const [noteLoading, setNoteLoading] = useState<boolean>(true);
+  const [noteSaving, setNoteSaving] = useState<boolean>(false);
+  const [noteSavedAt, setNoteSavedAt] = useState<string | null>(null);
+
+  // ✅ sections accordion (fermées par défaut)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     void load();
@@ -175,14 +158,14 @@ export default function RecipeDisplayMobile({
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
       setSections(sortedSections);
 
-      // Reset servings sur la base
+      // ✅ sections fermées par défaut
+      const closed: Record<string, boolean> = {};
+      for (const s of sortedSections) closed[s.id] = false;
+      setOpenSections(closed);
+
+      // ✅ reset servings sur la base
       const base = Math.max(1, Number(r.servings ?? 1));
       setServings(base);
-
-      // Accordéon: ouvrir automatiquement la 1ère section si existe
-      setOpenSectionIds(
-        sortedSections.length > 0 ? new Set([sortedSections[0].id]) : new Set()
-      );
 
       const { data: ing, error: iErr } = await supabase
         .from("ingredients")
@@ -193,7 +176,9 @@ export default function RecipeDisplayMobile({
       if (iErr) throw iErr;
       setIngredients((ing ?? []) as IngredientRow[]);
 
+      // ✅ liens section -> ingrédients
       const sectionIds = sortedSections.map((s) => s.id);
+
       if (sectionIds.length > 0) {
         const { data: lnk, error: lErr } = await supabase
           .from("section_ingredients")
@@ -206,12 +191,38 @@ export default function RecipeDisplayMobile({
       } else {
         setLinks([]);
       }
+
+      // ✅ charger "ma note"
+      setNoteLoading(true);
+      const { data: authData, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+
+      const uid = authData.user?.id;
+      if (uid) {
+        const { data: noteRow, error: nErr } = await supabase
+          .from("recipe_user_notes")
+          .select("content, updated_at")
+          .eq("recipe_id", recipeId)
+          .eq("user_id", uid)
+          .maybeSingle();
+
+        if (!nErr) {
+          setMyNote(noteRow?.content ?? "");
+          setNoteSavedAt(noteRow?.updated_at ?? null);
+        }
+      }
+      setNoteLoading(false);
     } catch (e: any) {
       setError(e?.message ?? "Erreur");
       setRecipe(null);
       setIngredients([]);
       setSections([]);
       setLinks([]);
+
+      setMyNote("");
+      setNoteSavedAt(null);
+      setNoteLoading(false);
+      setOpenSections({});
     } finally {
       setLoading(false);
     }
@@ -223,9 +234,37 @@ export default function RecipeDisplayMobile({
   );
   const ratio = useMemo(() => servings / baseServings, [servings, baseServings]);
 
-  const meta = useMemo(() => {
-    if (!recipe) return "";
-    const cat = (recipe.category || "Autre").trim() || "Autre";
+  const refIngredient = useMemo(() => {
+    if (!crossRefIngredientId) return null;
+    return ingredients.find((i) => i.id === crossRefIngredientId) ?? null;
+  }, [crossRefIngredientId, ingredients]);
+
+  const refBaseQty = refIngredient?.quantity ?? null;
+  const refUnit = refIngredient?.unit ?? null;
+
+  const crossRatio = useMemo(() => {
+    const haveStr = crossHave.trim();
+    if (!haveStr) return null;
+
+    const have = Number(haveStr);
+    if (!Number.isFinite(have) || have <= 0) return null;
+
+    if (refIngredient) {
+      if (isQS(refUnit)) return null;
+      if (refBaseQty === null || !Number.isFinite(refBaseQty) || refBaseQty <= 0)
+        return null;
+      return have / refBaseQty;
+    }
+
+    if (!Number.isFinite(crossBase) || crossBase <= 0) return null;
+    return have / crossBase;
+  }, [crossHave, crossBase, refIngredient, refBaseQty, refUnit]);
+
+  const coefficient = crossRatio ?? ratio;
+
+  const subtitle = useMemo(() => {
+    if (!recipe) return null;
+    const cat = recipe.category || "Sans catégorie";
     const prep = recipe.prep_time ?? 0;
     const cook = recipe.cook_time ?? 0;
     return `${cat} · Prépa ${prep}min · Cuisson ${cook}min`;
@@ -252,310 +291,422 @@ export default function RecipeDisplayMobile({
     return map;
   }, [links, ingredientsById]);
 
+  const crossSelectableIngredients = useMemo(() => {
+    return ingredients
+      .filter((i) => i.quantity !== null && i.quantity > 0 && !isQS(i.unit))
+      .map((i) => ({
+        id: i.id,
+        label: ingredientLabel(i),
+      }));
+  }, [ingredients]);
+
+  // ✅ auto-save notes (debounce)
+  useEffect(() => {
+    if (loading) return;
+    if (noteLoading) return;
+
+    const t = setTimeout(async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const uid = authData?.user?.id;
+      if (!uid) return;
+
+      setNoteSaving(true);
+
+      const { data, error: upErr } = await supabase
+        .from("recipe_user_notes")
+        .upsert(
+          { recipe_id: recipeId, user_id: uid, content: myNote },
+          { onConflict: "recipe_id,user_id" }
+        )
+        .select("updated_at")
+        .maybeSingle();
+
+      setNoteSaving(false);
+
+      if (!upErr) {
+        setNoteSavedAt(data?.updated_at ?? new Date().toISOString());
+      }
+    }, 500);
+
+    return () => clearTimeout(t);
+  }, [myNote, recipeId, loading, noteLoading]);
+
   function toggleSection(id: string) {
-    setOpenSectionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
-  const stickyPad = desktopMode ? "" : "pb-24"; // place pour la barre sticky
-
-  return (
-    <div className={cn("relative", desktopMode ? "" : "px-4", stickyPad)}>
-      {/* ✅ Header compact (mobile) */}
-      {!desktopMode && (
-        <div className="pt-3">
+return (
+  <PageShell
+    withPanel={false}
+    title={undefined}
+    subtitle={undefined}
+    icon={undefined}
+    actions={
+      onEdit && recipe ? (
+        <div className="flex items-center gap-2">
           <button
+            onClick={() => onEdit(recipe.id)}
+            className={ui.btnPrimary}
             type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-slate-100/90 backdrop-blur hover:bg-white/[0.06] transition active:scale-[0.99]"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium">Retour</span>
+            Modifier
           </button>
         </div>
-      )}
+      ) : null
+    }
+  >
+    {/* ✅ Header mobile custom */}
+    <div className="mb-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold text-slate-100 truncate">
+            {recipe?.title ?? "Recette"}
+          </h1>
 
-      {/* CONTENT */}
-      {loading ? (
-        <div className="flex items-center justify-center h-48">
-          <div className="text-slate-300/80">Chargement…</div>
+          {subtitle ? (
+            <p className="text-sm text-slate-300/70 mt-1">{subtitle}</p>
+          ) : null}
         </div>
-      ) : error ? (
-        <div className="mt-6 rounded-3xl bg-red-500/10 ring-1 ring-red-500/20 p-6 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-red-300" />
-          <div className="text-red-200">{error}</div>
-        </div>
-      ) : recipe ? (
-        <>
-          {/* Title + meta (plus compact & premium) */}
-          <div className={cn(desktopMode ? "mt-2" : "mt-4")}>
-            <div className="text-[13px] text-slate-300/70 flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              <span className="truncate">{meta}</span>
+      </div>
+
+      <button
+        onClick={onBack}
+        className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
+        type="button"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Retour
+      </button>
+    </div>
+
+    {loading ? (
+      <div className="flex items-center justify-center h-48">
+        <div className="text-slate-300/80">Chargement…</div>
+      </div>
+    ) : error ? (
+      <div className="rounded-3xl bg-red-500/10 ring-1 ring-red-500/20 p-6 flex gap-3">
+        <AlertCircle className="w-5 h-5 text-red-300" />
+        <div className="text-red-200">{error}</div>
+      </div>
+    ) : recipe ? (
+      <div className="space-y-6">
+        {/* ✅ Scaler MOBILE sans “carte globale” */}
+        <div className="space-y-4">
+          {/* header multiplier */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs text-slate-300/60">Multiplier</div>
+              <div className="text-sm text-slate-100 font-semibold">
+                ×{Math.round(coefficient * 100) / 100}
+              </div>
+              <div className="mt-0.5 text-[12px] text-slate-300/55">
+                {crossRatio
+                  ? `Produit en croix (x${Math.round(crossRatio * 100) / 100})`
+                  : `${servings} couvert(s) (base ${baseServings})`}
+              </div>
             </div>
 
-            <div className="mt-2 text-[22px] font-semibold text-slate-100 tracking-tight leading-[1.15] line-clamp-2">
-              {safeTitle(recipe.title)}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setServings((s) => Math.max(1, s - 1))}
+                className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition inline-flex items-center justify-center"
+                type="button"
+                aria-label="Diminuer"
+                disabled={servings <= 1 || !!crossRatio}
+              >
+                –
+              </button>
+              <button
+                onClick={() => setServings((s) => s + 1)}
+                className="h-10 w-10 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 hover:bg-amber-500/20 transition inline-flex items-center justify-center text-amber-100"
+                type="button"
+                aria-label="Augmenter"
+                disabled={!!crossRatio}
+              >
+                +
+              </button>
             </div>
           </div>
 
-          {/* Multiplier (horizontal premium) */}
-          <div className="mt-5 rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[12px] text-slate-300/60">Multiplier</div>
-                <div className="mt-1 flex items-end gap-2">
-                  <div className="text-[18px] font-semibold text-slate-100">
-                    x{Math.round(ratio * 100) / 100}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setServings(baseServings)}
-                    className="text-[12px] text-slate-300/60 hover:text-slate-100 transition"
+          {/* separator */}
+          <div className="h-px bg-white/10" />
+
+          {/* select ref */}
+          <div>
+            <div className="text-xs text-slate-300/60 mb-2">
+              Ingrédient de référence
+            </div>
+
+            <Select
+              value={crossRefIngredientId || CROSS_MANUAL_VALUE}
+              onValueChange={(v) =>
+                setCrossRefIngredientId(v === CROSS_MANUAL_VALUE ? "" : v)
+              }
+            >
+              <SelectTrigger className="w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-sm text-slate-100 outline-none backdrop-blur-md hover:bg-white/[0.06] transition">
+                <SelectValue placeholder="Manuel (pas d’ingrédient)" />
+              </SelectTrigger>
+
+              <SelectContent className="z-[9999] rounded-2xl border border-white/10 bg-slate-950/70 text-slate-100 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
+                <SelectItem
+                  value={CROSS_MANUAL_VALUE}
+                  className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
+                >
+                  Manuel (pas d’ingrédient)
+                </SelectItem>
+
+                {crossSelectableIngredients.map((opt) => (
+                  <SelectItem
+                    key={opt.id}
+                    value={opt.id}
+                    className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
                   >
-                    Base ({baseServings})
-                  </button>
-                </div>
-              </div>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setServings((s) => Math.max(1, s - 1))}
-                  className="h-10 w-10 rounded-full bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center active:scale-[0.98]"
-                  aria-label="Diminuer"
-                  disabled={servings <= 1}
-                >
-                  <Minus className="w-4 h-4 text-slate-100" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setServings((s) => s + 1)}
-                  className="h-10 w-10 rounded-full bg-amber-500/15 ring-1 ring-amber-400/25 hover:bg-amber-500/20 transition inline-flex items-center justify-center active:scale-[0.98]"
-                  aria-label="Augmenter"
-                >
-                  <Plus className="w-4 h-4 text-amber-100" />
-                </button>
+            {refIngredient ? (
+              <div className="mt-2 text-xs text-slate-300/60">
+                Base auto : {fmtQty(refBaseQty)}
+                {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
               </div>
-            </div>
+            ) : null}
           </div>
 
-          {/* Allergènes + Notes (style secondaire) */}
-          {recipe.allergens ? (
-            <div className="mt-3 rounded-[22px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setShowAllergens((v) => !v)}
-                className="w-full px-4 py-3 flex items-center justify-between text-left"
-              >
-                <div className="text-slate-100/90 font-medium text-[14px]">
-                  Allergènes
-                </div>
-                {showAllergens ? (
-                  <ChevronUp className="w-5 h-5 text-slate-200/80" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-slate-200/80" />
-                )}
-              </button>
-              {showAllergens && (
-                <div className="px-4 pb-4 text-[13px] leading-6 text-slate-300/80 whitespace-pre-wrap">
-                  {recipe.allergens}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          {recipe.notes ? (
-            <div className="mt-2 rounded-[22px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setShowNotes((v) => !v)}
-                className="w-full px-4 py-3 flex items-center justify-between text-left"
-              >
-                <div className="text-slate-100/90 font-medium text-[14px]">
-                  Notes
-                </div>
-                {showNotes ? (
-                  <ChevronUp className="w-5 h-5 text-slate-200/80" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-slate-200/80" />
-                )}
-              </button>
-              {showNotes && (
-                <div className="px-4 pb-4 text-[13px] leading-6 text-slate-300/80 whitespace-pre-wrap">
-                  {recipe.notes}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          {/* Sections (liste fine, compact) */}
-          <div className="mt-6 overflow-hidden rounded-[22px] bg-white/[0.04] ring-1 ring-white/10">
-            {sections.length > 0 ? (
-              <div className="divide-y divide-white/10">
-                {sections.map((section) => {
-                  const open = openSectionIds.has(section.id);
-                  const ings = sectionIngredients.get(section.id) ?? [];
-
-                  // filtre 0 inutiles (sauf QS)
-                  const displayedIngs = ings.filter((ing) => {
-                    const u = (ing.unit ?? "").trim().toLowerCase();
-                    const qs = u === "qs" || u === "q.s" || u === "q.s." || u === "quantité suffisante";
-                    if (qs) return true;
-                    if (ing.quantity === null) return true;
-                    return ing.quantity !== 0;
-                  });
-
-                  return (
-                    <div key={section.id} className="bg-transparent">
-                      {/* Ligne section */}
-                      <button
-                        type="button"
-                        onClick={() => toggleSection(section.id)}
-                        className="w-full px-4 py-4 flex items-center justify-between gap-3 text-left hover:bg-white/[0.03] transition"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-[14px] font-semibold text-slate-100 truncate">
-                            {section.title?.trim() ? section.title : "Sans titre"}
-                          </div>
-                          <div className="mt-1 text-[12px] text-slate-300/60">
-                            {displayedIngs.length} ingrédient(s)
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 text-slate-200/70">
-                          {open ? (
-                            <ChevronUp className="w-5 h-5" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5" />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Contenu déroulé (sans carte) */}
-                      {open && (
-                        <div className="px-4 pb-5">
-                          {/* Ingrédients */}
-                          <div className="text-[12px] text-slate-200/70 font-medium mb-2">
-                            Ingrédients
-                          </div>
-
-                          {displayedIngs.length === 0 ? (
-                            <div className="text-[13px] text-slate-300/60">
-                              Aucun ingrédient
-                            </div>
-                          ) : (
-                            <div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-black/10">
-                              {displayedIngs.map((ing) => {
-                                const u = (ing.unit ?? "").trim();
-                                const uLow = u.toLowerCase();
-                                const qs = uLow === "qs" || uLow === "q.s" || uLow === "q.s." || uLow === "quantité suffisante";
-
-                                // QS ne se scale pas
-                                const scaled =
-                                  qs || ing.quantity === null ? ing.quantity : (ing.quantity * ratio);
-
-                                // format affichage (QS / qty+unit)
-                                let right = "";
-                                if (qs) right = "QS";
-                                else if (scaled === null) right = u ? u : "—";
-                                else if (scaled === 0) right = "";
-                                else {
-                                  const v = Math.round(scaled * 100) / 100;
-                                  const s = String(v).endsWith(".0") ? String(v).slice(0, -2) : String(v);
-                                  right = `${s}${u ? ` ${u}` : ""}`.trim();
-                                }
-
-                                if (!right) return null;
-
-                                return (
-                                  <div key={ing.id} className="flex items-baseline justify-between gap-4 px-3 py-3">
-                                    <div className="min-w-0 text-slate-100/90 truncate">
-                                      {ing.designation ?? "—"}
-                                    </div>
-                                    <div className="shrink-0 text-slate-200/75 font-semibold whitespace-nowrap text-[13px]">
-                                      {right}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Étapes */}
-                          <div className="mt-5">
-                            <div className="text-[12px] text-slate-200/70 font-medium mb-2">
-                              Étapes
-                            </div>
-
-                            {section.instructions?.trim() ? (
-                              <div className="text-[13px] leading-7 text-slate-300/80 whitespace-pre-wrap">
-                                {section.instructions}
-                              </div>
-                            ) : (
-                              <div className="text-[13px] text-slate-300/55">
-                                Aucune instruction
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+          {/* base / have inputs */}
+          <div className="grid grid-cols-2 gap-3">
+            {!refIngredient ? (
+              <div>
+                <div className="text-xs text-slate-300/60">Base</div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={crossBase}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setCrossBase(Number.isFinite(v) && v > 0 ? v : 1);
+                  }}
+                  className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 outline-none"
+                />
               </div>
             ) : (
-              <div className="p-5">
-                <div className="text-slate-100 font-semibold mb-2">Sections</div>
-                <div className="text-[13px] text-slate-300/70">
-                  Aucune section (étape) n’a encore été ajoutée à cette recette.
+              <div>
+                <div className="text-xs text-slate-300/60">Base (auto)</div>
+                <div className="mt-1 h-11 flex items-center rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100">
+                  {fmtQty(refBaseQty)}
+                  {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
                 </div>
               </div>
             )}
+
+            <div>
+              <div className="text-xs text-slate-300/60">
+                J’ai
+                {refIngredient && normUnit(refUnit) ? ` (${normUnit(refUnit)})` : ""}
+              </div>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder={refIngredient ? "ex: 763" : "ex: 350"}
+                value={crossHave}
+                onChange={(e) => setCrossHave(e.target.value)}
+                className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 outline-none placeholder:text-slate-300/40"
+              />
+            </div>
           </div>
 
-          {/* Sticky actions (mobile only) */}
-          {!desktopMode && (
-            <div className="fixed inset-x-0 bottom-0 z-[80] px-4 pb-4">
-              <div className="rounded-[22px] bg-[#0B1020]/70 backdrop-blur-2xl ring-1 ring-white/10 shadow-[0_-18px_60px_rgba(0,0,0,0.45)] px-3 py-2.5 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className={cn(ui.btnGhost, "flex-1 h-10 justify-center")}
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Retour
-                </button>
+          {/* actions */}
+          <div className="space-y-2">
+            {crossRatio ? (
+              <button
+                onClick={() => setCrossHave("")}
+                className="w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/[0.06] transition"
+                type="button"
+              >
+                Désactiver le produit en croix
+              </button>
+            ) : null}
 
-                {onEdit && recipe ? (
-                  <button
-                    type="button"
-                    onClick={() => onEdit(recipe.id)}
-                    className={cn(ui.btnPrimary, "flex-1 h-10 justify-center")}
-                  >
-                    <Pencil className="w-4 h-4" />
-                    Modifier
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setServings(baseServings)}
-                    className={cn(ui.btnGhost, "flex-1 h-10 justify-center")}
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Reset
-                  </button>
-                )}
+            <button
+              onClick={() => {
+                setServings(baseServings);
+                setCrossHave("");
+                setCrossBase(500);
+                setCrossRefIngredientId("");
+              }}
+              className="w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/[0.06] transition"
+              type="button"
+            >
+              Reset
+            </button>
+          </div>
+
+          {recipe.allergens ? (
+            <div className="pt-2">
+              <div className="text-sm text-slate-100 font-semibold mb-2">
+                Allergènes
+              </div>
+              <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
+                {recipe.allergens}
               </div>
             </div>
-          )}
-        </>
-      ) : null}
-    </div>
-  );
+          ) : null}
+        </div>
+
+        {/* ✅ Sections en déroulé */}
+        {sections.length > 0 ? (
+          <div className="space-y-3">
+            {sections.map((section) => {
+              const isOpen = !!openSections[section.id];
+              const ings = sectionIngredients.get(section.id) ?? [];
+
+              return (
+                <div
+                  key={section.id}
+                  className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.20)] overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.id)}
+                    className="w-full px-4 py-4 flex items-center justify-between gap-3 text-left"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-slate-100 font-semibold truncate">
+                        {section.title?.trim() ? section.title : "Sans titre"}
+                      </div>
+                      <div className="mt-0.5 text-[12px] text-slate-300/55">
+                        {ings.length} ingrédient(s)
+                        {section.instructions?.trim() ? " · Étapes" : ""}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-slate-300/70">
+                      {isOpen ? (
+                        <ChevronUp className="w-5 h-5" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5" />
+                      )}
+                    </div>
+                  </button>
+
+                  {isOpen ? (
+                    <div className="px-4 pb-4">
+                      <div className="h-px bg-white/10 mb-4" />
+
+                      <div>
+                        <div className="text-sm text-slate-200 font-medium mb-2">
+                          Ingrédients
+                        </div>
+
+                        {ings.length === 0 ? (
+                          <div className="text-sm text-slate-300/70">
+                            Aucun ingrédient
+                          </div>
+                        ) : (
+                          <ul className="space-y-1">
+                            {ings.map((ing) => {
+                              const scaled =
+                                isQS(ing.unit) || ing.quantity === null
+                                  ? ing.quantity
+                                  : ing.quantity * coefficient;
+
+                              const right = formatQtyDisplay(scaled, ing.unit);
+                              if (!right) return null;
+
+                              return (
+                                <li
+                                  key={ing.id}
+                                  className="flex items-baseline justify-between gap-3"
+                                >
+                                  <div className="text-slate-100">
+                                    {ing.designation ?? "—"}
+                                  </div>
+                                  <div className="text-slate-300/80 whitespace-nowrap">
+                                    {right}
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="text-sm text-slate-200 font-medium mb-2">
+                          Étapes
+                        </div>
+                        {section.instructions?.trim() ? (
+                          <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
+                            {section.instructions}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-300/60">
+                            Aucune instruction
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4">
+            <div className="text-slate-100 font-semibold mb-2">Sections</div>
+            <div className="text-sm text-slate-300/70">
+              Aucune section (étape) n’a encore été ajoutée à cette recette.
+            </div>
+          </div>
+        )}
+
+        {/* Notes recette */}
+        {recipe.notes ? (
+          <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4">
+            <div className="text-slate-100 font-semibold mb-2">Notes</div>
+            <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
+              {recipe.notes}
+            </div>
+          </div>
+        ) : null}
+
+        {/* ✅ Mes notes (privées) */}
+        <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-slate-100 font-semibold">Mes notes</div>
+            <div className="text-xs text-slate-300/60">
+              {noteLoading
+                ? "Chargement…"
+                : noteSaving
+                  ? "Enregistrement…"
+                  : noteSavedAt
+                    ? "Enregistré"
+                    : "—"}
+            </div>
+          </div>
+
+          <textarea
+            value={myNote}
+            onChange={(e) => setMyNote(e.target.value)}
+            placeholder="Écris tes notes ici…"
+            className="
+              mt-3
+              w-full min-h-[160px]
+              rounded-2xl
+              bg-white/[0.03]
+              ring-1 ring-white/10
+              px-4 py-3
+              text-sm text-slate-100
+              outline-none
+              placeholder:text-slate-300/40
+              backdrop-blur-md
+              resize-y
+            "
+          />
+        </div>
+      </div>
+    ) : null}
+  </PageShell>
+);
 }

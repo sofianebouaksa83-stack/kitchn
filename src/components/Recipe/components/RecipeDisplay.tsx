@@ -18,7 +18,7 @@ export function RecipeDisplay({ recipeId, onBack, onEdit }: Props) {
         <RecipeDisplayMobile recipeId={recipeId} onBack={onBack} onEdit={onEdit} />
       </div>
       <div className="hidden lg:block">
-        <PageShell /* ... */>
+        <PageShell withPanel={false}>
           <RecipeDisplayDesktop recipeId={recipeId} onBack={onBack} onEdit={onEdit} desktopMode />
         </PageShell>
       </div>
