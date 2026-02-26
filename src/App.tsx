@@ -9,7 +9,7 @@ import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 
 // ✅ AJOUT : pages publiques (landing)
 import PrivacyPage from "./pages/Privacy";
-import TermsPage from "./pages/Terms";
+import TermsPage from "./pages/terms";
 
 import { Navbar } from "./components/Layout/";
 
