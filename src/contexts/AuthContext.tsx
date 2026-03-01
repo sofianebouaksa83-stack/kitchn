@@ -13,14 +13,12 @@ type AuthContextType = {
     fullName: string,
     jobTitle: string,
     restaurantName: string
-  ) => Promise<{ error: AuthError | null }>;
+  ) => Promise<{ error: AuthError | null; needsEmailConfirmation?: boolean }>;
 
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
-
-  // ✅ NOUVEAU : refresh du profil après accept invitation / changements backend
   refreshProfile: () => Promise<void>;
 };
 
@@ -69,7 +67,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (error) throw error;
-
       setProfile(data ?? null);
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -79,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ✅ Exposé au front : à appeler après accept invitation
   async function refreshProfile() {
     if (!user?.id) return;
     await loadProfile(user.id);
@@ -93,51 +89,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restaurantName: string
   ) {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const emailRedirectTo = `${window.location.origin}/#/auth/callback`;
 
-      if (error) return { error };
-      if (!data.user) return { error: new AuthError("No user returned") };
-
-      const { data: restaurantData, error: restaurantError } = await supabase
-        .from("restaurants")
-        .insert({
-          name: restaurantName,
-          owner_user_id: data.user.id,
-        })
-        .select()
-        .maybeSingle();
-
-      if (restaurantError || !restaurantData) {
-        console.error("Error creating restaurant:", restaurantError);
-        return { error: new AuthError("Failed to create restaurant") };
-      }
-
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: data.user.id,
+      // ✅ On met tout dans user_metadata -> trigger DB crée profiles
+      const { data, error } = await supabase.auth.signUp({
         email,
-        full_name: fullName,
-        job_title: jobTitle,
-        establishment: restaurantName,
-        restaurant_id: restaurantData.id,
-        restaurant_role: "chef", // ✅ champ critique
+        password,
+        options: {
+          emailRedirectTo,
+          data: {
+            full_name: fullName,
+            job_title: jobTitle,
+            establishment: restaurantName,
+            restaurant_role: jobTitle, // ✅ snake_case ; ou "chef" si tu veux normaliser
+          },
+        },
       });
 
-      if (profileError) {
-        console.error("Error creating profile:", profileError);
-        return { error: new AuthError("Failed to create profile") };
+      if (error) return { error };
+
+      // ✅ Si confirm email ON : session null => on montre "check email"
+      const needsEmailConfirmation = !data.session;
+
+      // ⚠️ Pas d'insert restaurants ici.
+      // On le fera après confirmation quand l'utilisateur est connecté,
+      // ou via une edge function (plus tard).
+
+      // Si session existe (confirm email OFF), on charge le profil tout de suite
+      if (data.user?.id && data.session) {
+        await loadProfile(data.user.id);
       }
 
-      // Optionnel : charge le profil direct
-      await loadProfile(data.user.id);
-
-      return { error: null };
+      return { error: null, needsEmailConfirmation };
     } catch (error) {
       return { error: error as AuthError };
     }
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    // Petit helper UX : si pas de session, souvent email pas confirmé
+    if (!error && !data.session) {
+      return { error: new AuthError("Email non confirmé. Vérifie ta boîte mail.") };
+    }
+
     return { error };
   }
 
@@ -149,11 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return { error: new Error("No user logged in") };
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates) // ✅ MANQUAIT
-        .eq("id", user.id);
-
+      const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
       if (error) throw error;
 
       await loadProfile(user.id);

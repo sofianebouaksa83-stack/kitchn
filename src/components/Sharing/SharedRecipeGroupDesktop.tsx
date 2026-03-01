@@ -12,15 +12,13 @@ import { supabase } from "../../lib/supabase";
 import {
   Search,
   Plus,
-  Clock,
-  Eye,
-  Tag,
   AlertCircle,
   Folder,
   MoreVertical,
   Heart,
   Share2,
   Trash2,
+  Eye,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
@@ -58,10 +56,8 @@ export function SharedRecipeGroupDesktop({
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
-
   const [folders, setFolders] = useState<GroupFolder[]>([]);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
-  const [recipesCount, setRecipesCount] = useState(0);
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -73,7 +69,6 @@ export function SharedRecipeGroupDesktop({
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
 
   const [draggedRecipe, setDraggedRecipe] = useState<string | null>(null);
-
   const [viewingRecipeId, setViewingRecipeId] = useState<string | null>(null);
 
   const [showGroupsModal, setShowGroupsModal] = useState(false);
@@ -111,12 +106,13 @@ export function SharedRecipeGroupDesktop({
   async function loadFolders() {
     if (!user) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("work_group_folders")
       .select("id,name,created_by")
-      .eq("group_id", groupId)
+      .eq("work_group_id", groupId)
       .order("name");
 
+    if (error) return; // tu peux logger si tu veux
     setFolders((data ?? []) as GroupFolder[]);
   }
 
@@ -125,57 +121,41 @@ export function SharedRecipeGroupDesktop({
 
     const { data, error } = await supabase
       .from("work_group_recipes")
-      .select(
-        `
-        recipes (
-          id,
-          title,
-          category,
-          servings,
-          prep_time,
-          cook_time
-        )
-      `
-      )
-      .eq("group_id", groupId);
+      .select(`recipes ( id, title, category, servings, prep_time, cook_time )`)
+      .eq("work_group_id", groupId);
 
     if (error) return;
 
-    const list: RecipeRow[] =
-      (data ?? [])
-        .map((r: any) => r.recipes)
-        .filter(Boolean)
-        .map((r: any) => ({
-          id: String(r.id),
-          title: r.title ?? null,
-          category: r.category ?? null,
-          servings: r.servings ?? null,
-          prep_time: r.prep_time ?? null,
-          cook_time: r.cook_time ?? null,
-        })) ?? [];
+    const list: RecipeRow[] = (data ?? [])
+      .map((r: any) => r.recipes)
+      .filter(Boolean)
+      .map((r: any) => ({
+        id: String(r.id),
+        title: r.title ?? null,
+        category: r.category ?? null,
+        servings: r.servings ?? null,
+        prep_time: r.prep_time ?? null,
+        cook_time: r.cook_time ?? null,
+      }));
 
-    setRecipesCount(list.length);
+    const { data: mapData, error: mapErr } = await supabase
+      .from("work_group_folder_recipes")
+      .select("recipe_id, folder_id")
+      .eq("work_group_id", groupId);
 
-    // ⚠️ 404 si table inexistante côté Supabase
-const { data: mapData } = await supabase
-  .from("work_group_folder_recipes")
-  .select("recipe_id, folder_id")
-  .eq("group_id", groupId);
-
+    if (mapErr) return;
 
     const folderByRecipeId = new Map<string, string | null>();
     for (const row of mapData ?? []) {
-      folderByRecipeId.set(
-        String((row as any).recipe_id),
-        (row as any).folder_id
-      );
+      folderByRecipeId.set(String((row as any).recipe_id), (row as any).folder_id);
     }
 
-    // favoris (table au niveau utilisateur) — ⚠️ 404 si table inexistante
-    const { data: favData } = await supabase
+    const { data: favData, error: favErr } = await supabase
       .from("favorite_recipes")
       .select("recipe_id")
       .eq("user_id", user.id);
+
+    if (favErr) return;
 
     const favSet = new Set((favData ?? []).map((x: any) => String(x.recipe_id)));
 
@@ -190,25 +170,25 @@ const { data: mapData } = await supabase
 
   const categories = useMemo(() => {
     const base = recipes.map((r) => r.category || "Sans catégorie");
-    const unique = Array.from(new Set(base));
-    return ["Toutes", ...unique];
+    return ["Toutes", ...Array.from(new Set(base))];
   }, [recipes]);
 
   const filteredRecipes = useMemo(() => {
     return recipes.filter((r) => {
       if (showFavoritesOnly && !r.is_favorite) return false;
       if (selectedFolder && r.folder_id !== selectedFolder) return false;
-
-      if (categoryFilter !== "Toutes") {
-        const cat = r.category || "Sans catégorie";
-        if (cat !== categoryFilter) return false;
-      }
-
-      if (searchTerm.trim()) {
-        const t = (r.title || "").toLowerCase();
-        if (!t.includes(searchTerm.trim().toLowerCase())) return false;
-      }
-
+      if (
+        categoryFilter !== "Toutes" &&
+        (r.category || "Sans catégorie") !== categoryFilter
+      )
+        return false;
+      if (
+        searchTerm.trim() &&
+        !(r.title || "")
+          .toLowerCase()
+          .includes(searchTerm.trim().toLowerCase())
+      )
+        return false;
       return true;
     });
   }, [recipes, showFavoritesOnly, selectedFolder, categoryFilter, searchTerm]);
@@ -220,7 +200,7 @@ const { data: mapData } = await supabase
 
     const { data, error } = await supabase
       .from("work_group_folders")
-      .insert({ group_id: groupId, name, created_by: user.id })
+      .insert({ work_group_id: groupId, name, created_by: user.id })
       .select()
       .maybeSingle();
 
@@ -230,7 +210,6 @@ const { data: mapData } = await supabase
         const next = exists ? prev : [...prev, data as GroupFolder];
         return next.slice().sort((a, b) => a.name.localeCompare(b.name));
       });
-
       setNewFolderName("");
       setShowNewFolderInput(false);
     }
@@ -240,26 +219,21 @@ const { data: mapData } = await supabase
     const folder = folders.find((f) => f.id === folderId);
     const next = prompt("Nouveau nom :", folder?.name ?? "");
     if (!next) return;
-
     await supabase
       .from("work_group_folders")
       .update({ name: next })
       .eq("id", folderId);
-
     await loadFolders();
     setFolderMenuOpenId(null);
   }
 
   async function handleDeleteFolder(folderId: string) {
-    const ok = confirm("Supprimer ce dossier ?");
-    if (!ok) return;
-
+    if (!confirm("Supprimer ce dossier ?")) return;
     await supabase.from("work_group_folders").delete().eq("id", folderId);
-
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("group_id", groupId)
+      .eq("work_group_id", groupId)
       .eq("folder_id", folderId);
 
     if (selectedFolder === folderId) setSelectedFolder(null);
@@ -267,7 +241,12 @@ const { data: mapData } = await supabase
     await loadAll();
   }
 
-  async function handleToggleFavorite(recipeId: string, isFavorite: boolean) {
+  async function handleToggleFavorite(
+    recipeId: string,
+    isFavorite: boolean,
+    e: React.MouseEvent
+  ) {
+    e.stopPropagation();
     if (!user) return;
 
     if (isFavorite) {
@@ -283,7 +262,9 @@ const { data: mapData } = await supabase
     }
 
     setRecipes((prev) =>
-      prev.map((r) => (r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r))
+      prev.map((r) =>
+        r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r
+      )
     );
   }
 
@@ -293,12 +274,12 @@ const { data: mapData } = await supabase
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("group_id", groupId)
+      .eq("work_group_id", groupId)
       .eq("recipe_id", recipeId);
 
     if (folderId) {
       await supabase.from("work_group_folder_recipes").insert({
-        group_id: groupId,
+        work_group_id: groupId,
         recipe_id: recipeId,
         folder_id: folderId,
       });
@@ -309,27 +290,23 @@ const { data: mapData } = await supabase
     );
   }
 
-  async function handleRemoveFromGroup(recipeId: string) {
-    const ok = confirm("Retirer cette recette du groupe ?");
-    if (!ok) return;
+  async function handleRemoveFromGroup(recipeId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Retirer cette recette du groupe ?")) return;
 
     await supabase
       .from("work_group_recipes")
       .delete()
-      .eq("group_id", groupId)
+      .eq("work_group_id", groupId)
       .eq("recipe_id", recipeId);
 
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("group_id", groupId)
+      .eq("work_group_id", groupId)
       .eq("recipe_id", recipeId);
 
     await loadRecipes();
-  }
-
-  function handleDragStart(recipeId: string) {
-    setDraggedRecipe(recipeId);
   }
 
   async function handleDrop(folderId: string | null, e: DragEvent) {
@@ -350,355 +327,361 @@ const { data: mapData } = await supabase
   }
 
   return (
-    <PageShell>
-      <div className={cn(ui.containerWide, "py-8")}>
+    <PageShell
+      withPanel={false}
+      title={undefined}
+      subtitle={undefined}
+      icon={undefined}
+      actions={undefined}
+    >
+      <div className={cn(ui.containerWide, "py-6 sm:py-8 px-4 sm:px-6")}>
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-2xl font-semibold text-slate-100 truncate">
-              Partager
-            </div>
-            <div className="mt-2 text-sm text-slate-300/70">
-              Groupe :{" "}
-              <span className="text-slate-100 font-semibold">{groupName}</span>{" "}
-              ·{" "}
-              <span className="text-slate-100 font-semibold">
-                {filteredRecipes.length}
-              </span>
-            </div>
-
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="mt-3 text-sm text-slate-200 hover:text-slate-100 transition"
-              >
-                ← Retour
-              </button>
-            )}
+        <div className="mb-6">
+          <div className="text-2xl font-semibold text-slate-100">Partager</div>
+          <div className="mt-1 text-sm text-slate-300/70">
+            Groupe :{" "}
+            <span className="text-slate-100 font-semibold">{groupName}</span>
+            {" · "}
+            <span className="text-slate-100 font-semibold">
+              {filteredRecipes.length}
+            </span>
           </div>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="mt-2 text-sm text-slate-300 hover:text-slate-100 transition"
+            >
+              ← Retour
+            </button>
+          )}
         </div>
 
-        <div className="mt-8 grid grid-cols-12 gap-6">
+        <div className="flex gap-6 relative">
           {/* Sidebar */}
-          <aside className="col-span-12 md:col-span-4 xl:col-span-3">
-            <div className="rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold tracking-[0.18em] text-slate-200 uppercase">
-                  Dossiers
-                </h3>
+          <div
+            className={[
+              "w-72 rounded-[28px] bg-white/[0.06] ring-1 ring-white/10",
+              "shadow-[0_18px_60px_rgba(0,0,0,0.30)] backdrop-blur-md p-5",
+              "h-fit sticky top-24",
+            ].join(" ")}
+          >
+            <h3 className="text-sm font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
+              Dossiers
+            </h3>
+
+            <button
+              onClick={() => {
+                setSelectedFolder(null);
+                setShowFavoritesOnly(false);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add("ring-2", "ring-amber-400/25");
+              }}
+              onDragLeave={(e) =>
+                e.currentTarget.classList.remove("ring-2", "ring-amber-400/25")
+              }
+              onDrop={(e) => {
+                e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
+                handleDrop(null, e);
+              }}
+              className={cn(
+                "w-full text-left px-3 py-2.5 rounded-2xl mb-2 transition-all duration-200",
+                selectedFolder === null && !showFavoritesOnly
+                  ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
+                  : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100"
+              )}
+              type="button"
+            >
+              Toutes les recettes
+            </button>
+
+            <button
+              onClick={() => {
+                setShowFavoritesOnly(true);
+                setSelectedFolder(null);
+              }}
+              className={cn(
+                "w-full text-left px-3 py-2.5 rounded-2xl mb-3 flex items-center gap-2 transition-all duration-200",
+                showFavoritesOnly
+                  ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
+                  : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100"
+              )}
+              type="button"
+            >
+              <Heart className="w-4 h-4" />
+              Mes favoris
+            </button>
+
+            <div className="h-px bg-white/10 my-4" />
+
+            {folders.map((folder) => (
+              <div key={folder.id} className="relative">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setSelectedFolder(folder.id);
+                    setShowFavoritesOnly(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setSelectedFolder(folder.id);
+                      setShowFavoritesOnly(false);
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add("ring-2", "ring-amber-400/25");
+                  }}
+                  onDragLeave={(e) =>
+                    e.currentTarget.classList.remove("ring-2", "ring-amber-400/25")
+                  }
+                  onDrop={(e) => {
+                    e.currentTarget.classList.remove(
+                      "ring-2",
+                      "ring-amber-400/25"
+                    );
+                    handleDrop(folder.id, e as unknown as DragEvent);
+                  }}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-2xl mb-2 flex items-center gap-2 transition-all duration-200 cursor-pointer",
+                    selectedFolder === folder.id
+                      ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
+                      : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100"
+                  )}
+                >
+                  <Folder className="w-4 h-4" />
+                  <span className="flex-1 truncate">{folder.name}</span>
+
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFolderMenuOpenId((prev) =>
+                        prev === folder.id ? null : folder.id
+                      );
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setFolderMenuOpenId((prev) =>
+                          prev === folder.id ? null : folder.id
+                        );
+                      }
+                    }}
+                    className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-black/10 ring-1 ring-white/10 hover:bg-black/15 transition-colors text-slate-200 cursor-pointer"
+                    title="Options"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </div>
+                </div>
+
+                {folderMenuOpenId === folder.id && (
+                  <div
+                    ref={folderMenuRef}
+                    className="absolute right-2 top-[52px] z-50 w-48 rounded-2xl bg-[#0B1020]/95 ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)] overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleRenameFolder(folder.id)}
+                      className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
+                    >
+                      Renommer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFolder(folder.id)}
+                      className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <div className="mt-4">
+              {showNewFolderInput ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+                    placeholder="Nom du dossier"
+                    className="w-full h-11 px-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleCreateFolder}
+                    className={`${ui.btnPrimary} h-11 px-4 rounded-2xl`}
+                    type="button"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNewFolderInput(false);
+                      setNewFolderName("");
+                    }}
+                    className={`${ui.btnGhost} h-11 px-4 rounded-2xl`}
+                    type="button"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewFolderInput(true)}
+                  className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
+                  type="button"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nouveau dossier
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Search + filter */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/70 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher par nom…"
+                  className="w-full h-11 pl-12 pr-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
+                />
               </div>
 
-              <button
-                onClick={() => {
-                  setSelectedFolder(null);
-                  setShowFavoritesOnly(false);
-                }}
-                onDrop={(e) => handleDrop(null, e)}
-                onDragOver={(e) => e.preventDefault()}
-                className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-2xl transition-all duration-200",
-                  !selectedFolder && !showFavoritesOnly
-                    ? "bg-white/10 text-slate-100 ring-1 ring-white/10"
-                    : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
-                )}
-                type="button"
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full h-11 px-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10 text-slate-100 outline-none focus:ring-2 focus:ring-amber-400/25"
               >
-                Toutes les recettes
-              </button>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat} className="bg-[#0B1020]">
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <button
-                onClick={() => {
-                  setShowFavoritesOnly(true);
-                  setSelectedFolder(null);
-                }}
-                className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-2xl flex items-center gap-2 transition-all duration-200",
-                  showFavoritesOnly
-                    ? "bg-white/10 text-slate-100 ring-1 ring-white/10"
-                    : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
-                )}
-                type="button"
-              >
-                <Heart className="w-4 h-4" />
-                Mes favoris
-              </button>
-
-              <div className="h-px bg-white/10 my-4" />
-
-              <div className="space-y-2">
-                {folders.map((f) => (
-                  <div key={f.id} className="relative">
-                    {/* ✅ FIX: wrapper n'est plus un button */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        setSelectedFolder(f.id);
-                        setShowFavoritesOnly(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          setSelectedFolder(f.id);
-                          setShowFavoritesOnly(false);
-                        }
-                      }}
-                      onDrop={(e) => handleDrop(f.id, e)}
-                      onDragOver={(e) => e.preventDefault()}
-                      className={cn(
-                        "w-full text-left px-3 py-2.5 rounded-2xl flex items-center gap-2 transition cursor-pointer",
-                        selectedFolder === f.id
-                          ? "bg-white/10 text-slate-100 ring-1 ring-white/10"
-                          : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
-                      )}
-                    >
-                      <Folder className="w-4 h-4" />
-                      <span className="flex-1 truncate">{f.name}</span>
-
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-slate-300">Chargement…</div>
+              </div>
+            ) : filteredRecipes.length === 0 ? (
+              <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
+                <AlertCircle className="w-14 h-14 text-slate-500 mx-auto mb-4" />
+                <p className="text-slate-200 text-lg font-semibold">
+                  Aucune recette trouvée
+                </p>
+                <p className="text-sm text-slate-300/70 mt-2">
+                  Change tes filtres ou ton dossier.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/10 border-t border-white/10">
+                {filteredRecipes.map((recipe) => (
+                  <div
+                    key={recipe.id}
+                    draggable
+                    onDragStart={() => setDraggedRecipe(recipe.id)}
+                    onClick={() => setViewingRecipeId(recipe.id)}
+                    className="group cursor-pointer select-none px-4 py-4 transition-colors hover:bg-white/5 active:bg-white/10"
+                  >
+                    <div className="flex items-start justify-between gap-4">
                       <button
+                        className="min-w-0 flex-1 text-left"
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setFolderMenuOpenId((prev) =>
-                            prev === f.id ? null : f.id
-                          );
-                        }}
-                        className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-slate-200"
-                        aria-label="Options dossier"
+                        onClick={() => setViewingRecipeId(recipe.id)}
                       >
-                        <MoreVertical className="w-5 h-5" />
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h3 className="min-w-0 truncate text-[15px] font-medium tracking-tight text-slate-100">
+                            {recipe.title || "Sans titre"}
+                          </h3>
+                          {recipe.category && (
+                            <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-black/15 ring-1 ring-white/10 text-slate-200/90">
+                              {recipe.category}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-white/50">
+                          Prép {recipe.prep_time ?? 0}min · Cuisson{" "}
+                          {recipe.cook_time ?? 0}min ·{" "}
+                          {recipe.servings ?? "—"} couverts
+                        </p>
                       </button>
-                    </div>
 
-                    {folderMenuOpenId === f.id && (
-                      <div
-                        ref={folderMenuRef}
-                        className="absolute right-2 top-[52px] z-[130] w-48 rounded-2xl bg-[#0B1020] ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] overflow-hidden"
-                      >
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
+                          onClick={(e) =>
+                            handleToggleFavorite(recipe.id, !!recipe.is_favorite, e)
+                          }
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
                           type="button"
-                          onClick={() => handleRenameFolder(f.id)}
-                          className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
+                          title="Favori"
                         >
-                          Renommer
+                          <Heart
+                            className={`w-5 h-5 ${
+                              recipe.is_favorite
+                                ? "fill-red-500 text-red-500"
+                                : "text-white/50"
+                            }`}
+                          />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteFolder(f.id)}
-                          className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
-                        >
-                          Supprimer
-                        </button>
+
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingRecipeId(recipe.id);
+                            }}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            title="Voir la recette"
+                            type="button"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveRecipeId(recipe.id);
+                              setShowGroupsModal(true);
+                            }}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            title="Partager à un autre groupe"
+                            type="button"
+                          >
+                            <Share2 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={(e) => handleRemoveFromGroup(recipe.id, e)}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-red-300 transition-colors"
+                            type="button"
+                            title="Retirer du groupe"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
-
-              <div className="pt-2">
-                {showNewFolderInput ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-                      placeholder="Nom du dossier"
-                      className="w-full h-11 px-4 rounded-2xl bg-white/5 ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleCreateFolder}
-                      className={cn(ui.btnPrimary, "h-11 px-4 rounded-2xl")}
-                      type="button"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowNewFolderInput(false);
-                        setNewFolderName("");
-                      }}
-                      className={cn(ui.btnGhost, "h-11 px-4 rounded-2xl")}
-                      type="button"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowNewFolderInput(true)}
-                    className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
-                    type="button"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nouveau dossier
-                  </button>
-                )}
-              </div>
-            </div>
-          </aside>
-
-          {/* Main */}
-          <main className="col-span-12 md:col-span-8 xl:col-span-9">
-            {/* Search + category */}
-            <div className="rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 p-5">
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/60 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Rechercher par nom…"
-                    className="w-full h-12 pl-12 pr-4 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
-                  />
-                </div>
-
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="h-12 px-4 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 border border-white/10 text-slate-100 outline-none"
-                >
-                  {categories.map((c) => (
-                    <option key={c} value={c} className="bg-[#0B1020]">
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              {loading ? (
-                <div className="text-slate-300/80 text-center py-10">
-                  Chargement…
-                </div>
-              ) : filteredRecipes.length === 0 ? (
-                <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-8 text-center">
-                  <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                  <p className="text-slate-200 text-lg font-semibold">
-                    Aucune recette trouvée
-                  </p>
-                  <p className="text-sm text-slate-300/70 mt-2">
-                    Change tes filtres ou ton dossier.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 overflow-hidden">
-                  {filteredRecipes.map((r) => {
-                    const title = r.title || "Sans titre";
-                    const category = r.category || "Sans catégorie";
-                    const prep = r.prep_time ?? 0;
-                    const cook = r.cook_time ?? 0;
-                    const servings = r.servings ?? "—";
-
-                    return (
-                      <div
-                        key={r.id}
-                        draggable
-                        onDragStart={() => handleDragStart(r.id)}
-                        className="group px-5 py-4 border-b border-white/10 last:border-b-0 hover:bg-white/[0.04] transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          {/* Left click zone */}
-                          <button
-                            type="button"
-                            onClick={() => setViewingRecipeId(r.id)}
-                            className="min-w-0 flex-1 text-left"
-                          >
-                            <div className="text-[15px] font-medium tracking-tight text-slate-100 truncate">
-                              {title}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-300/60 flex items-center gap-2 flex-wrap">
-                              <span className="inline-flex items-center gap-1.5">
-                                <Tag className="w-3.5 h-3.5" />
-                                {category}
-                              </span>
-                              <span className="opacity-60">•</span>
-                              <span className="inline-flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5" />
-                                {prep}min / {cook}min
-                              </span>
-                              <span className="opacity-60">•</span>
-                              <span>{servings} couverts</span>
-                            </div>
-                          </button>
-
-                          {/* Right actions: Apple/Linear style */}
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                void handleToggleFavorite(r.id, !!r.is_favorite);
-                              }}
-                              className="h-10 w-10 inline-flex items-center justify-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition"
-                              title="Favori"
-                            >
-                              <Heart
-                                className={cn(
-                                  "w-4.5 h-4.5",
-                                  r.is_favorite
-                                    ? "text-amber-300"
-                                    : "text-slate-200/80"
-                                )}
-                                fill={r.is_favorite ? "currentColor" : "none"}
-                              />
-                            </button>
-
-                            <div className="hidden lg:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                type="button"
-                                className={cn(ui.iconBtn, "h-10 w-10")}
-                                title="Voir"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setViewingRecipeId(r.id);
-                                }}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-
-                              <button
-                                type="button"
-                                className={cn(ui.iconBtn, "h-10 w-10")}
-                                title="Partager"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setActiveRecipeId(r.id);
-                                  setShowGroupsModal(true);
-                                }}
-                              >
-                                <Share2 className="w-4 h-4" />
-                              </button>
-
-                              <button
-                                type="button"
-                                className={cn(ui.iconBtnDanger, "h-10 w-10")}
-                                title="Retirer du groupe"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  void handleRemoveFromGroup(r.id);
-                                }}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </main>
+            )}
+          </div>
         </div>
 
         <RecipeGroupsModal

@@ -6,6 +6,7 @@ import { LoginForm } from "./components/Auth/LoginForm";
 import { RegisterForm } from "./components/Auth/RegisterForm";
 import { InvitationSignup } from "./components/Auth/InvitationSignup";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
+import { AuthCallback } from "./components/Auth/AuthCallback";
 
 // ✅ AJOUT : pages publiques (landing)
 import PrivacyPage from "./pages/Privacy";
@@ -171,6 +172,10 @@ function MainApp() {
         />
       );
     }
+
+    if (hash === "/auth/callback") {
+  return <AuthCallback />;
+}
 
     // ✅ pages publiques accessibles depuis la landing (footer)
     if (hash === "/privacy") {

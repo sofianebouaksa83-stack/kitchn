@@ -37,11 +37,15 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [error, setError] = useState("");
+  const [successInfo, setSuccessInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // reset messages
     setError("");
+    setSuccessInfo("");
 
     if (formData.password !== formData.confirmPassword) {
       setError("Les mots de passe ne correspondent pas.");
@@ -57,7 +61,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     // ✅ persistence réelle (avant signup)
     setRememberMe(rememberMe);
 
-    const { error } = await signUp(
+    const { error: signUpError, needsEmailConfirmation } = await signUp(
       formData.email.trim(),
       formData.password,
       formData.fullName,
@@ -65,8 +69,22 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
       formData.establishment
     );
 
-    if (error) setError("Inscription impossible. Vérifie les champs et réessaie.");
+    if (signUpError) {
+      setError(signUpError.message || "Inscription impossible. Vérifie les champs et réessaie.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ si confirmation email activée : on affiche "check email"
+    if (needsEmailConfirmation) {
+      setSuccessInfo("Compte créé ✅ Vérifie ta boîte mail pour confirmer ton compte.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ sinon, connecté direct
     setLoading(false);
+    window.location.hash = "/";
   }
 
   return (
@@ -93,11 +111,22 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
               </div>
             </div>
 
+            {/* Error */}
             {error && (
               <div className="px-8 pt-6">
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex gap-3 items-start">
                   <AlertCircle className="w-5 h-5 text-red-300 mt-0.5" />
                   <p>{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Success */}
+            {successInfo && (
+              <div className="px-8 pt-6">
+                <div className="rounded-2xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-200 flex gap-3 items-start">
+                  <span className="mt-0.5">✅</span>
+                  <p>{successInfo}</p>
                 </div>
               </div>
             )}
@@ -171,7 +200,7 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 </select>
               </div>
 
-               <div>
+              <div>
                 <label className="mb-2 block text-sm font-medium text-slate-100/90">
                   Mot de passe
                 </label>
@@ -216,7 +245,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                   <input
                     type={showConfirm ? "text" : "password"}
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, confirmPassword: e.target.value })
+                    }
                     required
                     disabled={loading}
                     className="
@@ -286,6 +317,23 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                   "Créer mon compte"
                 )}
               </button>
+
+              {/* ✅ si on a successInfo, on propose d'aller à la connexion */}
+              {successInfo && (
+                <button
+                  type="button"
+                  onClick={() => (window.location.hash = "/login")}
+                  disabled={loading}
+                  className="
+                    h-12 w-full rounded-2xl font-semibold
+                    text-slate-100
+                    bg-white/10 hover:bg-white/15 transition
+                    disabled:opacity-60
+                  "
+                >
+                  Aller à la connexion
+                </button>
+              )}
 
               <div className="pt-2 text-center">
                 <button

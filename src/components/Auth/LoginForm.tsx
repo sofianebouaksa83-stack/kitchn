@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Mail, Lock, Eye, EyeOff, Loader } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader, AlertCircle } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { GlassPanel } from "../../styles/ui/GlassPanel";
 import { setRememberMe, getRememberMe } from "../../lib/authStorage";
@@ -37,30 +37,46 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const canReset = useMemo(() => email.trim().length > 3, [email]);
+  // ✅ pour afficher le bouton "renvoyer confirmation"
+  const [canResendConfirm, setCanResendConfirm] = useState(false);
 
+  const canReset = useMemo(() => email.trim().length > 3, [email]);
   const disabledAll = loading || !!oauthLoading;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setInfo(null);
+    setCanResendConfirm(false);
     setLoading(true);
 
     // ✅ persistence réelle (avant login)
     setRememberMe(rememberMe);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (error) throw error;
 
+      // ✅ cas rare : pas d'erreur mais pas de session (selon config)
+      if (!data.session) {
+        setCanResendConfirm(true);
+        setError("Email non confirmé. Vérifie ta boîte mail.");
+        return;
+      }
+
       onSuccess?.();
     } catch (err: any) {
-      setError(mapAuthError(err?.message));
+      const msg = mapAuthError(err?.message);
+      setError(msg);
+
+      // ✅ si c'est un non confirmé, on propose le renvoi
+      if ((err?.message ?? "").toLowerCase().includes("email not confirmed")) {
+        setCanResendConfirm(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -69,6 +85,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
   async function handleResetPassword() {
     setError(null);
     setInfo(null);
+    setCanResendConfirm(false);
 
     if (!canReset) {
       setError("Entre ton email pour recevoir le lien de réinitialisation.");
@@ -78,7 +95,8 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: window.location.origin + "/?reset=1",
+        // ✅ hash routing: ton App détecte reset via hash/type=recovery
+        redirectTo: `${window.location.origin}/#/reset-password?reset=1`,
       });
 
       if (error) throw error;
@@ -91,13 +109,46 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     }
   }
 
+  async function handleResendConfirmation() {
+    setError(null);
+    setInfo(null);
+
+    if (!canReset) {
+      setError("Entre ton email pour renvoyer l'email de confirmation.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // ✅ renvoi email confirmation
+      // nécessite supabase-js v2 (c'est ton cas)
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/#/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+
+      setInfo("Email de confirmation renvoyé ✅ Vérifie ta boîte mail (et les spams).");
+      setCanResendConfirm(false);
+    } catch (err: any) {
+      setError(mapAuthError(err?.message));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleOAuth(provider: "google" | "apple") {
     setError(null);
     setInfo(null);
+    setCanResendConfirm(false);
     setOauthLoading(provider);
 
-    // ✅ Même logique que ton app (tu peux remplacer si tu as une route dédiée)
-    const redirectTo = window.location.origin;
+    // ✅ cohérent avec hash routing
+    const redirectTo = `${window.location.origin}/#/`;
 
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -108,7 +159,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
       });
 
       if (error) throw error;
-      // si pas d'erreur, Supabase redirige → on ne fait rien ici
+      // supabase redirige automatiquement
     } catch (err: any) {
       setError(mapAuthError(err?.message));
       setOauthLoading(null);
@@ -135,9 +186,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                   className="h-11 sm:h-12 w-auto select-none"
                   draggable={false}
                 />
-                <p className="text-sm text-slate-200/80">
-                  Gestion professionnelle de recettes
-                </p>
+                <p className="text-sm text-slate-200/80">Gestion professionnelle de recettes</p>
               </div>
             </div>
 
@@ -201,9 +250,7 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
 
             <form onSubmit={handleSubmit} className="px-8 pb-7 space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-100/90">
-                  Email
-                </label>
+                <label className="mb-2 block text-sm font-medium text-slate-100/90">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                   <input
@@ -300,9 +347,27 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
               )}
 
               {error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {error}
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex gap-2 items-start">
+                  <AlertCircle className="h-4 w-4 text-red-300 mt-0.5" />
+                  <span>{error}</span>
                 </div>
+              )}
+
+              {/* ✅ Renvoyer confirmation si nécessaire */}
+              {canResendConfirm && (
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={disabledAll}
+                  className="
+                    h-11 w-full rounded-2xl font-semibold
+                    text-slate-100
+                    bg-white/10 hover:bg-white/15 transition
+                    disabled:cursor-not-allowed disabled:opacity-60
+                  "
+                >
+                  Renvoyer l’email de confirmation
+                </button>
               )}
 
               <button

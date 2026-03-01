@@ -40,7 +40,6 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
       if (!userId) throw new Error("Non connecté");
 
       // 1) Groupes où je suis membre (via group_members)
-      // ✅ FIX: column = work_group_id (pas group_id)
       const { data: membershipData, error: mErr } = await supabase
         .from("group_members")
         .select("work_group_id, work_groups:work_groups(id,name)")
@@ -82,9 +81,10 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
       setGroups(g);
 
       // 3) Déjà partagée à quels groupes ?
+      // ✅ FIX: colonne = work_group_id (pas group_id)
       const { data: links, error: lErr } = await supabase
         .from("work_group_recipes")
-        .select("group_id")
+        .select("work_group_id")
         .eq("recipe_id", recipeId);
 
       if (lErr) throw lErr;
@@ -93,7 +93,7 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
       for (const grp of g) sel[grp.id] = false;
 
       for (const row of links ?? []) {
-        const gid = String((row as any).group_id);
+        const gid = String((row as any).work_group_id);
         if (gid) sel[gid] = true;
       }
 
@@ -128,9 +128,10 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
       if (delErr) throw delErr;
 
       if (selectedIds.length) {
+        // ✅ FIX: work_group_id
         const payload = selectedIds.map((groupId) => ({
           recipe_id: recipeId,
-          group_id: groupId,
+          work_group_id: groupId,
         }));
 
         const { error: insErr } = await supabase
