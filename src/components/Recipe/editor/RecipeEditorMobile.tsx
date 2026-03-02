@@ -20,6 +20,7 @@ type Props = {
 };
 
 const labelCls = "block text-[12px] font-medium text-slate-200/90 mb-2";
+const hintCls = "text-xs text-slate-300/60";
 
 const inputBase =
   "w-full bg-white/[0.045] border border-white/10 text-slate-100 outline-none " +
@@ -34,7 +35,17 @@ const textareaCls =
   "w-full rounded-2xl bg-white/[0.045] border border-white/10 px-4 py-3 text-sm text-slate-100 outline-none " +
   "placeholder:text-slate-400/50 focus:border-amber-300/30 focus:ring-2 focus:ring-amber-300/20 resize-none";
 
-export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Props) {
+const sectionTitleCls =
+  "text-[11px] uppercase tracking-wider text-slate-200/70 font-semibold";
+
+const dividerCls = "border-b border-white/10";
+
+export function RecipeEditorMobile({
+  recipeId,
+  onBack,
+  onSave,
+  onCreated,
+}: Props) {
   const editor = useRecipeEditor({ recipeId, onSave, onCreated });
 
   const headerTitle = editor.isEdit
@@ -59,7 +70,11 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
       <div className="px-4 pt-3 pb-32">
         {/* Top */}
         <div className="flex items-start justify-between gap-3">
-          <button onClick={onBack} className={ui.btnGhost} type="button">
+          <button
+            onClick={() => onBack?.()}
+            className={ui.btnGhost}
+            type="button"
+          >
             <ArrowLeft className="w-4 h-4" /> Retour
           </button>
 
@@ -82,9 +97,14 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
           </div>
         )}
 
-        {/* Infos recette */}
-        <div className="mt-7 rounded-[26px] bg-white/[0.055] ring-1 ring-white/10 p-5">
-          <div className="space-y-4">
+        {/* ===== INFOS (sans carte) ===== */}
+        <div className={`mt-7 pb-7 ${dividerCls}`}>
+          <div className={sectionTitleCls}>Informations</div>
+          <div className={`mt-3 ${hintCls}`}>
+            Titre, couverts et catégorie
+          </div>
+
+          <div className="mt-4 space-y-4">
             <div>
               <label className={labelCls}>Titre de la recette *</label>
               <input
@@ -127,13 +147,12 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
           </div>
         </div>
 
-        {/* ===== Sections (UNE SEULE CARTE) ===== */}
-        <div className="mt-8 rounded-[26px] bg-white/[0.055] ring-1 ring-white/10 overflow-hidden">
-          {/* Header Sections */}
-          <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3">
+        {/* ===== SECTIONS (sans carte) ===== */}
+        <div className={`mt-7 pb-7 ${dividerCls}`}>
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-slate-100 font-semibold">Sections</div>
-              <div className="text-xs text-slate-300/60 mt-0.5">
+              <div className={sectionTitleCls}>Sections</div>
+              <div className={`mt-1 ${hintCls}`}>
                 Sous-recettes / éléments de la recette
               </div>
             </div>
@@ -148,16 +167,15 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
             </button>
           </div>
 
-          {/* Liste sections : PAS DE CARTE PAR SECTION */}
-          <div className="border-t border-white/10">
+          <div className="mt-4 space-y-5">
             {editor.sections.map((s, idx) => {
               const ingList = editor.sectionIngredients[s.localId] ?? [];
               const isOnlySection = editor.sections.length === 1;
 
               return (
-                <div key={s.localId} className="border-b border-white/10 last:border-b-0">
-                  {/* Section Row header */}
-                  <div className="px-5 py-4 flex items-center gap-2">
+                <div key={s.localId} className="pt-1">
+                  {/* Header ligne */}
+                  <div className="flex items-center gap-2">
                     <div className="w-9 h-9 rounded-xl bg-white/5 ring-1 ring-white/10 flex items-center justify-center text-slate-200 font-semibold text-sm">
                       {idx + 1}
                     </div>
@@ -168,7 +186,9 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                         onChange={(e) =>
                           editor.setSections((prev) =>
                             prev.map((x) =>
-                              x.localId === s.localId ? { ...x, title: e.target.value } : x
+                              x.localId === s.localId
+                                ? { ...x, title: e.target.value }
+                                : x
                             )
                           )
                         }
@@ -201,11 +221,10 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                     </button>
                   </div>
 
-                  {/* Section content */}
                   {!s.collapsed && (
-                    <div className="px-5 pb-5">
+                    <div className="mt-4 space-y-5">
                       {/* Ingrédients */}
-                      <div className="mt-1">
+                      <div>
                         <div className="text-[12px] text-slate-200 font-medium mb-3">
                           Ingrédients
                         </div>
@@ -213,13 +232,11 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                         <div className="space-y-2">
                           {ingList.map((ing, ingIdx) => {
                             const isOnlyIng = ingList.length === 1;
-
                             return (
                               <div
                                 key={ing.localId}
                                 className="rounded-2xl bg-white/[0.02] ring-1 ring-white/10 p-2"
                               >
-                                {/* Ligne A : Qté + unité + X */}
                                 <div className="grid grid-cols-[78px_90px_1fr_36px] gap-2 items-center">
                                   <input
                                     type="number"
@@ -251,18 +268,22 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                                     className={selectCls}
                                   >
                                     {UNITS.map((u) => (
-                                      <option key={u} value={u} className="bg-[#0B1020]">
+                                      <option
+                                        key={u}
+                                        value={u}
+                                        className="bg-[#0B1020]"
+                                      >
                                         {u}
                                       </option>
                                     ))}
                                   </select>
 
-                                  <div className="text-[11px] text-slate-300/30 truncate px-1">
-                                    {/* vide volontaire (layout stable) */}
-                                  </div>
+                                  <div className="text-[11px] text-slate-300/30 truncate px-1" />
 
                                   <button
-                                    onClick={() => editor.removeIngredient(s.localId, ingIdx)}
+                                    onClick={() =>
+                                      editor.removeIngredient(s.localId, ingIdx)
+                                    }
                                     disabled={isOnlyIng}
                                     className="h-9 w-9 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200/90 inline-flex items-center justify-center disabled:opacity-40"
                                     type="button"
@@ -272,7 +293,6 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                                   </button>
                                 </div>
 
-                                {/* Ligne B : nom full width */}
                                 <div className="mt-2">
                                   <input
                                     value={ing.designation}
@@ -284,8 +304,7 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                                         e.target.value
                                       )
                                     }
-                                    className="w-full h-10 rounded-xl bg-white/[0.045] border border-white/10 px-3 text-sm text-slate-100 outline-none
-                                               placeholder:text-slate-400/50 focus:border-amber-300/30 focus:ring-2 focus:ring-amber-300/20"
+                                    className={`${inputBase} w-full h-10 rounded-xl px-3 text-sm`}
                                     placeholder="Nom de l’ingrédient"
                                   />
                                 </div>
@@ -305,7 +324,7 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                       </div>
 
                       {/* Instructions */}
-                      <div className="mt-5">
+                      <div>
                         <div className="text-[12px] text-slate-200 font-medium mb-2">
                           Instructions
                         </div>
@@ -325,6 +344,9 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
                           className={textareaCls}
                         />
                       </div>
+
+                      {/* micro séparateur entre sections */}
+                      <div className="pt-1 border-b border-white/10" />
                     </div>
                   )}
                 </div>
@@ -333,12 +355,11 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
           </div>
         </div>
 
-        {/* Instructions générales */}
-        <div className="mt-8 rounded-[26px] bg-white/[0.055] ring-1 ring-white/10 p-5">
-          <div className="text-slate-100 font-semibold">
-            Instructions générales{" "}
-            <span className="text-slate-300/60 font-normal">(optionnel)</span>
-          </div>
+        {/* ===== INSTRUCTIONS GÉNÉRALES (sans carte) ===== */}
+        <div className="mt-7">
+          <div className={sectionTitleCls}>Instructions générales</div>
+          <div className={`mt-1 ${hintCls}`}>(optionnel)</div>
+
           <textarea
             value={editor.generalInstructions}
             onChange={(e) => editor.setGeneralInstructions(e.target.value)}
@@ -353,7 +374,7 @@ export function RecipeEditorMobile({ recipeId, onBack, onSave, onCreated }: Prop
       <div className="fixed inset-x-0 bottom-0 z-[90] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="rounded-[24px] bg-[#0B1020]/92 backdrop-blur ring-1 ring-white/10 shadow-[0_-18px_60px_rgba(0,0,0,0.40)] p-3 flex items-center gap-2">
           <button
-            onClick={onBack}
+            onClick={() => onBack?.()}
             className={`${ui.btnGhost} flex-1 h-11 justify-center`}
             type="button"
           >

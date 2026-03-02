@@ -22,6 +22,7 @@ import {
   Filter,
   Tag,
   Eye,
+  Pencil,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
@@ -31,6 +32,7 @@ type Props = {
   groupId: string;
   groupName?: string;
   onBack?: () => void;
+  onEdit?: (recipeId: string) => void; // ✅ optionnel
 };
 
 type GroupFolder = { id: string; name: string; created_by: string };
@@ -132,6 +134,7 @@ export function SharedRecipeGroupMobile({
   groupId,
   groupName = "Groupe",
   onBack,
+  onEdit,
 }: Props) {
   const { user } = useAuth();
 
@@ -164,6 +167,13 @@ export function SharedRecipeGroupMobile({
   const [sheetRecipe, setSheetRecipe] = useState<RecipeRow | null>(null);
   const sheetOpen = !!sheetRecipe;
   const closeSheet = () => setSheetRecipe(null);
+
+  // ✅ membership / permissions
+  const [memberRole, setMemberRole] = useState<string | null>(null);
+
+  const canShare = memberRole === "admin" || memberRole === "second";
+  const canEdit = memberRole === "admin" || memberRole === "second";
+  const canRemoveFromGroup = memberRole === "admin" || memberRole === "second";
 
   useEffect(() => {
     void loadAll();
@@ -203,10 +213,23 @@ export function SharedRecipeGroupMobile({
   async function loadAll() {
     setLoading(true);
     try {
-      await Promise.all([loadFolders(), loadRecipes()]);
+      await Promise.all([loadMembership(), loadFolders(), loadRecipes()]);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadMembership() {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("work_group_id", groupId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) return;
+    setMemberRole((data as any)?.role ?? null);
   }
 
   async function loadFolders() {
@@ -215,7 +238,7 @@ export function SharedRecipeGroupMobile({
     const { data } = await supabase
       .from("work_group_folders")
       .select("id,name,created_by")
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .order("name");
 
     setFolders((data ?? []) as GroupFolder[]);
@@ -227,7 +250,7 @@ export function SharedRecipeGroupMobile({
     const { data, error } = await supabase
       .from("work_group_recipes")
       .select(`recipes ( id, title, category, servings, prep_time, cook_time )`)
-      .eq("work_group_id", groupId);
+      .eq("group_id", groupId);
 
     if (error) return;
 
@@ -248,14 +271,11 @@ export function SharedRecipeGroupMobile({
     const { data: mapData } = await supabase
       .from("work_group_folder_recipes")
       .select("recipe_id, folder_id")
-      .eq("work_group_id", groupId);
+      .eq("group_id", groupId);
 
     const folderByRecipeId = new Map<string, string | null>();
     for (const row of mapData ?? []) {
-      folderByRecipeId.set(
-        String((row as any).recipe_id),
-        (row as any).folder_id
-      );
+      folderByRecipeId.set(String((row as any).recipe_id), (row as any).folder_id);
     }
 
     const { data: favData } = await supabase
@@ -328,10 +348,7 @@ export function SharedRecipeGroupMobile({
     const folder = folders.find((f) => f.id === folderId);
     const next = prompt("Nouveau nom :", folder?.name ?? "");
     if (!next) return;
-    await supabase
-      .from("work_group_folders")
-      .update({ name: next })
-      .eq("id", folderId);
+    await supabase.from("work_group_folders").update({ name: next }).eq("id", folderId);
 
     await loadFolders();
     setFolderMenuOpenId(null);
@@ -345,7 +362,7 @@ export function SharedRecipeGroupMobile({
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("folder_id", folderId);
 
     if (selectedFolder === folderId) setSelectedFolder(null);
@@ -369,9 +386,7 @@ export function SharedRecipeGroupMobile({
     }
 
     setRecipes((prev) =>
-      prev.map((r) =>
-        r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r
-      )
+      prev.map((r) => (r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r))
     );
   }
 
@@ -381,7 +396,7 @@ export function SharedRecipeGroupMobile({
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
 
     if (folderId) {
@@ -398,18 +413,19 @@ export function SharedRecipeGroupMobile({
   }
 
   async function handleRemoveFromGroup(recipeId: string) {
+    if (!canRemoveFromGroup) return;
     if (!confirm("Retirer cette recette du groupe ?")) return;
 
     await supabase
       .from("work_group_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
 
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
 
     await loadRecipes();
@@ -421,6 +437,13 @@ export function SharedRecipeGroupMobile({
     if (!draggedRecipe) return;
     await handleMoveToFolder(draggedRecipe, folderId);
     setDraggedRecipe(null);
+  }
+
+  function handleEdit(recipeId: string) {
+    if (!canEdit) return;
+    if (onEdit) return onEdit(recipeId);
+    // fallback
+    setViewingRecipeId(recipeId);
   }
 
   const headerLabel = useMemo(() => {
@@ -562,19 +585,23 @@ export function SharedRecipeGroupMobile({
 
                     {/* Quick actions */}
                     <div className="mt-3 flex items-center gap-3 text-white/60">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveRecipeId(r.id);
-                          setShowGroupsModal(true);
-                        }}
-                        className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
-                        title="Partager"
-                      >
-                        <Share2 className="w-5 h-5" />
-                      </button>
+                      {/* ✅ Partager (admin/second) */}
+                      {canShare && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveRecipeId(r.id);
+                            setShowGroupsModal(true);
+                          }}
+                          className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
+                          title="Partager"
+                        >
+                          <Share2 className="w-5 h-5" />
+                        </button>
+                      )}
 
+                      {/* ✅ Favoris */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -592,6 +619,7 @@ export function SharedRecipeGroupMobile({
                         <Heart className={cn("w-5 h-5", fav && "fill-current")} />
                       </button>
 
+                      {/* ✅ Voir */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -604,19 +632,37 @@ export function SharedRecipeGroupMobile({
                         <Eye className="w-5 h-5" />
                       </button>
 
+                      {/* ✅ Modifier (admin/second) */}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(r.id);
+                          }}
+                          className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
+                          title="Modifier"
+                        >
+                          <Pencil className="w-5 h-5" />
+                        </button>
+                      )}
+
                       <div className="flex-1" />
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleRemoveFromGroup(r.id);
-                        }}
-                        className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
-                        title="Retirer du groupe"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      {/* ✅ Retirer du groupe (admin/second) */}
+                      {canRemoveFromGroup && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleRemoveFromGroup(r.id);
+                          }}
+                          className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
+                          title="Retirer du groupe"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -626,7 +672,111 @@ export function SharedRecipeGroupMobile({
         </div>
       </div>
 
-      {/* Sidebar overlay */}
+      {/* Bottom sheet actions */}
+      {sheetOpen && sheetRecipe && (
+        <div className="fixed inset-0 z-[140]">
+          <div className="absolute inset-0 bg-black/60" onClick={closeSheet} />
+          <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
+            <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <div className="text-slate-100 font-semibold truncate">
+                    {sheetRecipe.title || "Sans titre"}
+                  </div>
+                  <div className="text-xs text-slate-300/70 mt-1 truncate">
+                    {sheetRecipe.category || "Autre"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeSheet}
+                  className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5 text-slate-100" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <SheetAction
+                  icon={<Eye className="w-5 h-5" />}
+                  label="Voir la recette"
+                  onClick={() => {
+                    setViewingRecipeId(sheetRecipe.id);
+                    closeSheet();
+                  }}
+                />
+
+                {/* ✅ Modifier (admin/second) */}
+                {canEdit && (
+                  <SheetAction
+                    icon={<Pencil className="w-5 h-5" />}
+                    label="Modifier la recette"
+                    onClick={() => {
+                      handleEdit(sheetRecipe.id);
+                      closeSheet();
+                    }}
+                  />
+                )}
+
+                {/* ✅ Partager (admin/second) */}
+                {canShare && (
+                  <SheetAction
+                    icon={<Share2 className="w-5 h-5" />}
+                    label="Partager à un groupe"
+                    onClick={() => {
+                      setActiveRecipeId(sheetRecipe.id);
+                      setShowGroupsModal(true);
+                      closeSheet();
+                    }}
+                  />
+                )}
+
+                <SheetAction
+                  icon={<Heart className="w-5 h-5" />}
+                  label={
+                    sheetRecipe.is_favorite
+                      ? "Retirer des favoris"
+                      : "Ajouter aux favoris"
+                  }
+                  onClick={() => {
+                    void handleToggleFavorite(
+                      sheetRecipe.id,
+                      !!sheetRecipe.is_favorite
+                    );
+                    closeSheet();
+                  }}
+                />
+
+                <SheetAction
+                  icon={<Folder className="w-5 h-5" />}
+                  label="Déplacer dans un dossier"
+                  onClick={() => {
+                    setDraggedRecipe(sheetRecipe.id);
+                    setSidebarOpen(true);
+                    closeSheet();
+                  }}
+                />
+
+                {/* ✅ Retirer (admin/second) */}
+                {canRemoveFromGroup && (
+                  <SheetAction
+                    icon={<Trash2 className="w-5 h-5" />}
+                    label="Retirer du groupe"
+                    tone="danger"
+                    onClick={() => {
+                      void handleRemoveFromGroup(sheetRecipe.id);
+                      closeSheet();
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar overlay (inchangé) */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-[120]">
           <div
@@ -783,88 +933,6 @@ export function SharedRecipeGroupMobile({
                     Nouveau dossier
                   </button>
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bottom sheet actions */}
-      {sheetOpen && sheetRecipe && (
-        <div className="fixed inset-0 z-[140]">
-          <div className="absolute inset-0 bg-black/60" onClick={closeSheet} />
-          <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
-            <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="min-w-0">
-                  <div className="text-slate-100 font-semibold truncate">
-                    {sheetRecipe.title || "Sans titre"}
-                  </div>
-                  <div className="text-xs text-slate-300/70 mt-1 truncate">
-                    {sheetRecipe.category || "Autre"}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeSheet}
-                  className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
-                  aria-label="Fermer"
-                >
-                  <X className="w-5 h-5 text-slate-100" />
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                <SheetAction
-                  icon={<Eye className="w-5 h-5" />}
-                  label="Voir la recette"
-                  onClick={() => {
-                    setViewingRecipeId(sheetRecipe.id);
-                    closeSheet();
-                  }}
-                />
-                <SheetAction
-                  icon={<Share2 className="w-5 h-5" />}
-                  label="Partager à un groupe"
-                  onClick={() => {
-                    setActiveRecipeId(sheetRecipe.id);
-                    setShowGroupsModal(true);
-                    closeSheet();
-                  }}
-                />
-                <SheetAction
-                  icon={<Heart className="w-5 h-5" />}
-                  label={
-                    sheetRecipe.is_favorite
-                      ? "Retirer des favoris"
-                      : "Ajouter aux favoris"
-                  }
-                  onClick={() => {
-                    void handleToggleFavorite(
-                      sheetRecipe.id,
-                      !!sheetRecipe.is_favorite
-                    );
-                    closeSheet();
-                  }}
-                />
-                <SheetAction
-                  icon={<Folder className="w-5 h-5" />}
-                  label="Déplacer dans un dossier"
-                  onClick={() => {
-                    setDraggedRecipe(sheetRecipe.id);
-                    setSidebarOpen(true);
-                    closeSheet();
-                  }}
-                />
-                <SheetAction
-                  icon={<Trash2 className="w-5 h-5" />}
-                  label="Retirer du groupe"
-                  tone="danger"
-                  onClick={() => {
-                    void handleRemoveFromGroup(sheetRecipe.id);
-                    closeSheet();
-                  }}
-                />
               </div>
             </div>
           </div>

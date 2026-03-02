@@ -18,15 +18,17 @@ type Group = {
   id: string;
   name: string;
   created_at?: string;
-  created_by?: string;
+  created_by?: string; // owner = chef
 };
+
+type GroupRole = "admin" | "chef_de_partie" | "commis";
 
 type TeamMember = {
   id: string; // user_id
   email: string;
   full_name: string;
   job_title: string;
-  role: string; // group_members.role
+  role: GroupRole;
 };
 
 type Invitation = {
@@ -45,6 +47,24 @@ function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function roleLabel(role: GroupRole) {
+  switch (role) {
+    case "admin":
+      return "Second";
+    case "chef_de_partie":
+      return "Chef de partie";
+    case "commis":
+      return "Commis";
+    default:
+      return "—";
+  }
+}
+
+function normalizeRole(value: any): GroupRole {
+  if (value === "admin" || value === "chef_de_partie" || value === "commis") return value;
+  return "commis";
+}
+
 export function TeamManagement() {
   const { user, profile } = useAuth();
 
@@ -58,14 +78,19 @@ export function TeamManagement() {
 
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"second" | "commis" | "stagiaire">(
-    "commis"
-  );
+  const [inviteRole, setInviteRole] = useState<GroupRole>("commis");
 
-  const [inviteStatus, setInviteStatus] = useState<
-    "idle" | "sending" | "success" | "error"
-  >("idle");
+  const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "success" | "error">(
+    "idle"
+  );
   const [inviteMessage, setInviteMessage] = useState("");
+
+  const [canAccess, setCanAccess] = useState(false);
+
+  const [groupOwnerId, setGroupOwnerId] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<GroupRole | null>(null);
+
+  const GROUP_MEMBERS_TO_WORK_GROUPS_FK = "group_members_work_group_id_fkey";
 
   const isPremium = useMemo(() => {
     const p: any = profile;
@@ -78,12 +103,39 @@ export function TeamManagement() {
 
   const maxMembers = isPremium ? Infinity : 10;
 
-  const [canAccess, setCanAccess] = useState(false);
+  const activeGroup = useMemo(
+    () => groups.find((g) => g.id === activeGroupId),
+    [groups, activeGroupId]
+  );
 
-  // ✅ FK explicite (tu as 2 relations, donc on force celle-ci)
-  const GROUP_MEMBERS_TO_WORK_GROUPS_FK = "group_members_work_group_id_fkey";
+  const isOwner = useMemo(() => {
+    if (!user?.id) return false;
+    return Boolean(groupOwnerId && groupOwnerId === user.id);
+  }, [groupOwnerId, user?.id]);
+
+  const isSecond = useMemo(() => myRole === "admin", [myRole]);
+
+  const roleOptionsForManager = useMemo(() => {
+    if (isOwner) {
+      return [
+        { value: "admin" as const, label: "Second" },
+        { value: "chef_de_partie" as const, label: "Chef de partie (lecture seule)" },
+        { value: "commis" as const, label: "Commis (lecture seule)" },
+      ];
+    }
+    return [
+      { value: "chef_de_partie" as const, label: "Chef de partie (lecture seule)" },
+      { value: "commis" as const, label: "Commis (lecture seule)" },
+    ];
+  }, [isOwner]);
 
   useEffect(() => {
+    if (!user?.id) {
+      setGroups([]);
+      setActiveGroupId("");
+      setLoadingGroups(false);
+      return;
+    }
     void loadGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -93,6 +145,8 @@ export function TeamManagement() {
       setTeamMembers([]);
       setInvitations([]);
       setCanAccess(false);
+      setGroupOwnerId(null);
+      setMyRole(null);
       setLoading(false);
       return;
     }
@@ -101,62 +155,55 @@ export function TeamManagement() {
   }, [activeGroupId]);
 
   async function loadGroups() {
-  if (!user?.id) {
-    setGroups([]);
-    setActiveGroupId("");
-    setLoadingGroups(false);
-    return;
-  }
+    if (!user?.id) return;
 
-  setLoadingGroups(true);
-  try {
-    const { data, error } = await supabase
-      .from("group_members")
-      .select(`
-        work_group_id,
-        role,
-        work_groups!group_members_work_group_id_fkey (
-          id,
-          name,
-          created_at,
-          created_by
+    setLoadingGroups(true);
+    try {
+      const { data, error } = await supabase
+        .from("group_members")
+        .select(
+          `
+          work_group_id,
+          role,
+          work_groups!${GROUP_MEMBERS_TO_WORK_GROUPS_FK} (
+            id,
+            name,
+            created_at,
+            created_by
+          )
+        `
         )
-      `)
-      .eq("user_id", user.id);
+        .eq("user_id", user.id);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const nextGroups: Group[] = (data ?? [])
-      .map((m: any) => {
-        const wg = m.work_groups;
-        return Array.isArray(wg) ? wg[0] : wg;
-      })
-      .filter(Boolean);
+      const nextGroups: Group[] = (data ?? [])
+        .map((m: any) => {
+          const wg = m.work_groups;
+          return Array.isArray(wg) ? wg[0] : wg;
+        })
+        .filter(Boolean);
 
-    const unique = Array.from(
-      new Map(nextGroups.map((g) => [g.id, g])).values()
-    );
+      const unique = Array.from(new Map(nextGroups.map((g) => [g.id, g])).values());
+      unique.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
-    unique.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-    setGroups(unique);
-    setActiveGroupId((prev) => prev || unique[0]?.id || "");
-  } catch (e) {
-    console.error(e);
-    setGroups([]);
-    setActiveGroupId("");
-  } finally {
-    setLoadingGroups(false);
+      setGroups(unique);
+      setActiveGroupId((prev) => prev || unique[0]?.id || "");
+    } catch (e) {
+      console.error(e);
+      setGroups([]);
+      setActiveGroupId("");
+    } finally {
+      setLoadingGroups(false);
+    }
   }
-}
-
 
   async function loadTeamData(workGroupId: string) {
     if (!user?.id) return;
 
     setLoading(true);
     try {
-      // 1) Permission: owner OU chef/admin dans CE groupe
+      // 1) Groupe (owner = created_by)
       const { data: group, error: groupErr } = await supabase
         .from("work_groups")
         .select("id, created_by, name")
@@ -165,6 +212,9 @@ export function TeamManagement() {
 
       if (groupErr) throw groupErr;
 
+      setGroupOwnerId(group?.created_by ?? null);
+
+      // 2) Mon membership
       const { data: myMembership, error: memErr } = await supabase
         .from("group_members")
         .select("role")
@@ -174,11 +224,14 @@ export function TeamManagement() {
 
       if (memErr) throw memErr;
 
-      const isOwner = group?.created_by === user.id;
-      const isChef = myMembership?.role === "chef" || myMembership?.role === "admin";
-      setCanAccess(Boolean(isOwner || isChef));
+      const my = normalizeRole(myMembership?.role);
+      setMyRole(myMembership ? my : null);
 
-      // 2) Membres (group_members -> profiles)
+      const owner = group?.created_by === user.id;
+      const second = myMembership?.role === "admin";
+      setCanAccess(Boolean(owner || second));
+
+      // 3) Membres (group_members -> profiles)
       const { data: gm, error: gmErr } = await supabase
         .from("group_members")
         .select(
@@ -198,13 +251,13 @@ export function TeamManagement() {
           email: row.profiles?.email ?? "",
           full_name: row.profiles?.full_name ?? "Sans nom",
           job_title: row.profiles?.job_title ?? "",
-          role: row.role ?? "member",
+          role: normalizeRole(row.role),
         }))
         .sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
 
       setTeamMembers(members);
 
-      // 3) Invitations en attente
+      // 4) Invitations en attente
       const { data: invites, error: invErr } = await supabase
         .from("invitations")
         .select("*")
@@ -226,6 +279,8 @@ export function TeamManagement() {
       setTeamMembers([]);
       setInvitations([]);
       setCanAccess(false);
+      setGroupOwnerId(null);
+      setMyRole(null);
     } finally {
       setLoading(false);
     }
@@ -269,6 +324,13 @@ export function TeamManagement() {
     if (alreadyInvited) {
       setInviteStatus("error");
       setInviteMessage("Une invitation est déjà en attente pour cet email.");
+      return;
+    }
+
+    // UI rule: seul le Chef peut inviter en Second
+    if (!isOwner && inviteRole === "admin") {
+      setInviteStatus("error");
+      setInviteMessage("Seul le Chef peut inviter un Second.");
       return;
     }
 
@@ -319,29 +381,44 @@ export function TeamManagement() {
     }
   }
 
-  async function handleChangeRole(memberId: string, role: string) {
+  async function handleChangeRole(memberId: string, nextRole: GroupRole) {
     if (!activeGroupId) return;
+    if (!user?.id) return;
     if (!canAccess) return;
 
-    await supabase
-      .from("group_members")
-      .update({ role })
-      .eq("work_group_id", activeGroupId)
-      .eq("user_id", memberId);
+    // ne jamais modifier l’owner
+    if (groupOwnerId && memberId === groupOwnerId) return;
+
+    // second ne peut pas promouvoir admin
+    if (isSecond && nextRole === "admin") return;
+
+    const { data, error } = await supabase.rpc("set_group_member_role", {
+      p_work_group_id: activeGroupId,
+      p_user_id: memberId,
+      p_new_role: nextRole,
+    });
+
+    console.log("[set_group_member_role] data:", data);
+    console.log("[set_group_member_role] error:", error);
+
+    if (error) {
+      alert(`RPC error: ${error.message}`);
+      return;
+    }
 
     void loadTeamData(activeGroupId);
   }
 
   async function handleDeleteInvitation(id: string) {
     if (!confirm("Supprimer cette invitation ?")) return;
-    await supabase.from("invitations").delete().eq("id", id);
+    const { error } = await supabase.from("invitations").delete().eq("id", id);
+    if (error) {
+      console.error(error);
+      alert(error.message);
+      return;
+    }
     if (activeGroupId) void loadTeamData(activeGroupId);
   }
-
-  const activeGroup = useMemo(
-    () => groups.find((g) => g.id === activeGroupId),
-    [groups, activeGroupId]
-  );
 
   return (
     <div className={ui.dashboardBg}>
@@ -354,9 +431,7 @@ export function TeamManagement() {
               </div>
 
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
-                  Équipe
-                </h1>
+                <h1 className="text-lg sm:text-xl font-semibold text-slate-100">Équipe</h1>
                 <p className="text-sm text-slate-300/70 mt-1">
                   Gestion des membres, invitations et rôles (par groupe)
                 </p>
@@ -412,6 +487,11 @@ export function TeamManagement() {
                           invitations.length
                         } invitation${invitations.length > 1 ? "s" : ""} en attente`}
                     {activeGroup?.name ? ` — ${activeGroup.name}` : ""}
+                    {canAccess ? (
+                      <span className="ml-2 text-emerald-300/90">
+                        (Gestion : {isOwner ? "Chef" : isSecond ? "Second" : "—"})
+                      </span>
+                    ) : null}
                   </p>
                 )}
               </div>
@@ -432,11 +512,10 @@ export function TeamManagement() {
           {groups.length > 0 && !loading && !canAccess && (
             <div className="mt-8 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
               <AlertCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-slate-100 mb-2">
-                Accès refusé
-              </h2>
+              <h2 className="text-lg font-semibold text-slate-100 mb-2">Accès refusé</h2>
               <p className="text-sm text-slate-300/70">
-                Seuls le créateur du groupe ou un chef/admin peuvent gérer l’équipe de{" "}
+                Seuls le <span className="text-slate-200">Chef</span> (créateur du groupe) ou le{" "}
+                <span className="text-slate-200">Second</span> peuvent gérer l’équipe de{" "}
                 <span className="text-slate-200">{activeGroup?.name ?? "ce groupe"}</span>.
               </p>
             </div>
@@ -472,12 +551,12 @@ export function TeamManagement() {
 
                           <select
                             value={inviteRole}
-                            onChange={(e) => setInviteRole(e.target.value as any)}
+                            onChange={(e) => setInviteRole(e.target.value as GroupRole)}
                             className={ui.input}
                           >
-                            <option value="second">Second</option>
-                            <option value="commis">Commis</option>
-                            <option value="stagiaire">Stagiaire</option>
+                            {isOwner && <option value="admin">Second</option>}
+                            <option value="chef_de_partie">Chef de partie (lecture seule)</option>
+                            <option value="commis">Commis (lecture seule)</option>
                           </select>
 
                           <button
@@ -547,38 +626,46 @@ export function TeamManagement() {
                   <div className="mt-8">
                     <h2 className="text-base font-semibold text-slate-100 mb-4">Membres</h2>
                     <div className="space-y-3">
-                      {teamMembers.map((m) => (
-                        <div
-                          key={m.id}
-                          className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4 flex justify-between items-center gap-4"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-slate-100 font-medium truncate">{m.full_name}</p>
-                            <p className="text-sm text-slate-300/70 truncate">
-                              {m.job_title} • {m.email}
-                            </p>
-                          </div>
+                      {teamMembers.map((m) => {
+                        const isMe = m.id === user?.id;
+                        const isOwnerMember = Boolean(groupOwnerId && m.id === groupOwnerId);
 
-                          {m.id !== user?.id && m.role !== "chef" ? (
-                            <select
-                              value={m.role}
-                              onChange={(e) => handleChangeRole(m.id, e.target.value)}
-                              className={cn(ui.input, "max-w-[160px]")}
-                            >
-                              <option value="admin">Admin</option>
-                              <option value="chef">Chef</option>
-                              <option value="second">Second</option>
-                              <option value="member">Membre</option>
-                              <option value="commis">Commis</option>
-                              <option value="stagiaire">Stagiaire</option>
-                            </select>
-                          ) : (
-                            <div className="text-xs text-slate-300/70 whitespace-nowrap">
-                              {m.id === user?.id ? "Vous" : m.role}
+                        const rightLabel = isMe ? "Vous" : isOwnerMember ? "Chef" : roleLabel(m.role);
+
+                        const canEditThisMember = canAccess && !isMe && !isOwnerMember;
+
+                        return (
+                          <div
+                            key={m.id}
+                            className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4 flex justify-between items-center gap-4"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-slate-100 font-medium truncate">{m.full_name}</p>
+                              <p className="text-sm text-slate-300/70 truncate">
+                                {m.job_title} • {m.email}
+                              </p>
                             </div>
-                          )}
-                        </div>
-                      ))}
+
+                            {canEditThisMember ? (
+                              <select
+                                value={m.role}
+                                onChange={(e) => handleChangeRole(m.id, e.target.value as GroupRole)}
+                                className={cn(ui.input, "max-w-[220px]")}
+                              >
+                                {roleOptionsForManager.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="text-xs text-slate-300/70 whitespace-nowrap">
+                                {rightLabel}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </>

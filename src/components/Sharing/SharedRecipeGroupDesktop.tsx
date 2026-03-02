@@ -19,6 +19,7 @@ import {
   Share2,
   Trash2,
   Eye,
+  Pencil,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
@@ -29,6 +30,7 @@ type Props = {
   groupId: string;
   groupName?: string;
   onBack?: () => void;
+  onEdit?: (recipeId: string) => void; // ✅ optionnel
 };
 
 type GroupFolder = { id: string; name: string; created_by: string };
@@ -52,6 +54,7 @@ export function SharedRecipeGroupDesktop({
   groupId,
   groupName = "Groupe",
   onBack,
+  onEdit,
 }: Props) {
   const { user } = useAuth();
 
@@ -77,6 +80,13 @@ export function SharedRecipeGroupDesktop({
   const [folderMenuOpenId, setFolderMenuOpenId] = useState<string | null>(null);
   const folderMenuRef = useRef<HTMLDivElement>(null);
 
+  // ✅ membership / permissions
+  const [memberRole, setMemberRole] = useState<string | null>(null);
+
+  const canShare = memberRole === "admin" || memberRole === "second";
+  const canEdit = memberRole === "admin" || memberRole === "second";
+  const canRemoveFromGroup = memberRole === "admin" || memberRole === "second";
+
   useEffect(() => {
     void loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,10 +107,23 @@ export function SharedRecipeGroupDesktop({
   async function loadAll() {
     setLoading(true);
     try {
-      await Promise.all([loadFolders(), loadRecipes()]);
+      await Promise.all([loadMembership(), loadFolders(), loadRecipes()]);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadMembership() {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("work_group_id", groupId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) return;
+    setMemberRole((data as any)?.role ?? null);
   }
 
   async function loadFolders() {
@@ -109,10 +132,10 @@ export function SharedRecipeGroupDesktop({
     const { data, error } = await supabase
       .from("work_group_folders")
       .select("id,name,created_by")
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .order("name");
 
-    if (error) return; // tu peux logger si tu veux
+    if (error) return;
     setFolders((data ?? []) as GroupFolder[]);
   }
 
@@ -122,7 +145,7 @@ export function SharedRecipeGroupDesktop({
     const { data, error } = await supabase
       .from("work_group_recipes")
       .select(`recipes ( id, title, category, servings, prep_time, cook_time )`)
-      .eq("work_group_id", groupId);
+      .eq("group_id", groupId);
 
     if (error) return;
 
@@ -141,7 +164,7 @@ export function SharedRecipeGroupDesktop({
     const { data: mapData, error: mapErr } = await supabase
       .from("work_group_folder_recipes")
       .select("recipe_id, folder_id")
-      .eq("work_group_id", groupId);
+      .eq("group_id", groupId);
 
     if (mapErr) return;
 
@@ -219,10 +242,7 @@ export function SharedRecipeGroupDesktop({
     const folder = folders.find((f) => f.id === folderId);
     const next = prompt("Nouveau nom :", folder?.name ?? "");
     if (!next) return;
-    await supabase
-      .from("work_group_folders")
-      .update({ name: next })
-      .eq("id", folderId);
+    await supabase.from("work_group_folders").update({ name: next }).eq("id", folderId);
     await loadFolders();
     setFolderMenuOpenId(null);
   }
@@ -233,7 +253,7 @@ export function SharedRecipeGroupDesktop({
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("folder_id", folderId);
 
     if (selectedFolder === folderId) setSelectedFolder(null);
@@ -262,9 +282,7 @@ export function SharedRecipeGroupDesktop({
     }
 
     setRecipes((prev) =>
-      prev.map((r) =>
-        r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r
-      )
+      prev.map((r) => (r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r))
     );
   }
 
@@ -274,7 +292,7 @@ export function SharedRecipeGroupDesktop({
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
 
     if (folderId) {
@@ -292,18 +310,19 @@ export function SharedRecipeGroupDesktop({
 
   async function handleRemoveFromGroup(recipeId: string, e: React.MouseEvent) {
     e.stopPropagation();
+    if (!canRemoveFromGroup) return;
     if (!confirm("Retirer cette recette du groupe ?")) return;
 
     await supabase
       .from("work_group_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
 
     await supabase
       .from("work_group_folder_recipes")
       .delete()
-      .eq("work_group_id", groupId)
+      .eq("group_id", groupId)
       .eq("recipe_id", recipeId);
 
     await loadRecipes();
@@ -317,6 +336,14 @@ export function SharedRecipeGroupDesktop({
     setDraggedRecipe(null);
   }
 
+  function handleEdit(recipeId: string, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    if (!canEdit) return;
+    if (onEdit) return onEdit(recipeId);
+    // fallback : ouvre la recette (tu pourras gérer l'édition dedans)
+    setViewingRecipeId(recipeId);
+  }
+
   if (viewingRecipeId) {
     return (
       <RecipeDisplay
@@ -327,24 +354,15 @@ export function SharedRecipeGroupDesktop({
   }
 
   return (
-    <PageShell
-      withPanel={false}
-      title={undefined}
-      subtitle={undefined}
-      icon={undefined}
-      actions={undefined}
-    >
+    <PageShell withPanel={false} title={undefined} subtitle={undefined} icon={undefined} actions={undefined}>
       <div className={cn(ui.containerWide, "py-6 sm:py-8 px-4 sm:px-6")}>
         {/* Header */}
         <div className="mb-6">
           <div className="text-2xl font-semibold text-slate-100">Partager</div>
           <div className="mt-1 text-sm text-slate-300/70">
-            Groupe :{" "}
-            <span className="text-slate-100 font-semibold">{groupName}</span>
+            Groupe : <span className="text-slate-100 font-semibold">{groupName}</span>
             {" · "}
-            <span className="text-slate-100 font-semibold">
-              {filteredRecipes.length}
-            </span>
+            <span className="text-slate-100 font-semibold">{filteredRecipes.length}</span>
           </div>
           {onBack && (
             <button
@@ -439,10 +457,7 @@ export function SharedRecipeGroupDesktop({
                     e.currentTarget.classList.remove("ring-2", "ring-amber-400/25")
                   }
                   onDrop={(e) => {
-                    e.currentTarget.classList.remove(
-                      "ring-2",
-                      "ring-amber-400/25"
-                    );
+                    e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
                     handleDrop(folder.id, e as unknown as DragEvent);
                   }}
                   className={cn(
@@ -460,17 +475,13 @@ export function SharedRecipeGroupDesktop({
                     tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setFolderMenuOpenId((prev) =>
-                        prev === folder.id ? null : folder.id
-                      );
+                      setFolderMenuOpenId((prev) => (prev === folder.id ? null : folder.id));
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         e.stopPropagation();
-                        setFolderMenuOpenId((prev) =>
-                          prev === folder.id ? null : folder.id
-                        );
+                        setFolderMenuOpenId((prev) => (prev === folder.id ? null : folder.id));
                       }
                     }}
                     className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-black/10 ring-1 ring-white/10 hover:bg-black/15 transition-colors text-slate-200 cursor-pointer"
@@ -582,12 +593,8 @@ export function SharedRecipeGroupDesktop({
             ) : filteredRecipes.length === 0 ? (
               <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
                 <AlertCircle className="w-14 h-14 text-slate-500 mx-auto mb-4" />
-                <p className="text-slate-200 text-lg font-semibold">
-                  Aucune recette trouvée
-                </p>
-                <p className="text-sm text-slate-300/70 mt-2">
-                  Change tes filtres ou ton dossier.
-                </p>
+                <p className="text-slate-200 text-lg font-semibold">Aucune recette trouvée</p>
+                <p className="text-sm text-slate-300/70 mt-2">Change tes filtres ou ton dossier.</p>
               </div>
             ) : (
               <div className="divide-y divide-white/10 border-t border-white/10">
@@ -616,8 +623,7 @@ export function SharedRecipeGroupDesktop({
                           )}
                         </div>
                         <p className="mt-1 text-xs text-white/50">
-                          Prép {recipe.prep_time ?? 0}min · Cuisson{" "}
-                          {recipe.cook_time ?? 0}min ·{" "}
+                          Prép {recipe.prep_time ?? 0}min · Cuisson {recipe.cook_time ?? 0}min ·{" "}
                           {recipe.servings ?? "—"} couverts
                         </p>
                       </button>
@@ -653,27 +659,45 @@ export function SharedRecipeGroupDesktop({
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveRecipeId(recipe.id);
-                              setShowGroupsModal(true);
-                            }}
-                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                            title="Partager à un autre groupe"
-                            type="button"
-                          >
-                            <Share2 className="w-4 h-4" />
-                          </button>
+                          {/* ✅ Modifier (admin/second) */}
+                          {canEdit && (
+                            <button
+                              onClick={(e) => handleEdit(recipe.id, e)}
+                              className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                              title="Modifier la recette"
+                              type="button"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
 
-                          <button
-                            onClick={(e) => handleRemoveFromGroup(recipe.id, e)}
-                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-red-300 transition-colors"
-                            type="button"
-                            title="Retirer du groupe"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {/* ✅ Partager à un autre groupe (admin/second) */}
+                          {canShare && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveRecipeId(recipe.id);
+                                setShowGroupsModal(true);
+                              }}
+                              className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                              title="Partager à un autre groupe"
+                              type="button"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          {/* ✅ Retirer du groupe (admin/second) */}
+                          {canRemoveFromGroup && (
+                            <button
+                              onClick={(e) => handleRemoveFromGroup(recipe.id, e)}
+                              className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-red-300 transition-colors"
+                              type="button"
+                              title="Retirer du groupe"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

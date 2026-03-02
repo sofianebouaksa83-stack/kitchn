@@ -26,6 +26,32 @@ export function PageShell({
   withPanel = true,
 }: PageShellProps) {
   const container = containerClassName ?? ui.containerWide;
+  const hasHeader = Boolean(title || subtitle || actions);
+
+  const Header = hasHeader ? (
+    <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="min-w-0">
+        {title && (
+          <h1 className="text-lg sm:text-xl font-semibold text-slate-100 flex items-center gap-3">
+            {icon ? (
+              <span className="h-11 w-11 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center shrink-0">
+                {icon}
+              </span>
+            ) : null}
+            <span className="truncate">{title}</span>
+          </h1>
+        )}
+
+        {subtitle && (
+          <p className="text-sm text-slate-300/70 mt-2 max-w-2xl">
+            {subtitle}
+          </p>
+        )}
+      </div>
+
+      {actions ? <div className="shrink-0">{actions}</div> : null}
+    </div>
+  ) : null;
 
   return (
     <div className={ui.dashboardBg}>
@@ -39,35 +65,14 @@ export function PageShell({
               panelClassName ?? "",
             ].join(" ")}
           >
-            {(title || subtitle || actions) && (
-              <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="min-w-0">
-                  {title && (
-                    <h1 className="text-lg sm:text-xl font-semibold text-slate-100 flex items-center gap-3">
-                      {icon ? (
-                        <span className="h-11 w-11 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center shrink-0">
-                          {icon}
-                        </span>
-                      ) : null}
-                      <span className="truncate">{title}</span>
-                    </h1>
-                  )}
-
-                  {subtitle && (
-                    <p className="text-sm text-slate-300/70 mt-2 max-w-2xl">
-                      {subtitle}
-                    </p>
-                  )}
-                </div>
-
-                {actions ? <div className="shrink-0">{actions}</div> : null}
-              </div>
-            )}
-
+            {Header}
             {children}
           </div>
         ) : (
-          <>{children}</>
+          <>
+            {Header}
+            {children}
+          </>
         )}
       </div>
     </div>

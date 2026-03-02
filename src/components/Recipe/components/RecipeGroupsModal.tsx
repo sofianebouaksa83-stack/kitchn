@@ -84,7 +84,7 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
       // ✅ FIX: colonne = work_group_id (pas group_id)
       const { data: links, error: lErr } = await supabase
         .from("work_group_recipes")
-        .select("work_group_id")
+        .select("group_id")
         .eq("recipe_id", recipeId);
 
       if (lErr) throw lErr;
@@ -93,7 +93,7 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
       for (const grp of g) sel[grp.id] = false;
 
       for (const row of links ?? []) {
-        const gid = String((row as any).work_group_id);
+        const gid = String((row as any).group_id);
         if (gid) sel[gid] = true;
       }
 
@@ -131,7 +131,7 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
         // ✅ FIX: work_group_id
         const payload = selectedIds.map((groupId) => ({
           recipe_id: recipeId,
-          work_group_id: groupId,
+          group_id: groupId,
         }));
 
         const { error: insErr } = await supabase
