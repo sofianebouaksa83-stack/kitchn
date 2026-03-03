@@ -13,7 +13,6 @@ export function AuthCallback() {
 
     async function run() {
       try {
-        // Finalise la session via le code présent dans l'URL
         const { error } = await supabase.auth.exchangeCodeForSession(
           window.location.href
         );
@@ -21,11 +20,14 @@ export function AuthCallback() {
 
         if (!alive) return;
         setState("ok");
-        setMsg("Email confirmé ✅ Redirection…");
+        setMsg("Connexion confirmée ✅ Redirection…");
 
         setTimeout(() => {
-          window.location.hash = "/"; // retour app
-        }, 800);
+          // ✅ redirection fiable vers l'app (hash routing)
+          window.location.replace("/#/"); 
+          // si tu veux aller direct sur une vue :
+          // window.location.replace("/#/"); // recipes = default
+        }, 600);
       } catch (e: any) {
         if (!alive) return;
         setState("error");
@@ -52,7 +54,7 @@ export function AuthCallback() {
                   className="h-11 sm:h-12 w-auto select-none"
                   draggable={false}
                 />
-                <p className="text-sm text-slate-200/80">Confirmation du compte</p>
+                <p className="text-sm text-slate-200/80">Connexion Google</p>
               </div>
             </div>
 

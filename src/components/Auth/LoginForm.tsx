@@ -152,12 +152,12 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
 
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-        },
-      });
-
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    
       if (error) throw error;
       // supabase redirige automatiquement
     } catch (err: any) {
