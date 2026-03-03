@@ -13,9 +13,9 @@ export function AuthCallback() {
 
     async function run() {
       try {
-        const { error } = await supabase.auth.exchangeCodeForSession(
-          window.location.href
-        );
+       const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+      console.log("exchange data:", data);
+      console.log("exchange error:", error);
         if (error) throw error;
 
         if (!alive) return;
