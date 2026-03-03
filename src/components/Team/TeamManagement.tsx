@@ -116,6 +116,7 @@ export function TeamManagement() {
   const isSecond = useMemo(() => myRole === "admin", [myRole]);
 
   const roleOptionsForManager = useMemo(() => {
+    // Chef (owner) peut nommer un Second
     if (isOwner) {
       return [
         { value: "admin" as const, label: "Second" },
@@ -123,6 +124,7 @@ export function TeamManagement() {
         { value: "commis" as const, label: "Commis (lecture seule)" },
       ];
     }
+    // Second (admin) peut gérer mais ne peut pas créer un autre second
     return [
       { value: "chef_de_partie" as const, label: "Chef de partie (lecture seule)" },
       { value: "commis" as const, label: "Commis (lecture seule)" },
@@ -214,6 +216,8 @@ export function TeamManagement() {
 
       setGroupOwnerId(group?.created_by ?? null);
 
+      const isOwnerNow = (group?.created_by ?? null) === user.id;
+
       // 2) Mon membership
       const { data: myMembership, error: memErr } = await supabase
         .from("group_members")
@@ -227,18 +231,19 @@ export function TeamManagement() {
       const my = normalizeRole(myMembership?.role);
       setMyRole(myMembership ? my : null);
 
-      const owner = group?.created_by === user.id;
-      const second = myMembership?.role === "admin";
-      setCanAccess(Boolean(owner || second));
+      const isSecondNow = myMembership?.role === "admin";
+      setCanAccess(Boolean(isOwnerNow || isSecondNow));
 
-      // 3) Membres (group_members -> profiles)
+      // 3) Membres
       const { data: gm, error: gmErr } = await supabase
         .from("group_members")
         .select(
           `
           user_id,
           role,
-          profiles:user_id ( id, email, full_name, job_title )
+          profiles!group_members_user_id_fkey (
+            id, email, full_name, job_title
+          )
         `
         )
         .eq("work_group_id", workGroupId);
@@ -386,28 +391,80 @@ export function TeamManagement() {
     if (!user?.id) return;
     if (!canAccess) return;
 
+    console.log("[handleChangeRole] memberId:", memberId, "nextRole:", nextRole, {
+      activeGroupId,
+      canAccess,
+      isOwner,
+      isSecond,
+      groupOwnerId,
+      userId: user.id,
+    });
+
     // ne jamais modifier l’owner
     if (groupOwnerId && memberId === groupOwnerId) return;
 
-    // second ne peut pas promouvoir admin
-    if (isSecond && nextRole === "admin") return;
+    // ✅ IMPORTANT : le Second ne peut pas promouvoir admin, MAIS le Chef oui,
+    // même si son myRole = admin (car il est aussi membre).
+    if (!isOwner && isSecond && nextRole === "admin") return;
 
-    const { data, error } = await supabase.rpc("set_group_member_role", {
-      p_work_group_id: activeGroupId,
-      p_user_id: memberId,
-      p_new_role: nextRole,
-    });
+    const { data: updated, error } = await supabase
+      .from("group_members")
+      .update({ role: nextRole })
+      .eq("work_group_id", activeGroupId)
+      .eq("user_id", memberId)
+      .select("work_group_id, user_id, role");
 
-    console.log("[set_group_member_role] data:", data);
-    console.log("[set_group_member_role] error:", error);
+    console.log("UPDATE result:", { updated, error });
 
     if (error) {
-      alert(`RPC error: ${error.message}`);
+      console.error("UPDATE ERROR", error);
+      alert("UPDATE ERROR: " + error.message);
       return;
     }
 
-    void loadTeamData(activeGroupId);
+    if (!updated || updated.length === 0) {
+      alert("UPDATE: 0 ligne modifiée (WHERE ne match pas)");
+      return;
+    }
+
+    const { data: check, error: checkErr } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("work_group_id", activeGroupId)
+      .eq("user_id", memberId)
+      .maybeSingle();
+
+    console.log("ROLE AFTER:", { check, checkErr });
+
+    await loadTeamData(activeGroupId);
   }
+
+  async function handleRemoveMember(memberId: string) {
+  if (!activeGroupId) return;
+  if (!user?.id) return;
+  if (!canAccess) return;
+
+  // protections
+  if (groupOwnerId && memberId === groupOwnerId) return; // jamais supprimer le chef
+  if (memberId === user.id) return; // évite de te supprimer toi-même
+
+  const ok = confirm("Supprimer ce membre du groupe ?");
+  if (!ok) return;
+
+  const { error } = await supabase
+    .from("group_members")
+    .delete()
+    .eq("work_group_id", activeGroupId)
+    .eq("user_id", memberId);
+
+  if (error) {
+    console.error("DELETE ERROR", error);
+    alert("DELETE ERROR: " + error.message);
+    return;
+  }
+
+  await loadTeamData(activeGroupId);
+}
 
   async function handleDeleteInvitation(id: string) {
     if (!confirm("Supprimer cette invitation ?")) return;
@@ -631,7 +688,6 @@ export function TeamManagement() {
                         const isOwnerMember = Boolean(groupOwnerId && m.id === groupOwnerId);
 
                         const rightLabel = isMe ? "Vous" : isOwnerMember ? "Chef" : roleLabel(m.role);
-
                         const canEditThisMember = canAccess && !isMe && !isOwnerMember;
 
                         return (
@@ -646,22 +702,31 @@ export function TeamManagement() {
                               </p>
                             </div>
 
-                            {canEditThisMember ? (
-                              <select
-                                value={m.role}
-                                onChange={(e) => handleChangeRole(m.id, e.target.value as GroupRole)}
-                                className={cn(ui.input, "max-w-[220px]")}
-                              >
-                                {roleOptionsForManager.map((opt) => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <div className="text-xs text-slate-300/70 whitespace-nowrap">
-                                {rightLabel}
+                           {canEditThisMember ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={m.role}
+                                  onChange={(e) => handleChangeRole(m.id, e.target.value as GroupRole)}
+                                  className={cn(ui.input, "max-w-[220px]")}
+                                >
+                                  {roleOptionsForManager.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMember(m.id)}
+                                  className="p-2 rounded-xl text-red-300 hover:text-red-200 hover:bg-red-500/10 ring-1 ring-transparent hover:ring-red-500/20"
+                                  title="Supprimer le membre"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
+                            ) : (
+                              <div className="text-xs text-slate-300/70 whitespace-nowrap">{rightLabel}</div>
                             )}
                           </div>
                         );

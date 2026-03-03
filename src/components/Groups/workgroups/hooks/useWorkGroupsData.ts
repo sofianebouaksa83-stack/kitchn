@@ -260,7 +260,7 @@ export function useWorkGroupsData(opts: {
       const { error } = await supabase.from("group_members").insert({
         work_group_id: groupId,
         user_id: selectedUserId,
-        role: "member",
+        role: "commis",
       });
 
       if (error) throw error;
@@ -323,32 +323,32 @@ export function useWorkGroupsData(opts: {
     }
   }
 
-  async function handleRemoveMember(userIdToRemove: string) {
-    try {
-      setErrorMsg(null);
-      setManageLoading(true);
+    async function handleRemoveMember(userIdToRemove: string) {
+      try {
+        setErrorMsg(null);
+        setManageLoading(true);
 
-      const groupId = selectedGroupFresh?.id;
-      if (!groupId) return setErrorMsg("Aucun groupe sélectionné");
+        const groupId = selectedGroupFresh?.id;
+        if (!groupId) return setErrorMsg("Aucun groupe sélectionné");
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) return setErrorMsg("Session expirée : reconnecte-toi");
+        // Empêche de supprimer le créateur (optionnel)
+        // if (userIdToRemove === userId) return setErrorMsg("Impossible de te supprimer.");
 
-      const { error } = await supabase.functions.invoke("remove-group-member", {
-        body: { groupId, userId: userIdToRemove },
-        headers: { Authorization: `Bearer ${token}` },
-      });
+        const { error } = await supabase
+          .from("group_members")
+          .delete()
+          .eq("work_group_id", groupId)
+          .eq("user_id", userIdToRemove);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await loadGroups();
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors de la suppression du membre");
-    } finally {
-      setManageLoading(false);
+        await loadGroups();
+      } catch (e: any) {
+        setErrorMsg(e?.message ?? "Erreur lors de la suppression du membre");
+      } finally {
+        setManageLoading(false);
+      }
     }
-  }
 
   async function openManage(group: GroupWithMembers) {
     setSelectedGroup(group);
