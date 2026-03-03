@@ -52,7 +52,10 @@ export function LandingPage({
             <button onClick={onLogin} className={cn(ui.btnGhost, "h-10 px-4")}>
               Se connecter
             </button>
-            <button onClick={onStart} className={cn(ui.btnPrimary, "h-10 px-4")}>
+            <button
+              onClick={onStart}
+              className={cn(ui.btnPrimary, "h-10 px-4")}
+            >
               Commencer
             </button>
           </div>
@@ -138,35 +141,36 @@ export function LandingPage({
         </div>
       </div>
 
-    {/* FOOTER (Landing) */}
-    <footer className="relative mt-10 border-t border-white/10">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-white/55">
-            © {new Date().getFullYear()} KITCH&apos;N
+      {/* FOOTER (Landing) */}
+      <footer className="relative mt-10 border-t border-white/10">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-white/55">
+              © {new Date().getFullYear()} KITCH&apos;N
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
+              {/* ✅ IMPORTANT: vraies routes (sans #) pour Google */}
+              <a
+                href="/privacy"
+                className="text-white/55 hover:text-white/85 transition"
+              >
+                Politique de confidentialité
+              </a>
+              <a
+                href="/terms"
+                className="text-white/55 hover:text-white/85 transition"
+              >
+                Conditions d’utilisation
+              </a>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-            <a
-              href="#/privacy"
-              className="text-white/55 hover:text-white/85 transition"
-            >
-              Politique de confidentialité
-            </a>
-            <a
-              href="#/terms"
-              className="text-white/55 hover:text-white/85 transition"
-            >
-              Conditions d’utilisation
-            </a>
+          <div className="mt-4 text-center text-xs text-white/35">
+            Pour ceux qui cuisinent avec passion.
           </div>
         </div>
-
-        <div className="mt-4 text-center text-xs text-white/35">
-          Pour ceux qui cuisinent avec passion.
-        </div>
-      </div>
-    </footer>
+      </footer>
     </div>
   );
 }

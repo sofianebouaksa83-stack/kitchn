@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
@@ -8,12 +9,11 @@ import { InvitationSignup } from "./components/Auth/InvitationSignup";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 import { AuthCallback } from "./components/Auth/AuthCallback";
 
-// ✅ AJOUT : pages publiques (landing)
+// ✅ Pages publiques (vraies routes + support hash)
 import PrivacyPage from "./pages/Privacy";
-import TermsPage from "./pages/terms";
+import TermsPage from "./pages/Terms";
 
 import { Navbar } from "./components/Layout/";
-
 import { RecipeList, RecipeEditorWithSections } from "./components/Recipe";
 
 import { SharedRecipes } from "./components/Sharing/";
@@ -24,7 +24,7 @@ import { SubscriptionManagement } from "./components/Subscription/SubscriptionMa
 import { SubscriptionSuccess } from "./components/Subscription/SubscriptionSuccess";
 import { SubscriptionCancel } from "./components/Subscription/SubscriptionCancel";
 
-// ✅ AJOUT : page Paramètres
+// ✅ Page Paramètres
 import SettingsPage from "./components/Settings/SettingsPage";
 
 import { ui } from "./styles/./ui";
@@ -52,13 +52,35 @@ function MainApp() {
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
 
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
-  const [routeHash, setRouteHash] = useState<string>(() => window.location.hash.slice(1));
+
+  /**
+   * routeHash = "route interne"
+   * - support hash routing:   #/login, #/privacy, ...
+   * - support vraie route:    /privacy, /terms, /auth/callback
+   */
+  const [routeHash, setRouteHash] = useState<string>(() => {
+    // Au 1er rendu : si on est sur /privacy, on veut garder /privacy
+    const path = window.location.pathname;
+    if (path === "/privacy" || path === "/terms" || path === "/auth/callback") {
+      return path;
+    }
+    // Sinon, fallback hash
+    return window.location.hash.slice(1);
+  });
+
   const [forceResetPassword, setForceResetPassword] = useState(false);
 
-  // ✅ URL sync (token + hash)
+  // ✅ URL sync (token + hash + pathname)
   useEffect(() => {
     const syncFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
+
+      // ✅ NEW: support des vraies routes /privacy /terms /auth/callback
+      const path = window.location.pathname;
+      if (path === "/privacy" || path === "/terms" || path === "/auth/callback") {
+        setRouteHash(path);
+        return;
+      }
 
       // 1) si on a ?reset=1
       const isResetQuery = params.get("reset") === "1";
@@ -90,20 +112,24 @@ function MainApp() {
       if (hash === "/register") setAuthMode("register");
 
       // ✅ Landing pages publiques (hash routing)
-      // Important: on laisse le rendu "non connecté" décider (privacy/terms)
       if (hash === "/privacy" || hash === "/terms") return;
 
       // ✅ App routes (views)
       if (hash === "/subscription") setCurrentView("subscription");
-      else if (hash === "/subscription/success") setCurrentView("subscription-success");
-      else if (hash === "/subscription/cancel") setCurrentView("subscription-cancel");
-      else if (hash === "/settings") setCurrentView("settings"); // ✅ AJOUT
+      else if (hash === "/subscription/success")
+        setCurrentView("subscription-success");
+      else if (hash === "/subscription/cancel")
+        setCurrentView("subscription-cancel");
+      else if (hash === "/settings") setCurrentView("settings");
       else if (hash === "/" || hash === "") setCurrentView("recipes");
     };
 
     syncFromUrl();
     window.addEventListener("hashchange", syncFromUrl);
-    return () => window.removeEventListener("hashchange", syncFromUrl);
+
+    return () => {
+      window.removeEventListener("hashchange", syncFromUrl);
+    };
   }, []);
 
   // ✅ Loading
@@ -141,6 +167,11 @@ function MainApp() {
   if (!user) {
     const hash = routeHash;
 
+    // ✅ Support /auth/callback en vraie route (et aussi #/auth/callback)
+    if (hash === "/auth/callback") {
+      return <AuthCallback />;
+    }
+
     if (hash === "/login") {
       return (
         <LoginForm
@@ -173,11 +204,8 @@ function MainApp() {
       );
     }
 
-    if (hash === "/auth/callback") {
-  return <AuthCallback />;
-}
-
     // ✅ pages publiques accessibles depuis la landing (footer)
+    // -> marche pour /privacy /terms et aussi #/privacy #/terms
     if (hash === "/privacy") {
       return <PrivacyPage />;
     }
@@ -252,7 +280,7 @@ function MainApp() {
         {currentView === "subscription-success" && <SubscriptionSuccess />}
         {currentView === "subscription-cancel" && <SubscriptionCancel />}
 
-        {/* ✅ AJOUT : Paramètres */}
+        {/* ✅ Paramètres */}
         {currentView === "settings" && <SettingsPage />}
       </main>
     </div>
