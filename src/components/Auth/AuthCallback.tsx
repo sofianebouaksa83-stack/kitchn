@@ -22,12 +22,9 @@ export function AuthCallback() {
         setState("ok");
         setMsg("Connexion confirmée ✅ Redirection…");
 
-        setTimeout(() => {
-          // ✅ redirection fiable vers l'app (hash routing)
-          window.location.replace("/#/"); 
-          // si tu veux aller direct sur une vue :
-          // window.location.replace("/#/"); // recipes = default
-        }, 600);
+        // ✅ Redirection immédiate et fiable vers ton routing hash
+        window.location.replace("/#/");
+        return;
       } catch (e: any) {
         if (!alive) return;
         setState("error");
