@@ -1,12 +1,19 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { Check, Crown, Loader2, Sparkles, Users } from "lucide-react";
 import { ui } from "../../styles/ui";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
+import { useSubscription } from "../../hooks/useSubscription";
 
-// Scroll showcase (1 par 1 au scroll)
+// Scroll showcase
 import { ScrollShowcaseMobile } from "./ScrollShowcaseMobile";
 import { ScrollShowcaseDesktop } from "./ScrollShowcaseDesktop";
 
-function cn(...classes: Array<string | undefined | false>) {
+// Footer partagé
+import { Footer } from "../Layout/Footer";
+
+function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
@@ -28,6 +35,81 @@ export function LandingPage({
   onStart,
   onLogin,
 }: LandingPageProps) {
+  const { user } = useAuth();
+  const { isPremium, loading: subLoading } = useSubscription(user?.id);
+
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
+
+  const resolvedPlanId = useMemo(() => {
+    if (subLoading) return null;
+    return isPremium ? "premium" : "free";
+  }, [isPremium, subLoading]);
+
+  async function handleUpgrade() {
+    setPricingError(null);
+    setLoadingCheckout(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "create-checkout-session",
+        {
+          body: { planId: "premium" },
+        }
+      );
+
+      if (error) {
+        const details = await (
+          error as { context?: { text?: () => Promise<string> } }
+        ).context?.text?.().catch(() => null);
+
+        throw new Error(details || error.message || "Erreur checkout");
+      }
+
+      if (!data?.url) {
+        throw new Error("URL de paiement introuvable");
+      }
+
+      window.location.href = data.url;
+    } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Impossible de passer au Premium";
+      setPricingError(message);
+    } finally {
+      setLoadingCheckout(false);
+    }
+  }
+
+  async function handleManage() {
+    setPricingError(null);
+    setLoadingPortal(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "manage-subscription"
+      );
+
+      if (error) throw error;
+      if (!data?.url) throw new Error("URL du portail introuvable");
+
+      window.location.href = data.url;
+    } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Impossible d’ouvrir la gestion d’abonnement";
+      setPricingError(message);
+    } finally {
+      setLoadingPortal(false);
+    }
+  }
+
+  const freeIsCurrent = resolvedPlanId === "free";
+  const premiumIsCurrent = resolvedPlanId === "premium";
+
   const fadeUp = {
     hidden: { opacity: 0, y: 18, filter: "blur(6px)" },
     show: { opacity: 1, y: 0, filter: "blur(0px)" },
@@ -52,6 +134,7 @@ export function LandingPage({
             <button onClick={onLogin} className={cn(ui.btnGhost, "h-10 px-4")}>
               Se connecter
             </button>
+
             <button
               onClick={onStart}
               className={cn(ui.btnPrimary, "h-10 px-4")}
@@ -61,7 +144,7 @@ export function LandingPage({
           </div>
         </div>
 
-        {/* HERO TEXT ONLY */}
+        {/* HERO */}
         <div className="mt-24 max-w-3xl mx-auto text-center">
           <motion.div
             variants={fadeUp}
@@ -131,7 +214,7 @@ export function LandingPage({
         </div>
       </div>
 
-      {/* SCROLL DEMO */}
+      {/* DEMO */}
       <div id="demo">
         <div className="block lg:hidden">
           <ScrollShowcaseMobile />
@@ -141,36 +224,317 @@ export function LandingPage({
         </div>
       </div>
 
-      {/* FOOTER (Landing) */}
-      <footer className="relative mt-10 border-t border-white/10">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-sm text-white/55">
-              © {new Date().getFullYear()} KITCH&apos;N
-            </div>
+      {/* PRICING */}
+      <section id="pricing" className="relative mt-20 sm:mt-28 pb-10">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.6 }}
+            className="text-center max-w-3xl mx-auto"
+          >
+            <div className={cn(ui.badge, "inline-flex mx-auto")}>Tarifs</div>
 
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-              {/* ✅ IMPORTANT: vraies routes (sans #) pour Google */}
-              <a
-                href="/privacy"
-                className="text-white/55 hover:text-white/85 transition"
-              >
-                Politique de confidentialité
-              </a>
-              <a
-                href="/terms"
-                className="text-white/55 hover:text-white/85 transition"
-              >
-                Conditions d’utilisation
-              </a>
-            </div>
-          </div>
+            <h2 className="mt-6 text-3xl sm:text-4xl font-semibold text-slate-100">
+              Simple, clair, prêt pour ton équipe
+            </h2>
 
-          <div className="mt-4 text-center text-xs text-white/35">
-            Pour ceux qui cuisinent avec passion.
+            <p className="mt-4 text-slate-300/70 text-base sm:text-lg">
+              La même logique que ta page abonnement, directement intégrée à la
+              landing avec Stripe déjà branché.
+            </p>
+          </motion.div>
+
+          {pricingError && (
+            <div className="mt-8 max-w-3xl mx-auto rounded-2xl bg-red-500/10 text-red-300 ring-1 ring-red-500/20 px-4 py-3 text-sm text-center">
+              {pricingError}
+            </div>
+          )}
+
+          <div className="mt-10 grid md:grid-cols-2 gap-6 lg:gap-8 max-w-6xl mx-auto">
+            {/* FREE */}
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.04 }}
+              className={cn(
+                ui.card,
+                freeIsCurrent
+                  ? "ring-2 ring-amber-400/30"
+                  : "ring-1 ring-white/10",
+                "rounded-3xl"
+              )}
+            >
+              <div className="p-6 sm:p-8">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <span className="text-xs font-semibold text-amber-300">
+                      Plan de base
+                    </span>
+                    <h3 className="text-2xl font-bold text-slate-100 mt-1">
+                      Free
+                    </h3>
+                    <p className="text-slate-400 text-sm mt-2">
+                      Pour utiliser Kitch’n au quotidien avec les fonctions
+                      essentielles.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-amber-400/10 ring-1 ring-amber-400/20 p-3">
+                    <Sparkles className="w-6 h-6 text-amber-300" />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className="text-4xl font-bold text-slate-100">0€</div>
+                  <p className="text-sm text-slate-400 mt-1">Sans engagement</p>
+                </div>
+
+                <ul className="space-y-3 mb-6">
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">Création de recettes</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">
+                      Accès aux groupes et dossiers
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">
+                      Usage standard de l’application
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">Sans paiement requis</span>
+                  </li>
+                </ul>
+
+                <button
+                  onClick={onStart}
+                  className={cn(ui.btnPrimary, "w-full")}
+                  type="button"
+                >
+                  {user
+                    ? freeIsCurrent
+                      ? "Plan actuel"
+                      : "Continuer avec Free"
+                    : "Commencer gratuitement"}
+                </button>
+
+                <p className="text-xs text-slate-500 mt-2 text-center">
+                  Aucun paiement requis
+                </p>
+              </div>
+            </motion.div>
+
+            {/* PREMIUM */}
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className={cn(
+                ui.card,
+                premiumIsCurrent
+                  ? "ring-2 ring-amber-400/30"
+                  : "ring-1 ring-white/10",
+                "rounded-3xl relative overflow-hidden"
+              )}
+            >
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
+
+              <div className="p-6 sm:p-8">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-amber-300">
+                      <Crown className="w-3.5 h-3.5" />
+                      Premium
+                    </span>
+                    <h3 className="text-2xl font-bold text-slate-100 mt-1">
+                      Premium
+                    </h3>
+                    <p className="text-slate-400 text-sm mt-2">
+                      Pour aller plus loin avec les fonctionnalités avancées de
+                      Kitch’n.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3">
+                    <Users className="w-6 h-6 text-slate-200" />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className="text-4xl font-bold text-slate-100">9,90€</div>
+                  <p className="text-sm text-slate-400 mt-1">Par mois</p>
+                </div>
+
+                <ul className="space-y-3 mb-6">
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">Import et génération IA</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">
+                      Fonctionnalités premium débloquées
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">
+                      Gestion d’abonnement via Stripe
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <Check className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <span className="text-white/90">
+                      Évolutions futures incluses
+                    </span>
+                  </li>
+                </ul>
+
+                {subLoading ? (
+                  <button
+                    disabled
+                    className={cn(ui.btnPrimary, "w-full opacity-80")}
+                    type="button"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Chargement…
+                    </span>
+                  </button>
+                ) : premiumIsCurrent ? (
+                  <button
+                    onClick={handleManage}
+                    disabled={loadingPortal}
+                    className={cn(ui.btnPrimary, "w-full")}
+                    type="button"
+                  >
+                    {loadingPortal ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Ouverture…
+                      </span>
+                    ) : (
+                      "Gérer mon abonnement"
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={user ? handleUpgrade : onStart}
+                    disabled={loadingCheckout}
+                    className={cn(ui.btnPrimary, "w-full")}
+                    type="button"
+                  >
+                    {loadingCheckout ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Redirection…
+                      </span>
+                    ) : user ? (
+                      "Passer au Premium"
+                    ) : (
+                      "Créer un compte et passer Premium"
+                    )}
+                  </button>
+                )}
+
+                <p className="text-xs text-slate-500 mt-2 text-center">
+                  Paiement sécurisé via Stripe
+                </p>
+              </div>
+            </motion.div>
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* FAQ */}
+<section className="relative mt-20 sm:mt-24 pb-6">
+  <div className="mx-auto max-w-4xl px-4 sm:px-6">
+    <div className="text-center max-w-2xl mx-auto">
+      <div className={cn(ui.badge, "inline-flex mx-auto")}>
+        FAQ
+      </div>
+
+      <h2 className="mt-6 text-3xl sm:text-4xl font-semibold text-slate-100">
+        Tout ce qu’il faut savoir avant de commencer
+      </h2>
+
+      <p className="mt-4 text-slate-300/70 text-base sm:text-lg">
+        Retrouve les réponses aux questions les plus fréquentes sur Kitch’n,
+        les abonnements et la confidentialité de tes recettes.
+      </p>
+    </div>
+
+    <div className="mt-10 rounded-[28px] border border-white/10 bg-white/[0.04] shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden divide-y divide-white/8">
+      {[
+        {
+          q: "Est-ce que Kitch’n est gratuit ?",
+          a: "Oui. Le plan Free permet de commencer sans paiement, avec les fonctionnalités essentielles pour créer et organiser vos recettes.",
+        },
+        {
+          q: "Puis-je annuler à tout moment ?",
+          a: "Oui. Vous pouvez gérer ou annuler votre abonnement Premium à tout moment depuis votre espace.",
+        },
+        {
+          q: "Mes recettes sont-elles privées ?",
+          a: "Oui. Vos recettes restent privées par défaut. Vous choisissez quand et avec qui les partager.",
+        },
+        {
+          q: "Kitch’n fonctionne-t-il pour une équipe ?",
+          a: "Oui. Kitch’n est pensé pour la brigade, avec des groupes, des dossiers et un partage structuré.",
+        },
+        {
+          q: "Comment fonctionne l’import IA ?",
+          a: "Vous importez un document ou un texte, et Kitch’n le transforme en recette claire, exploitable et prête à retravailler.",
+        },
+        {
+          q: "Le paiement est-il sécurisé ?",
+          a: "Oui. Les paiements et la gestion d’abonnement sont sécurisés via Stripe.",
+        },
+      ].map((item, index) => (
+        <details
+          key={item.q}
+          className="group px-5 sm:px-7 py-5 open:bg-white/[0.02] transition"
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left">
+            <span className="text-sm sm:text-base font-medium text-white">
+              {item.q}
+            </span>
+
+            <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.03] p-2 text-white/60 transition group-open:rotate-45 group-open:text-white">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M10 4a1 1 0 011 1v4h4a1 1 0 110 2h-4v4a1 1 0 11-2 0v-4H5a1 1 0 110-2h4V5a1 1 0 011-1z" />
+              </svg>
+            </span>
+          </summary>
+
+          <p className="pt-4 pr-10 text-sm sm:text-[15px] leading-7 text-slate-300/75">
+            {item.a}
+          </p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+      <Footer onStart={onStart} />
     </div>
   );
 }

@@ -15,7 +15,6 @@ import { SharedRecipesDemoPanel } from "../Sharing/";
 
 import {
   RecipeListDemoPanel,
-  RecipeEditorDemoPanel,
   RecipeDisplayDemo,
 } from "../Recipe";
 
@@ -90,44 +89,292 @@ function AutoFitDemo({
   );
 }
 
+function DemoCursor({
+  x,
+  y,
+  click = false,
+  visible = true,
+}: {
+  x: number;
+  y: number;
+  click?: boolean;
+  visible?: boolean;
+}) {
+  return (
+    <motion.div
+      animate={{
+        x,
+        y,
+        opacity: visible ? 1 : 0,
+      }}
+      transition={{
+        type: "spring",
+        stiffness: 220,
+        damping: 24,
+        mass: 0.7,
+      }}
+      className="absolute z-[80] pointer-events-none"
+    >
+      <motion.div
+        animate={{ scale: click ? 0.92 : 1 }}
+        transition={{ duration: 0.12, ease: "easeOut" }}
+        className="relative"
+      >
+        {/* ombre légère */}
+        <div className="absolute left-[2px] top-[2px]">
+          <svg
+            width="18"
+            height="24"
+            viewBox="0 0 18 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="opacity-25"
+          >
+            <path
+              d="M2.2 1.5L15.7 13.7L9.4 14.2L12.5 21.4L9.7 22.5L6.7 15.4L2.4 19V1.5Z"
+              fill="black"
+            />
+          </svg>
+        </div>
+
+        {/* curseur principal */}
+        <svg
+          width="18"
+          height="24"
+          viewBox="0 0 18 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="relative"
+        >
+          <path
+            d="M1.5 1L15.5 13.5L9.1 14L12.2 21.3L9.3 22.4L6.3 15.2L2 18.8V1Z"
+            fill="white"
+            stroke="#111827"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+        </svg>
+
+        {/* petit ripple au clic */}
+        <motion.div
+          animate={
+            click
+              ? { scale: 1.8, opacity: 0 }
+              : { scale: 1, opacity: 0 }
+          }
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          className="absolute left-[-2px] top-[-2px] h-6 w-6 rounded-full border border-white/60"
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function RecipeStepDemoInteractive() {
-  const [view, setView] = useState<"list" | "editor" | "detail">("list");
+  const [view, setView] = useState<"list" | "detail">("list");
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>("demo-1");
+  const [demoTick, setDemoTick] = useState(0);
+
+  const [cursor, setCursor] = useState({
+    x: 120,
+    y: 120,
+    click: false,
+    visible: true,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    let timers: number[] = [];
+
+    const push = (delay: number, fn: () => void) => {
+      const id = window.setTimeout(() => {
+        if (cancelled) return;
+        fn();
+      }, delay);
+      timers.push(id);
+    };
+
+    const runSequence = () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      timers = [];
+
+      // reset soft
+      push(0, () => {
+        setView("list");
+        setSelectedRecipeId("demo-1");
+        setCursor({
+          x: 120,
+          y: 92,
+          click: false,
+          visible: true,
+        });
+      });
+
+      // move to recipe 1
+      push(350, () => {
+        setCursor({
+          x: 405,
+          y: 188,
+          click: false,
+          visible: true,
+        });
+      });
+
+      // click recipe 1
+      push(980, () => {
+        setCursor((c) => ({ ...c, click: true }));
+      });
+
+      push(1120, () => {
+        setCursor((c) => ({ ...c, click: false }));
+      });
+
+      // open recipe 1
+      push(1250, () => {
+        setSelectedRecipeId("demo-1");
+        setView("detail");
+        setDemoTick((t) => t + 1);
+      });
+
+      // cursor disappears a bit during detail reveal
+      push(1500, () => {
+        setCursor((c) => ({ ...c, visible: false }));
+      });
+
+      // cursor reappears in detail near produit en croix
+      push(2850, () => {
+        setCursor({
+          x: 175,
+          y: 248,
+          click: false,
+          visible: true,
+        });
+      });
+
+      // click in produit en croix area
+      push(3300, () => {
+        setCursor((c) => ({ ...c, click: true }));
+      });
+
+      push(3450, () => {
+        setCursor((c) => ({ ...c, click: false }));
+      });
+
+      // back to list with recipe 2
+      push(5600, () => {
+        setSelectedRecipeId("demo-2");
+        setView("list");
+        setCursor({
+          x: 120,
+          y: 92,
+          click: false,
+          visible: true,
+        });
+      });
+
+      // move to recipe 2
+      push(6100, () => {
+        setCursor({
+          x: 405,
+          y: 245,
+          click: false,
+          visible: true,
+        });
+      });
+
+      // click recipe 2
+      push(6750, () => {
+        setCursor((c) => ({ ...c, click: true }));
+      });
+
+      push(6900, () => {
+        setCursor((c) => ({ ...c, click: false }));
+      });
+
+      // open recipe 2
+      push(7050, () => {
+        setSelectedRecipeId("demo-2");
+        setView("detail");
+        setDemoTick((t) => t + 1);
+      });
+
+      // hide a little
+      push(7300, () => {
+        setCursor((c) => ({ ...c, visible: false }));
+      });
+
+      // show in detail again
+      push(8600, () => {
+        setCursor({
+          x: 175,
+          y: 248,
+          click: false,
+          visible: true,
+        });
+      });
+
+      push(9050, () => {
+        setCursor((c) => ({ ...c, click: true }));
+      });
+
+      push(9200, () => {
+        setCursor((c) => ({ ...c, click: false }));
+      });
+    };
+
+    runSequence();
+
+    const loop = window.setInterval(() => {
+      runSequence();
+    }, 11200);
+
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
+      window.clearInterval(loop);
+    };
+  }, []);
 
   return (
-    <div className="relative w-full h-full rounded-3xl overflow-hidden ring-1 ring-white/10 bg-white/[0.02]">
+    <motion.div
+      initial={{ opacity: 0.96, scale: 0.992 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="relative w-full h-full rounded-3xl overflow-hidden ring-1 ring-white/10 bg-white/[0.02]"
+    >
+      <DemoCursor
+        x={cursor.x}
+        y={cursor.y}
+        click={cursor.click}
+        visible={cursor.visible}
+      />
+
       {/* LIST */}
       <motion.div
         initial={false}
         animate={view === "list" ? "open" : "closed"}
         variants={{
-          open: { opacity: 1, x: 0, pointerEvents: "auto" as any },
-          closed: { opacity: 0, x: -24, pointerEvents: "none" as any },
+          open: { opacity: 1, x: 0, scale: 1, pointerEvents: "auto" as any },
+          closed: {
+            opacity: 0,
+            x: -18,
+            scale: 0.985,
+            pointerEvents: "none" as any,
+          },
         }}
-        transition={{ duration: 0.22 }}
+        transition={{ duration: 0.45, ease: "easeInOut" }}
         className="absolute inset-0 z-10"
       >
         <RecipeListDemoPanel
-          onCreateNew={() => setView("editor")}
+          onCreateNew={() => {}}
           onOpenRecipe={(id) => {
             setSelectedRecipeId(id);
             setView("detail");
+            setDemoTick((t) => t + 1);
           }}
+          autoDemo
+          highlightedRecipeId={selectedRecipeId}
         />
-      </motion.div>
-
-      {/* EDITOR */}
-      <motion.div
-        initial={false}
-        animate={view === "editor" ? "open" : "closed"}
-        variants={{
-          open: { opacity: 1, x: 0, pointerEvents: "auto" as any },
-          closed: { opacity: 0, x: 24, pointerEvents: "none" as any },
-        }}
-        transition={{ duration: 0.22 }}
-        className="absolute inset-0 z-20"
-      >
-        <RecipeEditorDemoPanel onBack={() => setView("list")} />
       </motion.div>
 
       {/* DETAIL */}
@@ -135,18 +382,25 @@ function RecipeStepDemoInteractive() {
         initial={false}
         animate={view === "detail" ? "open" : "closed"}
         variants={{
-          open: { opacity: 1, x: 0, pointerEvents: "auto" as any },
-          closed: { opacity: 0, x: 24, pointerEvents: "none" as any },
+          open: { opacity: 1, x: 0, scale: 1, pointerEvents: "auto" as any },
+          closed: {
+            opacity: 0,
+            x: 18,
+            scale: 0.985,
+            pointerEvents: "none" as any,
+          },
         }}
-        transition={{ duration: 0.22 }}
-        className="absolute inset-0 z-30"
+        transition={{ duration: 0.45, ease: "easeInOut" }}
+        className="absolute inset-0 z-20"
       >
         <RecipeDisplayDemo
           recipeId={selectedRecipeId}
           onBack={() => setView("list")}
+          autoDemo
+          demoKey={demoTick}
         />
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -158,8 +412,8 @@ export function ScrollShowcase() {
     () => [
       {
         key: "recipes",
-        title: "Tes recettes, toujours propres",
-        body: "Une liste claire, rapide à filtrer, pensée pour le service.",
+        title: "Organise toutes tes recettes",
+        body: "Classe tes recettes par dossiers, retrouve-les instantanément et garde ta cuisine organisée.",
         bullets: ["Dossiers & favoris", "Recherche immédiate", "Actions simples"],
         align: "left",
         demo: <RecipeStepDemoInteractive />,
@@ -167,8 +421,8 @@ export function ScrollShowcase() {
       },
       {
         key: "groups",
-        title: "Travaille en équipe",
-        body: "Crée des groupes et partage uniquement ce qui doit l’être.",
+        title: "Travaille avec ta brigade",
+        body: "Invite ton équipe et partage uniquement les recettes nécessaires.",
         bullets: ["Groupes par poste", "Membres invités", "Partage contrôlé"],
         align: "right",
         demo: <WorkGroupsDemoPanel />,
@@ -185,7 +439,7 @@ export function ScrollShowcase() {
       },
       {
         key: "share",
-        title: "Partager sans confusion",
+        title: "Partage sécurisé",
         body: "Tu vois les recettes seulement via tes groupes de travail.",
         bullets: ["Dossiers par groupe", "Recettes visibles", "Lecture rapide"],
         align: "right",
@@ -253,7 +507,6 @@ export function ScrollShowcase() {
 
     const computeTargetX = () => {
       const maxY = scroller.scrollHeight - scroller.clientHeight;
-
       const speed = 1.45;
 
       const progress = maxY <= 0 ? 0 : scroller.scrollTop / maxY;
@@ -263,7 +516,8 @@ export function ScrollShowcase() {
       const snappedIndex = Math.round(raw);
 
       const maxX = (stepCount - 1) * scroller.clientWidth;
-      const next = stepCount <= 1 ? 0 : (snappedIndex / (stepCount - 1)) * maxX;
+      const next =
+        stepCount <= 1 ? 0 : (snappedIndex / (stepCount - 1)) * maxX;
 
       return Math.max(0, Math.min(maxX, next));
     };
@@ -342,7 +596,6 @@ export function ScrollShowcase() {
   return (
     <section className="mt-14 sm:mt-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* Header */}
         <div className="flex items-end justify-between gap-6">
           <div>
             <div className={cn(ui.badge, "inline-flex")}>Découvre Kitch’n</div>
@@ -354,7 +607,6 @@ export function ScrollShowcase() {
             </p>
           </div>
 
-          {/* Mini progress */}
           <div className="hidden lg:flex items-center gap-2">
             {steps.map((s, idx) => (
               <button
@@ -366,7 +618,6 @@ export function ScrollShowcase() {
 
                   const stepCount = steps.length;
                   const maxY = scroller.scrollHeight - scroller.clientHeight;
-
                   const speed = 1.45;
 
                   const targetBoosted =
@@ -393,7 +644,6 @@ export function ScrollShowcase() {
           </div>
         </div>
 
-        {/* Section démo + fond dynamique */}
         <div className="relative mt-10 overflow-hidden rounded-[34px] ring-1 ring-white/10 bg-white/[0.04] backdrop-blur-sm">
           <motion.div
             aria-hidden
@@ -443,7 +693,6 @@ export function ScrollShowcase() {
                             "lg:grid-cols-2"
                           )}
                         >
-                          {/* TEXT */}
                           <motion.div
                             variants={fade}
                             initial="hidden"
@@ -486,7 +735,6 @@ export function ScrollShowcase() {
                             </div>
                           </motion.div>
 
-                          {/* DEMO */}
                           <motion.div
                             variants={fade}
                             initial="hidden"

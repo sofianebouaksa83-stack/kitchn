@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Share2, Clock, Users, Folder, ArrowLeft, Eye } from "lucide-react";
 import { ui } from "../../../styles/ui";
+import { demoRecipes, demoFolders } from "./SharedRecipesDemoData";
 
 type GroupMini = { id: string; name: string };
 
@@ -47,7 +48,7 @@ export function SharedRecipesDemo() {
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
-
+  
   const folders = useMemo(() => {
     const map = new Map<string, { group: GroupMini; recipes: DemoRecipe[] }>();
 

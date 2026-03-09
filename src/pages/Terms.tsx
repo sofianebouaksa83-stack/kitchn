@@ -1,69 +1,74 @@
+import React from "react";
+import { LegalLayout, LegalSection } from "../components/Legal/LegalLayout";
+
 export default function Terms() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white px-6 py-16">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-yellow-300">
-          Conditions d’utilisation
-        </h1>
-
-        <p className="text-white/80">
-          En utilisant KITCH’N, vous acceptez les présentes conditions.
+    <LegalLayout
+      badge="Légal"
+      title="Conditions d’utilisation"
+      intro="En utilisant Kitch’n, vous acceptez les présentes conditions d’utilisation. Elles encadrent l’accès au service et son usage."
+    >
+      <LegalSection title="1. Objet">
+        <p>
+          Kitch’n permet la gestion, l’organisation, l’importation et le partage
+          de recettes professionnelles, dans un espace personnel et/ou
+          collaboratif.
         </p>
+      </LegalSection>
 
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Objet</h2>
-          <p className="text-white/80">
-            KITCH’N permet la gestion, l’organisation et le partage de recettes
-            professionnelles au sein d’un espace personnel et/ou de groupes.
-          </p>
-        </div>
+      <LegalSection title="2. Compte et sécurité">
+        <p>
+          Vous êtes responsable de la confidentialité de vos accès, ainsi que
+          des actions effectuées depuis votre compte. Vous vous engagez à
+          protéger vos identifiants et à signaler toute utilisation non
+          autorisée.
+        </p>
+      </LegalSection>
 
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Compte & sécurité</h2>
-          <p className="text-white/80">
-            Vous êtes responsable de l’accès à votre compte et des actions
-            effectuées depuis celui-ci.
-          </p>
-        </div>
+      <LegalSection title="3. Contenu utilisateur">
+        <p>
+          Vous restez responsable des contenus que vous créez, importez,
+          modifiez ou partagez via Kitch’n. Vous garantissez disposer des droits
+          nécessaires sur les contenus utilisés.
+        </p>
+      </LegalSection>
 
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Contenu utilisateur</h2>
-          <p className="text-white/80">
-            Vous restez responsable des contenus que vous créez, importez ou
-            partagez. Vous garantissez disposer des droits nécessaires.
-          </p>
-        </div>
+      <LegalSection title="4. Comportements interdits">
+        <ul className="list-disc pl-5 space-y-2">
+          <li>Usage abusif, frauduleux ou contraire à la loi</li>
+          <li>Tentatives d’accès non autorisé au service ou aux données</li>
+          <li>Import ou partage de contenus portant atteinte aux droits d’autrui</li>
+          <li>Perturbation volontaire du fonctionnement de la plateforme</li>
+        </ul>
+      </LegalSection>
 
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Comportements interdits</h2>
-          <ul className="list-disc pl-6 text-white/80 space-y-1">
-            <li>Usage abusif, frauduleux ou illégal</li>
-            <li>Tentatives d’accès non autorisé</li>
-            <li>Contenus portant atteinte aux droits d’autrui</li>
-          </ul>
-        </div>
+      <LegalSection title="5. Suspension ou suppression">
+        <p>
+          Kitch’n se réserve le droit de suspendre, restreindre ou supprimer un
+          compte en cas de violation des présentes conditions, d’abus manifeste
+          ou de risque pour la sécurité du service.
+        </p>
+      </LegalSection>
 
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Suspension</h2>
-          <p className="text-white/80">
-            KITCH’N se réserve le droit de suspendre ou supprimer un compte en
-            cas d’abus, de violation des présentes conditions ou de risques de
-            sécurité.
-          </p>
-        </div>
+      <LegalSection title="6. Évolution du service">
+        <p>
+          Certaines fonctionnalités peuvent évoluer, être modifiées ou retirées,
+          notamment dans le cadre d’améliorations produit, de maintenance ou
+          d’évolutions techniques.
+        </p>
+      </LegalSection>
 
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Contact</h2>
-          <p className="text-white/80">
-            <a
-              className="underline text-yellow-300"
-              href="mailto:sofiane.bouaksa83@gmail.com"
-            >
-              sofiane.bouaksa83@gmail.com
-            </a>
-          </p>
-        </div>
-      </div>
-    </div>
+      <LegalSection title="7. Contact">
+        <p>Pour toute question concernant ces conditions :</p>
+        <p className="mt-2">
+          <a
+            href="mailto:support@kitchnpro.com"
+            className="text-amber-300 hover:text-amber-200 underline underline-offset-4"
+          >
+            support@kitchnpro.com
+          </a>
+        </p>
+      </LegalSection>
+    </LegalLayout>
   );
 }

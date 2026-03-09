@@ -180,7 +180,7 @@ export function PricingPlans({ currentPlanId }: PricingPlansProps) {
                 </div>
 
                 <div className="mb-6">
-                  <div className="text-4xl font-bold text-slate-100">9,99€</div>
+                  <div className="text-4xl font-bold text-slate-100">9,90€</div>
                   <p className="text-sm text-slate-400 mt-1">Par mois</p>
                 </div>
 

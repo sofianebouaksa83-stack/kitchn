@@ -12,6 +12,7 @@ import { AuthCallback } from "./components/Auth/AuthCallback";
 // ✅ Pages publiques (vraies routes + support hash)
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
+import LegalPage from "./pages/Legal";
 
 // ✅ Nouvelle page invitation (token-based)
 import InvitationPage from "./pages/InvitationPage";
@@ -30,7 +31,7 @@ import { SubscriptionCancel } from "./components/Subscription/SubscriptionCancel
 // ✅ Page Paramètres
 import SettingsPage from "./components/Settings/SettingsPage";
 
-import { ui } from "./styles/./ui";
+import { ui } from "./styles/ui";
 import "./index.css";
 
 type View =
@@ -47,8 +48,14 @@ type View =
 
 /** Helpers: routing maison */
 function isStaticPath(path: string) {
-  return path === "/privacy" || path === "/terms" || path === "/auth/callback";
+  return (
+    path === "/privacy" ||
+    path === "/terms" ||
+    path === "/legal" ||
+    path === "/auth/callback"
+  );
 }
+
 function isInvitationPath(path: string) {
   return path.startsWith("/invitation/") || path.startsWith("/invite/");
 }
@@ -62,9 +69,11 @@ function extractInvitationToken(path: string) {
 
   return token.length > 0 ? token : null;
 }
+
 function stripQuery(route: string) {
   return route.split("?")[0] || route;
 }
+
 function getHashQuery(route: string) {
   const q = route.split("?")[1] ?? "";
   return new URLSearchParams(q);
@@ -84,8 +93,8 @@ function MainApp() {
 
   /**
    * routeHash = "route interne"
-   * - support hash routing:   #/login, #/privacy, ...
-   * - support vraie route:    /privacy, /terms, /auth/callback, /invitation/:token
+   * - support hash routing:   #/login, #/privacy, #/legal...
+   * - support vraie route:    /privacy, /terms, /legal, /auth/callback, /invitation/:token
    */
   const [routeHash, setRouteHash] = useState<string>(() => {
     const path = window.location.pathname;
@@ -107,11 +116,17 @@ function MainApp() {
       const params = new URLSearchParams(window.location.search);
       const path = window.location.pathname;
 
-      // ✅ vraies routes /privacy /terms /auth/callback /invitation/:token
-      if (isStaticPath(path) || isInvitationPath(path)) {
+      // vraies routes (privacy / terms / legal / auth)
+      if (isStaticPath(path)) {
         setRouteHash(path);
         return;
       }
+
+      // invitation
+      if (isInvitationPath(path)) {
+        setRouteHash(path);
+        return;
+}
 
       // 1) si on a ?reset=1
       const isResetQuery = params.get("reset") === "1";
@@ -144,11 +159,22 @@ function MainApp() {
       if (cleanHash === "/register") setAuthMode("register");
 
       // ✅ Landing pages publiques (hash routing)
-      if (cleanHash === "/privacy" || cleanHash === "/terms") return;
+      if (
+        cleanHash === "/privacy" ||
+        cleanHash === "/terms" ||
+        cleanHash === "/legal"
+      ) {
+        return;
+      }
 
       // ✅ Invitation route (hash routing) : #/invitation/<token>
-      if (cleanHash.startsWith("/invitation/") || cleanHash.startsWith("/invite/")) return;
-      
+      if (
+        cleanHash.startsWith("/invitation/") ||
+        cleanHash.startsWith("/invite/")
+      ) {
+        return;
+      }
+
       // ✅ App routes (views)
       if (cleanHash === "/subscription") setCurrentView("subscription");
       else if (cleanHash === "/subscription/success")
@@ -209,7 +235,7 @@ function MainApp() {
     );
   }
 
-  // ✅ Non connecté → Landing / Login / Register / Privacy / Terms / AuthCallback
+  // ✅ Non connecté → Landing / Login / Register / Privacy / Terms / Legal / AuthCallback
   if (!user) {
     const hash = routeHash;
     const cleanHash = stripQuery(hash);
@@ -259,13 +285,17 @@ function MainApp() {
     }
 
     // ✅ pages publiques accessibles depuis la landing (footer)
-    // -> marche pour /privacy /terms et aussi #/privacy #/terms
+    // -> marche pour /privacy /terms /legal et aussi #/privacy #/terms #/legal
     if (cleanHash === "/privacy") {
       return <PrivacyPage />;
     }
 
     if (cleanHash === "/terms") {
       return <TermsPage />;
+    }
+
+    if (cleanHash === "/legal") {
+      return <LegalPage />;
     }
 
     return (
