@@ -6,6 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 Deno.serve(async (req) => {
@@ -16,9 +17,9 @@ Deno.serve(async (req) => {
   try {
     const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!stripeSecret || !supabaseUrl || !supabaseKey) {
+    if (!stripeSecret || !supabaseUrl || !supabaseServiceKey) {
       throw new Error("Missing environment variables");
     }
 
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
       apiVersion: "2024-06-20",
     });
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -64,23 +65,51 @@ Deno.serve(async (req) => {
       throw new Error("Stripe price not configured");
     }
 
-    let { data: subscription } = await supabase
+    const { data: existingSub, error: existingErr } = await supabase
       .from("subscriptions")
-      .select("*")
+      .select("status, stripe_customer_id, stripe_subscription_id, plan_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    let customerId = subscription?.stripe_customer_id;
+    if (existingErr) {
+      throw new Error(existingErr.message);
+    }
+
+    if (
+      existingSub &&
+      existingSub.plan_id === "premium" &&
+      ["active", "trialing"].includes(existingSub.status ?? "")
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: "User already has an active subscription",
+          alreadyPremium: true,
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    let customerId = existingSub?.stripe_customer_id ?? null;
 
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: user.email,
+        email: user.email ?? undefined,
         metadata: {
           user_id: user.id,
         },
       });
 
       customerId = customer.id;
+    } else {
+      await stripe.customers.update(customerId, {
+        email: user.email ?? undefined,
+        metadata: {
+          user_id: user.id,
+        },
+      });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -107,21 +136,20 @@ Deno.serve(async (req) => {
       },
     });
 
-    return new Response(
-      JSON.stringify({ url: session.url }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+    return new Response(JSON.stringify({ url: session.url }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
-    console.error(error);
+    console.error("create-checkout-session error:", error);
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }

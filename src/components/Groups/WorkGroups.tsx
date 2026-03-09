@@ -35,6 +35,12 @@ export function WorkGroups() {
   const { user, refreshProfile } = useAuth();
   const { isPremium, loading: subLoading } = useSubscription(user?.id ?? null);
 
+  
+
+  console.log("USER ID:", user?.id)
+  console.log("Premium:", isPremium)
+  console.log("GROUPS isPremium:", isPremium);
+
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [premiumKey, setPremiumKey] = useState<PremiumGateKey>("groups");
 
