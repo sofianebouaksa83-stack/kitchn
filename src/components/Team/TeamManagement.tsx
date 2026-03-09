@@ -34,8 +34,11 @@ type TeamMember = {
 type Invitation = {
   id: string;
   email: string;
+  role: GroupRole;
+  token: string;
   created_at: string;
   accepted_at: string | null;
+  expires_at: string | null;
   work_group_id?: string | null;
 };
 
@@ -131,6 +134,8 @@ export function TeamManagement() {
     ];
   }, [isOwner]);
 
+  const [activeRestaurantId, setActiveRestaurantId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!user?.id) {
       setGroups([]);
@@ -206,15 +211,16 @@ export function TeamManagement() {
     setLoading(true);
     try {
       // 1) Groupe (owner = created_by)
-      const { data: group, error: groupErr } = await supabase
-        .from("work_groups")
-        .select("id, created_by, name")
-        .eq("id", workGroupId)
-        .maybeSingle();
+const { data: group, error: groupErr } = await supabase
+  .from("work_groups")
+  .select("id, created_by, name, restaurant_id")
+  .eq("id", workGroupId)
+  .maybeSingle();
 
-      if (groupErr) throw groupErr;
+if (groupErr) throw groupErr;
 
-      setGroupOwnerId(group?.created_by ?? null);
+setGroupOwnerId(group?.created_by ?? null);
+setActiveRestaurantId(group?.restaurant_id ?? null);
 
       const isOwnerNow = (group?.created_by ?? null) === user.id;
 
@@ -267,8 +273,7 @@ export function TeamManagement() {
         .from("invitations")
         .select("*")
         .eq("work_group_id", workGroupId)
-        .is("accepted_at", null)
-        .order("created_at", { ascending: false });
+        .is("accepted_at", null);
 
       if (invErr) {
         console.warn(
@@ -301,90 +306,74 @@ export function TeamManagement() {
     return Math.max(0, (maxMembers as number) - currentCount);
   }, [maxMembers, currentCount]);
 
-  async function handleSendInvitation(e: React.FormEvent) {
-    e.preventDefault();
+async function handleSendInvitation(e: React.FormEvent) {
+  e.preventDefault();
 
-    const email = inviteEmail.trim().toLowerCase();
-    if (!activeGroupId) return;
+  const email = inviteEmail.trim().toLowerCase();
+  if (!activeGroupId) return;
 
-    if (!email || !isEmail(email)) {
-      setInviteStatus("error");
-      setInviteMessage("Email invalide.");
-      return;
-    }
-
-    if (!isPremium && currentCount >= 10) {
-      setInviteStatus("error");
-      setInviteMessage("Limite Free atteinte : 10 membres (invitations incluses).");
-      return;
-    }
-
-    const alreadyMember = teamMembers.some((m) => m.email?.toLowerCase() === email);
-    const alreadyInvited = invitations.some((i) => i.email?.toLowerCase() === email);
-    if (alreadyMember) {
-      setInviteStatus("error");
-      setInviteMessage("Cette personne est déjà membre du groupe.");
-      return;
-    }
-    if (alreadyInvited) {
-      setInviteStatus("error");
-      setInviteMessage("Une invitation est déjà en attente pour cet email.");
-      return;
-    }
-
-    // UI rule: seul le Chef peut inviter en Second
-    if (!isOwner && inviteRole === "admin") {
-      setInviteStatus("error");
-      setInviteMessage("Seul le Chef peut inviter un Second.");
-      return;
-    }
-
-    try {
-      setInviteStatus("sending");
-      setInviteMessage("");
-
-      const {
-        data: { session },
-      } = await supabase.auth.refreshSession();
-      if (!session) throw new Error("Session expirée");
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invitation`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            role: inviteRole,
-            workGroupId: activeGroupId,
-          }),
-        }
-      );
-
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Erreur lors de l’envoi");
-      }
-
-      setInviteStatus("success");
-      setInviteMessage(`Invitation envoyée à ${email}`);
-      setInviteEmail("");
-      setInviteRole("commis");
-      setShowInviteForm(false);
-
-      setTimeout(() => {
-        void loadTeamData(activeGroupId);
-        setInviteStatus("idle");
-        setInviteMessage("");
-      }, 800);
-    } catch (err) {
-      setInviteStatus("error");
-      setInviteMessage(err instanceof Error ? err.message : "Erreur lors de l’envoi");
-    }
+  if (!email || !isEmail(email)) {
+    setInviteStatus("error");
+    setInviteMessage("Email invalide.");
+    return;
   }
+
+  if (!isPremium && currentCount >= 10) {
+    setInviteStatus("error");
+    setInviteMessage("Limite Free atteinte : 10 membres (invitations incluses).");
+    return;
+  }
+
+  const alreadyMember = teamMembers.some((m) => m.email?.toLowerCase() === email);
+  const alreadyInvited = invitations.some((i) => i.email?.toLowerCase() === email);
+  if (alreadyMember) {
+    setInviteStatus("error");
+    setInviteMessage("Cette personne est déjà membre du groupe.");
+    return;
+  }
+  if (alreadyInvited) {
+    setInviteStatus("error");
+    setInviteMessage("Une invitation est déjà en attente pour cet email.");
+    return;
+  }
+
+  // Seul le Chef peut inviter un Second
+  if (!isOwner && inviteRole === "admin") {
+    setInviteStatus("error");
+    setInviteMessage("Seul le Chef peut inviter un Second.");
+    return;
+  }
+
+  try {
+    setInviteStatus("sending");
+    setInviteMessage("");
+
+    const { data, error } = await supabase.functions.invoke("send-invitation", {
+      body: {
+        email,
+        role: inviteRole,          // "admin" | "chef_de_partie" | "commis"
+        workGroupId: activeGroupId // UUID
+      },
+    });
+
+    if (error) throw error;
+    if (!data?.ok) throw new Error(data?.error || "Erreur lors de l’envoi");
+    setInviteStatus("success");
+    setInviteMessage(`Invitation envoyée à ${email}`);
+    setInviteEmail("");
+    setInviteRole("commis");
+    setShowInviteForm(false);
+
+    setTimeout(() => {
+      void loadTeamData(activeGroupId);
+      setInviteStatus("idle");
+      setInviteMessage("");
+    }, 600);
+  } catch (err: any) {
+    setInviteStatus("error");
+    setInviteMessage(err?.message ?? "Erreur lors de l’envoi");
+  }
+}
 
   async function handleChangeRole(memberId: string, nextRole: GroupRole) {
     if (!activeGroupId) return;

@@ -24,6 +24,21 @@ function mapAuthError(message?: string) {
   return "Connexion impossible. Vérifie tes infos et réessaie.";
 }
 
+/** lit #/login?redirect=/invitation/<token> */
+function getRedirectFromHash(): string | null {
+  const raw = window.location.hash.replace("#", ""); // "/login?redirect=..."
+  const parts = raw.split("?");
+  const qs = parts[1] ?? "";
+  const p = new URLSearchParams(qs);
+  const r = p.get("redirect");
+  if (!r) return null;
+
+  // on force un chemin hash-safe (commence par "/")
+  const decoded = decodeURIComponent(r);
+  if (!decoded.startsWith("/")) return "/";
+  return decoded;
+}
+
 export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,6 +58,16 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
   const canReset = useMemo(() => email.trim().length > 3, [email]);
   const disabledAll = loading || !!oauthLoading;
 
+  function finishSuccess() {
+    // ✅ priorité au redirect (ex: /invitation/<token>)
+    const redirect = getRedirectFromHash();
+    if (redirect) {
+      window.location.hash = redirect;
+      return;
+    }
+    onSuccess?.();
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -61,19 +86,18 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
 
       if (error) throw error;
 
-      // ✅ cas rare : pas d'erreur mais pas de session (selon config)
+      // ✅ cas rare : pas d'erreur mais pas de session
       if (!data.session) {
         setCanResendConfirm(true);
         setError("Email non confirmé. Vérifie ta boîte mail.");
         return;
       }
 
-      onSuccess?.();
+      finishSuccess();
     } catch (err: any) {
       const msg = mapAuthError(err?.message);
       setError(msg);
 
-      // ✅ si c'est un non confirmé, on propose le renvoi
       if ((err?.message ?? "").toLowerCase().includes("email not confirmed")) {
         setCanResendConfirm(true);
       }
@@ -95,10 +119,8 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        // ✅ hash routing: ton App détecte reset via hash/type=recovery
         redirectTo: `${window.location.origin}/#/reset-password?reset=1`,
       });
-
       if (error) throw error;
 
       setInfo("Email envoyé. Vérifie ta boîte mail (et les spams).");
@@ -120,16 +142,13 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
 
     setLoading(true);
     try {
-      // ✅ renvoi email confirmation
-      // nécessite supabase-js v2 (c'est ton cas)
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/#/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-
       if (error) throw error;
 
       setInfo("Email de confirmation renvoyé ✅ Vérifie ta boîte mail (et les spams).");
@@ -147,19 +166,14 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
     setCanResendConfirm(false);
     setOauthLoading(provider);
 
-    // ✅ cohérent avec hash routing
-    const redirectTo = `${window.location.origin}/#/`;
-
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
       if (error) throw error;
-      // supabase redirige automatiquement
     } catch (err: any) {
       setError(mapAuthError(err?.message));
       setOauthLoading(null);
@@ -353,7 +367,6 @@ export function LoginForm({ onToggleMode, onSuccess }: LoginFormProps) {
                 </div>
               )}
 
-              {/* ✅ Renvoyer confirmation si nécessaire */}
               {canResendConfirm && (
                 <button
                   type="button"

@@ -13,6 +13,9 @@ import { AuthCallback } from "./components/Auth/AuthCallback";
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
 
+// ✅ Nouvelle page invitation (token-based)
+import InvitationPage from "./pages/InvitationPage";
+
 import { Navbar } from "./components/Layout/";
 import { RecipeList, RecipeEditorWithSections } from "./components/Recipe";
 
@@ -42,6 +45,31 @@ type View =
   | "subscription-cancel"
   | "settings";
 
+/** Helpers: routing maison */
+function isStaticPath(path: string) {
+  return path === "/privacy" || path === "/terms" || path === "/auth/callback";
+}
+function isInvitationPath(path: string) {
+  return path.startsWith("/invitation/") || path.startsWith("/invite/");
+}
+
+function extractInvitationToken(path: string) {
+  if (!isInvitationPath(path)) return null;
+
+  const token = path.startsWith("/invite/")
+    ? path.replace("/invite/", "").trim()
+    : path.replace("/invitation/", "").trim();
+
+  return token.length > 0 ? token : null;
+}
+function stripQuery(route: string) {
+  return route.split("?")[0] || route;
+}
+function getHashQuery(route: string) {
+  const q = route.split("?")[1] ?? "";
+  return new URLSearchParams(q);
+}
+
 function MainApp() {
   const { user, loading } = useAuth();
 
@@ -51,19 +79,22 @@ function MainApp() {
   // ✅ IMPORTANT: on accepte null explicitement (Create)
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
 
+  // (legacy) Si tu utilises encore InvitationSignup ailleurs
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
 
   /**
    * routeHash = "route interne"
    * - support hash routing:   #/login, #/privacy, ...
-   * - support vraie route:    /privacy, /terms, /auth/callback
+   * - support vraie route:    /privacy, /terms, /auth/callback, /invitation/:token
    */
   const [routeHash, setRouteHash] = useState<string>(() => {
-    // Au 1er rendu : si on est sur /privacy, on veut garder /privacy
     const path = window.location.pathname;
-    if (path === "/privacy" || path === "/terms" || path === "/auth/callback") {
+
+    // ✅ garder les vraies routes
+    if (isStaticPath(path) || isInvitationPath(path)) {
       return path;
     }
+
     // Sinon, fallback hash
     return window.location.hash.slice(1);
   });
@@ -74,10 +105,10 @@ function MainApp() {
   useEffect(() => {
     const syncFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
-
-      // ✅ NEW: support des vraies routes /privacy /terms /auth/callback
       const path = window.location.pathname;
-      if (path === "/privacy" || path === "/terms" || path === "/auth/callback") {
+
+      // ✅ vraies routes /privacy /terms /auth/callback /invitation/:token
+      if (isStaticPath(path) || isInvitationPath(path)) {
         setRouteHash(path);
         return;
       }
@@ -98,6 +129,7 @@ function MainApp() {
       }
 
       const hash = window.location.hash.slice(1);
+      const cleanHash = stripQuery(hash);
 
       // ✅ Supabase met souvent le reset dans le hash (type=recovery)
       if (hash.includes("type=recovery")) {
@@ -107,21 +139,28 @@ function MainApp() {
 
       setRouteHash(hash);
 
-      // Auth routes
-      if (hash === "/login") setAuthMode("login");
-      if (hash === "/register") setAuthMode("register");
+      // Auth routes (support query ?redirect=...)
+      if (cleanHash === "/login") setAuthMode("login");
+      if (cleanHash === "/register") setAuthMode("register");
 
       // ✅ Landing pages publiques (hash routing)
-      if (hash === "/privacy" || hash === "/terms") return;
+      if (cleanHash === "/privacy" || cleanHash === "/terms") return;
 
+      // ✅ Invitation route (hash routing) : #/invitation/<token>
+      if (cleanHash.startsWith("/invitation/") || cleanHash.startsWith("/invite/")) return;
+      
       // ✅ App routes (views)
-      if (hash === "/subscription") setCurrentView("subscription");
-      else if (hash === "/subscription/success")
+      if (cleanHash === "/subscription") setCurrentView("subscription");
+      else if (cleanHash === "/subscription/success")
         setCurrentView("subscription-success");
-      else if (hash === "/subscription/cancel")
+      else if (cleanHash === "/subscription/cancel")
         setCurrentView("subscription-cancel");
-      else if (hash === "/settings") setCurrentView("settings");
-      else if (hash === "/" || hash === "") setCurrentView("recipes");
+      else if (cleanHash === "/settings") setCurrentView("settings");
+      else if (cleanHash === "/groups") setCurrentView("groups");
+      else if (cleanHash === "/shared") setCurrentView("shared");
+      else if (cleanHash === "/import-ai") setCurrentView("import-ai");
+      else if (cleanHash === "/team") setCurrentView("team");
+      else if (cleanHash === "/" || cleanHash === "") setCurrentView("recipes");
     };
 
     syncFromUrl();
@@ -141,13 +180,20 @@ function MainApp() {
     );
   }
 
-  // ✅ Invitation (prioritaire)
+  // ✅ Route invitation (prioritaire, marche connecté ou non)
+  // Support: /invitation/<token> et #/invitation/<token>
+  const invitationFromRoute = extractInvitationToken(routeHash);
+  if (invitationFromRoute) {
+    return <InvitationPage />;
+  }
+
+  // ✅ InvitationSignup legacy (si tu l’utilises encore via state)
   if (invitationToken) {
     return <InvitationSignup token={invitationToken} />;
   }
 
   // ✅ Reset password (prioritaire)
-  if (forceResetPassword || routeHash === "/reset-password") {
+  if (forceResetPassword || stripQuery(routeHash) === "/reset-password") {
     return (
       <ResetPasswordForm
         onBackToLogin={() => {
@@ -163,27 +209,35 @@ function MainApp() {
     );
   }
 
-  // ✅ Non connecté → Landing / Login / Register / Privacy / Terms
+  // ✅ Non connecté → Landing / Login / Register / Privacy / Terms / AuthCallback
   if (!user) {
     const hash = routeHash;
+    const cleanHash = stripQuery(hash);
 
     // ✅ Support /auth/callback en vraie route (et aussi #/auth/callback)
-    if (hash === "/auth/callback") {
+    if (cleanHash === "/auth/callback") {
       return <AuthCallback />;
     }
 
-    if (hash === "/login") {
+    if (cleanHash === "/login") {
       return (
         <LoginForm
           onToggleMode={() => {
             setAuthMode("register");
             window.location.hash = "/register";
           }}
+          onSuccess={() => {
+            // ✅ redirect après login : #/login?redirect=/invitation/xxx
+            const params = getHashQuery(window.location.hash.slice(1));
+            const redirect = params.get("redirect");
+            if (redirect) window.location.hash = redirect;
+            else window.location.hash = "/"; // fallback
+          }}
         />
       );
     }
 
-    if (hash === "/register") {
+    if (cleanHash === "/register") {
       return (
         <RegisterForm
           onToggleMode={() => {
@@ -194,7 +248,7 @@ function MainApp() {
       );
     }
 
-    if (hash === "/reset-password") {
+    if (cleanHash === "/reset-password") {
       return (
         <ResetPasswordForm
           onBackToLogin={() => {
@@ -206,11 +260,11 @@ function MainApp() {
 
     // ✅ pages publiques accessibles depuis la landing (footer)
     // -> marche pour /privacy /terms et aussi #/privacy #/terms
-    if (hash === "/privacy") {
+    if (cleanHash === "/privacy") {
       return <PrivacyPage />;
     }
 
-    if (hash === "/terms") {
+    if (cleanHash === "/terms") {
       return <TermsPage />;
     }
 

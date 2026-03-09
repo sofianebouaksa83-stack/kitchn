@@ -1,96 +1,104 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import Stripe from 'npm:stripe@14.11.0';
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import Stripe from "npm:stripe@14.21.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!stripeSecretKey) {
-      throw new Error('Missing STRIPE_SECRET_KEY');
+    if (!stripeSecret || !supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing environment variables");
     }
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase configuration');
-    }
-
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const token = authHeader.replace('Bearer ', '');
-    
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) {
-      throw new Error('Invalid authorization token');
-    }
-
-    const { returnUrl } = await req.json();
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('restaurant_id')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile?.restaurant_id) {
-      throw new Error('User has no restaurant');
-    }
-
-    const { data: subscription, error: subError } = await supabase
-      .from('subscriptions')
-      .select('stripe_customer_id')
-      .eq('restaurant_id', profile.restaurant_id)
-      .maybeSingle();
-
-    if (subError || !subscription?.stripe_customer_id) {
-      throw new Error('No active subscription found');
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2024-11-20.acacia',
+    const stripe = new Stripe(stripeSecret, {
+      apiVersion: "2024-06-20",
     });
 
-    const session = await stripe.billingPortal.sessions.create({
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Missing authorization header");
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token);
+
+    if (userError || !user) {
+      throw new Error("Unauthorized");
+    }
+
+    const { data: subscription, error: subscriptionError } = await supabase
+      .from("subscriptions")
+      .select("stripe_customer_id, status, plan_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (subscriptionError) {
+      throw new Error(subscriptionError.message);
+    }
+
+    if (!subscription?.stripe_customer_id) {
+      return new Response(
+        JSON.stringify({
+          error: "No Stripe customer found for this user",
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    const portalSession = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
-      return_url: returnUrl || `${req.headers.get('origin')}/subscription`,
+      return_url: "https://www.kitchnpro.com/#subscription",
     });
 
     return new Response(
-      JSON.stringify({ url: session.url }),
+      JSON.stringify({
+        url: portalSession.url,
+      }),
       {
         status: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );
   } catch (error) {
-    console.error('Error creating portal session:', error);
+    console.error("manage-subscription error:", error);
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
       {
-        status: 400,
+        status: 500,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );

@@ -1,128 +1,149 @@
+// supabase/functions/send-invitation/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+type GroupRole = "admin" | "chef_de_partie" | "commis";
+type ReqBody = { email: string; workGroupId: string; role: GroupRole };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-type ReqBody = {
-  email: string;
-  restaurantId: string;
-  role: "second" | "commis" | "stagiaire";
-};
-
-function generateToken(): string {
-  const a = new Uint8Array(32);
-  crypto.getRandomValues(a);
-  return Array.from(a, b => b.toString(16).padStart(2, "0")).join("");
-}
-
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return new Response(JSON.stringify({ success: false, error: "Missing auth" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Client "user" (pour lire le JWT)
+    const supabaseUser = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: req.headers.get("Authorization")! } },
+    });
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const { data: authData, error: authErr } = await supabaseUser.auth.getUser();
+    if (authErr || !authData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerId = authData.user.id;
 
-    const { data: userRes, error: userErr } = await supabaseUser.auth.getUser();
-    const user = userRes?.user;
-    if (userErr || !user) return new Response(JSON.stringify({ success: false, error: "Not authenticated" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const body = (await req.json()) as Partial<ReqBody>;
+    const email = (body.email ?? "").trim().toLowerCase();
+    const workGroupId = (body.workGroupId ?? "").trim();
+    const role = body.role as GroupRole;
 
-    const body = (await req.json()) as ReqBody;
-    const email = (body.email ?? "").toLowerCase().trim();
-    const { restaurantId, role } = body;
-
-    if (!email || !restaurantId || !role) {
-      return new Response(JSON.stringify({ success: false, error: "email, restaurantId, role requis" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!email || !workGroupId || !role) {
+      return new Response(JSON.stringify({ error: "Missing fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!["admin", "chef_de_partie", "commis"].includes(role)) {
+      return new Response(JSON.stringify({ error: "Invalid role" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Vérif chef + même restaurant
-    const { data: me } = await supabaseUser
-      .from("profiles")
-      .select("restaurant_id, restaurant_role")
-      .eq("id", user.id)
+    // Client service role (pour bypass RLS côté insert)
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+
+    // (Optionnel mais conseillé) : vérifier que l'appelant est admin du groupe
+    const { data: membership, error: memErr } = await supabaseAdmin
+      .from("group_members")
+      .select("role")
+      .eq("work_group_id", workGroupId)
+      .eq("user_id", callerId)
       .maybeSingle();
 
-    if (!me || me.restaurant_role !== "chef" || me.restaurant_id !== restaurantId) {
-      return new Response(JSON.stringify({ success: false, error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (memErr) throw memErr;
+    if (!membership || membership.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Lookup user par email (service role)
-    const { data: usersPage, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    if (listErr) throw listErr;
+    // Génère un token unique
+    const token = crypto.randomUUID();
 
-    const found = (usersPage?.users ?? []).find(u => (u.email ?? "").toLowerCase() === email);
-
-    if (!found) {
-      return new Response(JSON.stringify({ success: false, code: "NO_ACCOUNT", error: "Aucun compte avec cet email" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Vérif: user a déjà un restaurant ?
-    const { data: targetProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("id, restaurant_id")
-      .eq("id", found.id)
-      .maybeSingle();
-
-    // Si le profil n’existe pas encore → on le crée (safe)
-    if (!targetProfile) {
-      await supabaseAdmin.from("profiles").insert({ id: found.id, email });
-    } else if (targetProfile.restaurant_id) {
-      return new Response(JSON.stringify({ success: false, code: "ALREADY_IN_RESTAURANT", error: "Utilisateur déjà rattaché à un restaurant" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Empêcher doublon pending
-    const { data: existing } = await supabaseAdmin
-      .from("invitations")
-      .select("id")
-      .eq("invited_user_id", found.id)
-      .eq("restaurant_id", restaurantId)
-      .is("accepted_at", null)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    if (existing) {
-      return new Response(JSON.stringify({ success: false, code: "ALREADY_PENDING", error: "Invitation déjà en attente" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const token = generateToken();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
-
-    const { data: invitation, error: invErr } = await supabaseAdmin
+    // Insert invitation (work_group orienté)
+    const { data: ins, error: insErr } = await supabaseAdmin
       .from("invitations")
       .insert({
-        restaurant_id: restaurantId,
-        email,
-        role,
-        token,
-        invited_user_id: found.id,
-        expires_at: expiresAt,
-      })
-      .select("id, token, invited_user_id, expires_at")
-      .maybeSingle();
+  work_group_id: workGroupId,
+  email,
+  role,
+  token
+})
+      .select("id, token, email, role, work_group_id, created_at")
+      .single();
 
-    if (invErr || !invitation) throw invErr;
+    if (insErr) throw insErr;
 
-    return new Response(JSON.stringify({ success: true, invitation }), {
+    return new Response(JSON.stringify({ ok: true, invitation: ins }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e: any) {
-    return new Response(JSON.stringify({ success: false, error: e?.message ?? "Server error" }), {
+  } catch (e) {
+    console.error("send-invitation error:", e);
+    return new Response(JSON.stringify({ error: String(e?.message ?? e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+if (RESEND_API_KEY) {
+  // URL PROD
+  const inviteUrl = `https://www.kitchnpro.com/invite/${token}`;
+
+  const from = "KITCH’N <invite@kitchnpro.com>"; // domaine à vérifier sur Resend
+
+  const subject = `Invitation à rejoindre KITCH’N`;
+  const html = `
+    <div style="font-family:system-ui;line-height:1.5">
+      <h2>Invitation KITCH’N</h2>
+      <p>Tu as été invité à rejoindre un groupe sur KITCH’N.</p>
+      <p><b>Email invité :</b> ${email}</p>
+      <p>
+        <a href="${inviteUrl}" style="display:inline-block;padding:10px 14px;border-radius:12px;background:#f59e0b;color:#0b1220;text-decoration:none;font-weight:700">
+          Accepter l’invitation
+        </a>
+      </p>
+      <p style="color:#94a3b8;font-size:12px;margin-top:16px">
+        Si tu n’es pas connecté, connecte-toi / crée un compte avec cet email puis reviens sur ce lien.
+      </p>
+    </div>
+  `;
+
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject,
+      html,
+    }),
+  });
+
+  if (!r.ok) {
+    const txt = await r.text();
+    console.error("Resend error:", r.status, txt);
+  }
+} else {
+  console.warn("Missing RESEND_API_KEY, skipping email send.");
+}
 });

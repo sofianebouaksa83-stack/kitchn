@@ -12,6 +12,7 @@ import {
   Settings,
   LifeBuoy,
   X,
+  Mail,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 
@@ -100,10 +101,30 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
 
   const baseItems: NavItem[] = useMemo(
     () => [
-      { key: "recipes", view: "recipes", label: "Mes recettes", icon: <BookOpen className="w-4 h-4" /> },
-      { key: "shared", view: "shared", label: "Partagées", icon: <Share2 className="w-4 h-4" /> },
-      { key: "groups", view: "groups", label: "Groupes", icon: <Users className="w-4 h-4" /> },
-      { key: "import-ai", view: "import-ai", label: "Import", icon: <Sparkles className="w-4 h-4" /> },
+      {
+        key: "recipes",
+        view: "recipes",
+        label: "Mes recettes",
+        icon: <BookOpen className="w-4 h-4" />,
+      },
+      {
+        key: "shared",
+        view: "shared",
+        label: "Partagées",
+        icon: <Share2 className="w-4 h-4" />,
+      },
+      {
+        key: "groups",
+        view: "groups",
+        label: "Groupes",
+        icon: <Users className="w-4 h-4" />,
+      },
+      {
+        key: "import-ai",
+        view: "import-ai",
+        label: "Import",
+        icon: <Sparkles className="w-4 h-4" />,
+      },
     ],
     []
   );
@@ -123,6 +144,9 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
 
   // ✅ Profile local pour navbar (fiable)
   const [navProfile, setNavProfile] = useState<NavbarProfile | null>(null);
+
+  // ✅ Invitations count
+  const [invCount, setInvCount] = useState<number>(0);
 
   // Charge profil pour la navbar (full_name + avatar_url)
   useEffect(() => {
@@ -146,12 +170,16 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
 
     fetchProfile();
 
-    // Bonus: écoute les updates sur profiles pour refresh auto
     const channel = supabase
       .channel(`nav-profile-${user.id}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
         () => fetchProfile()
       )
       .subscribe();
@@ -159,6 +187,31 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     return () => {
       cancelled = true;
       supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  // ✅ Load invitations count (poll doux)
+  useEffect(() => {
+    if (!user?.id) {
+      setInvCount(0);
+      return;
+    }
+
+    let alive = true;
+
+    async function load() {
+      const { data, error } = await supabase.rpc(
+        "get_my_pending_invitations_count"
+      );
+      if (!alive) return;
+      if (!error && typeof data === "number") setInvCount(data);
+    }
+
+    load();
+    const t = setInterval(load, 20000);
+    return () => {
+      alive = false;
+      clearInterval(t);
     };
   }, [user?.id]);
 
@@ -180,7 +233,9 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
         const finalKeys = [...filtered, ...missing];
 
         const byKey = new Map(baseItems.map((i) => [i.key, i] as const));
-        const ordered = finalKeys.map((k) => byKey.get(k)).filter(Boolean) as NavItem[];
+        const ordered = finalKeys
+          .map((k) => byKey.get(k))
+          .filter(Boolean) as NavItem[];
 
         if (!cancelled) setMenuItems(ordered.length ? ordered : baseItems);
       } catch {
@@ -268,28 +323,38 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     handleViewChange("settings");
   };
 
+  const openInvitations = () => {
+    setAccountMenuOpen(false);
+    setMobileSheetOpen(false);
+    // ✅ ouvre l’onglet invitations dans SettingsPage
+    window.location.hash = "/settings?tab=invitations";
+  };
+
+  // ✅ plus lisible : hauteur + align + séparation + typo
   const dropdownItem =
-    "w-full flex items-center gap-2 px-3 py-3 rounded-2xl text-sm " +
-    "text-slate-100 hover:bg-white/[0.07] active:bg-white/[0.10] transition " +
+    "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl text-sm " +
+    "text-slate-100 hover:bg-white/[0.08] active:bg-white/[0.12] transition " +
     "outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40";
 
-  const displayName =
-    navProfile?.full_name ||
-    navProfile?.username ||
-    user?.email ||
-    "Compte";
+  const left =
+    "flex items-center gap-2.5 min-w-0";
 
-  // ✅ Ici, ton avatar_url est déjà une URL complète (d’après ta capture)
-  // Mais on garde le support path/URL au cas où.
+  const sectionTitle =
+    "px-4 pt-3 pb-1 text-[11px] tracking-wide uppercase text-white/40";
+
+  const displayName =
+    navProfile?.full_name || navProfile?.username || user?.email || "Compte";
+
   const avatarUrl = useMemo(() => {
     const raw = navProfile?.avatar_url?.trim();
     if (!raw) return null;
 
     const token = navProfile?.updated_at || "1";
-
     if (isHttpUrl(raw)) return withCacheBuster(raw, token);
 
-    const publicUrl = supabase.storage.from("avatars").getPublicUrl(raw).data.publicUrl;
+    const publicUrl = supabase.storage
+      .from("avatars")
+      .getPublicUrl(raw).data.publicUrl;
     return withCacheBuster(publicUrl, token);
   }, [navProfile?.avatar_url, navProfile?.updated_at]);
 
@@ -312,10 +377,19 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
       {avatarUrl ? (
         <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
       ) : (
-        <span className="text-xs font-semibold text-white/70">{avatarFallback.toUpperCase()}</span>
+        <span className="text-xs font-semibold text-white/70">
+          {avatarFallback.toUpperCase()}
+        </span>
       )}
     </div>
   );
+
+  const Badge = ({ n }: { n: number }) =>
+    n > 0 ? (
+      <span className="min-w-[26px] h-6 px-2 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-xs font-bold">
+        {n}
+      </span>
+    ) : null;
 
   return (
     <>
@@ -383,9 +457,20 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
               >
                 <Avatar />
                 <div className="min-w-0 text-left">
-                  <div className="text-sm font-medium text-white truncate max-w-[220px]">{displayName}</div>
-                  <div className="text-xs text-white/60 truncate max-w-[220px]">{user?.email}</div>
+                  <div className="text-sm font-medium text-white truncate max-w-[220px]">
+                    {displayName}
+                  </div>
+                  <div className="text-xs text-white/60 truncate max-w-[220px]">
+                    {user?.email}
+                  </div>
                 </div>
+
+                {/* ✅ badge discret sur le bouton */}
+                {invCount > 0 && (
+                  <span className="ml-1 min-w-[22px] h-5 px-2 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-[11px] font-bold">
+                    {invCount}
+                  </span>
+                )}
               </button>
 
               {/* Dropdown */}
@@ -415,17 +500,37 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                     <div className="px-4 pt-4 pb-3 border-b border-white/10 flex items-center gap-3">
                       <Avatar size="h-10 w-10" />
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-100 truncate">{displayName}</div>
-                        <div className="text-xs text-slate-300/70 truncate mt-0.5">{user?.email}</div>
+                        <div className="text-sm font-semibold text-slate-100 truncate">
+                          {displayName}
+                        </div>
+                        <div className="text-xs text-slate-300/70 truncate mt-0.5">
+                          {user?.email}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="p-2">
+                    <div className={sectionTitle}>Compte</div>
+                    <div className="px-2 pb-2 space-y-1">
                       <button role="menuitem" onClick={openSettings} className={dropdownItem} type="button">
-                        <Settings className="w-4 h-4 text-slate-200" />
-                        Paramètres
+                        <span className={left}>
+                          <Settings className="w-4 h-4 text-slate-200" />
+                          Paramètres
+                        </span>
                       </button>
 
+                      <button role="menuitem" onClick={openInvitations} className={dropdownItem} type="button">
+                        <span className={left}>
+                          <Mail className="w-4 h-4 text-slate-200" />
+                          Invitations
+                        </span>
+                        <Badge n={invCount} />
+                      </button>
+                    </div>
+
+                    <div className="h-px bg-white/10 mx-4" />
+
+                    <div className={sectionTitle}>Organisation</div>
+                    <div className="px-2 pb-2 space-y-1">
                       <button
                         role="menuitem"
                         onClick={() => {
@@ -435,8 +540,10 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                         className={dropdownItem}
                         type="button"
                       >
-                        <Users2 className="w-4 h-4 text-slate-200" />
-                        Équipe
+                        <span className={left}>
+                          <Users2 className="w-4 h-4 text-slate-200" />
+                          Équipe
+                        </span>
                       </button>
 
                       <button
@@ -448,8 +555,10 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                         className={dropdownItem}
                         type="button"
                       >
-                        <CreditCard className="w-4 h-4 text-slate-200" />
-                        Abonnement
+                        <span className={left}>
+                          <CreditCard className="w-4 h-4 text-slate-200" />
+                          Abonnement
+                        </span>
                       </button>
 
                       <button
@@ -461,12 +570,17 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                         className={dropdownItem}
                         type="button"
                       >
-                        <LifeBuoy className="w-4 h-4 text-slate-200" />
-                        Centre d’assistance
+                        <span className={left}>
+                          <LifeBuoy className="w-4 h-4 text-slate-200" />
+                          Centre d’assistance
+                        </span>
                       </button>
+                    </div>
 
-                      <div className="h-px bg-white/10 my-2" />
+                    <div className="h-px bg-white/10 mx-4" />
 
+                    <div className={sectionTitle}>Session</div>
+                    <div className="px-2 pb-2">
                       <button
                         role="menuitem"
                         onClick={() => {
@@ -480,8 +594,10 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                         ].join(" ")}
                         type="button"
                       >
-                        <LogOut className="w-4 h-4" />
-                        Se déconnecter
+                        <span className={left}>
+                          <LogOut className="w-4 h-4" />
+                          Se déconnecter
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -543,12 +659,18 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                 "h-12 w-12 rounded-2xl inline-flex items-center justify-center transition",
                 "ring-1 ring-white/10",
                 "bg-white/[0.04] text-slate-200/90 hover:bg-white/[0.07]",
+                "relative",
               ].join(" ")}
               aria-label="Compte"
               title="Compte"
               type="button"
             >
               <Avatar size="h-9 w-9" />
+              {invCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-[11px] font-bold">
+                  {invCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -571,8 +693,12 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                   <div className="min-w-0 flex items-center gap-3">
                     <Avatar size="h-10 w-10" />
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-100 truncate">{displayName}</div>
-                      <div className="text-xs text-slate-300/70 truncate">{user?.email}</div>
+                      <div className="text-sm font-semibold text-slate-100 truncate">
+                        {displayName}
+                      </div>
+                      <div className="text-xs text-slate-300/70 truncate">
+                        {user?.email}
+                      </div>
                     </div>
                   </div>
 
@@ -586,15 +712,23 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                   </button>
                 </div>
 
-                <div className="p-2">
-                  <button
-                    onClick={() => openSettings()}
-                    className={dropdownItem}
-                    type="button"
-                  >
-                    <Settings className="w-4 h-4" />
-                    Paramètres
+                <div className="p-2 space-y-1">
+                  <button onClick={openSettings} className={dropdownItem} type="button">
+                    <span className={left}>
+                      <Settings className="w-4 h-4" />
+                      Paramètres
+                    </span>
                   </button>
+
+                  <button onClick={openInvitations} className={dropdownItem} type="button">
+                    <span className={left}>
+                      <Mail className="w-4 h-4" />
+                      Invitations
+                    </span>
+                    <Badge n={invCount} />
+                  </button>
+
+                  <div className="h-px bg-white/10 my-2" />
 
                   <button
                     onClick={() => {
@@ -604,8 +738,10 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                     className={dropdownItem}
                     type="button"
                   >
-                    <Users2 className="w-4 h-4" />
-                    Équipe
+                    <span className={left}>
+                      <Users2 className="w-4 h-4" />
+                      Équipe
+                    </span>
                   </button>
 
                   <button
@@ -616,8 +752,10 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                     className={dropdownItem}
                     type="button"
                   >
-                    <CreditCard className="w-4 h-4" />
-                    Abonnement
+                    <span className={left}>
+                      <CreditCard className="w-4 h-4" />
+                      Abonnement
+                    </span>
                   </button>
 
                   <div className="h-px bg-white/10 my-2" />
@@ -634,8 +772,10 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                     ].join(" ")}
                     type="button"
                   >
-                    <LogOut className="w-4 h-4" />
-                    Se déconnecter
+                    <span className={left}>
+                      <LogOut className="w-4 h-4" />
+                      Se déconnecter
+                    </span>
                   </button>
                 </div>
               </div>

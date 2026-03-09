@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { AlertCircle, Eye, EyeOff, Loader } from "lucide-react";
+import { AlertCircle, EyeOff, Loader } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { GlassPanel } from "../../styles/ui/GlassPanel";
 import { setRememberMe, getRememberMe } from "../../lib/authStorage";
@@ -19,6 +19,15 @@ const ROLES = [
   "Cuisinier",
   "Autre",
 ];
+
+function getRedirectFromHash(): string | null {
+  // ex: #/signup?redirect=/invitation/XXX
+  const qs = window.location.hash.split("?")[1] || "";
+  const redirect = new URLSearchParams(qs).get("redirect");
+  if (!redirect) return null;
+  if (!redirect.startsWith("/")) return null; // sécurité: chemin interne uniquement
+  return redirect;
+}
 
 export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const { signUp } = useAuth();
@@ -40,12 +49,19 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [successInfo, setSuccessInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const redirect = useMemo(() => getRedirectFromHash(), []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     // reset messages
     setError("");
     setSuccessInfo("");
+
+    const email = formData.email.trim().toLowerCase();
+    const fullName = formData.fullName.trim();
+    const role = formData.role;
+    const establishment = formData.establishment.trim();
 
     if (formData.password !== formData.confirmPassword) {
       setError("Les mots de passe ne correspondent pas.");
@@ -55,36 +71,60 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
       setError("Le mot de passe doit contenir au moins 6 caractères.");
       return;
     }
+    if (!email) {
+      setError("Email invalide.");
+      return;
+    }
+    if (!fullName) {
+      setError("Entre ton nom complet.");
+      return;
+    }
 
     setLoading(true);
 
     // ✅ persistence réelle (avant signup)
     setRememberMe(rememberMe);
 
-    const { error: signUpError, needsEmailConfirmation } = await signUp(
-      formData.email.trim(),
-      formData.password,
-      formData.fullName,
-      formData.role,
-      formData.establishment
-    );
+    try {
+      const { error: signUpError, needsEmailConfirmation } = await signUp(
+        email,
+        formData.password,
+        fullName,
+        role,
+        establishment
+      );
 
-    if (signUpError) {
-      setError(signUpError.message || "Inscription impossible. Vérifie les champs et réessaie.");
+      if (signUpError) {
+        setError(
+          signUpError.message ||
+            "Inscription impossible. Vérifie les champs et réessaie."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // ✅ si confirmation email activée : on affiche "check email"
+      if (needsEmailConfirmation) {
+        setSuccessInfo(
+          "Compte créé ✅ Vérifie ta boîte mail pour confirmer ton compte."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // ✅ sinon, connecté direct : on respecte le redirect si présent
       setLoading(false);
-      return;
-    }
-
-    // ✅ si confirmation email activée : on affiche "check email"
-    if (needsEmailConfirmation) {
-      setSuccessInfo("Compte créé ✅ Vérifie ta boîte mail pour confirmer ton compte.");
+      window.location.hash = redirect ?? "/";
+    } catch (e: any) {
+      setError(e?.message ?? "Inscription impossible.");
       setLoading(false);
-      return;
     }
+  }
 
-    // ✅ sinon, connecté direct
-    setLoading(false);
-    window.location.hash = "/";
+  function goToLogin() {
+    // ✅ conserve redirect si on vient d'une invitation
+    if (redirect) window.location.hash = `/login?redirect=${encodeURIComponent(redirect)}`;
+    else window.location.hash = "/login";
   }
 
   return (
@@ -139,7 +179,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 <input
                   type="text"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, fullName: e.target.value })
+                  }
                   required
                   disabled={loading}
                   className="
@@ -161,7 +203,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   required
                   disabled={loading}
                   className="
@@ -182,7 +226,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 </label>
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, role: e.target.value })
+                  }
                   disabled={loading}
                   className="
                     h-12 w-full rounded-2xl px-4
@@ -208,7 +254,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     required
                     disabled={loading}
                     className="
@@ -226,13 +274,13 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                     onClick={() => setShowPassword((v) => !v)}
                     disabled={loading}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-white/10 transition disabled:opacity-50"
-                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                    aria-label={
+                      showPassword
+                        ? "Masquer le mot de passe"
+                        : "Afficher le mot de passe"
+                    }
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-white/50" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-white/50" />
-                    )}
+                    <EyeOff className="h-4 w-4 text-white/50" />
                   </button>
                 </div>
               </div>
@@ -246,7 +294,10 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                     type={showConfirm ? "text" : "password"}
                     value={formData.confirmPassword}
                     onChange={(e) =>
-                      setFormData({ ...formData, confirmPassword: e.target.value })
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
                     }
                     required
                     disabled={loading}
@@ -265,13 +316,13 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                     onClick={() => setShowConfirm((v) => !v)}
                     disabled={loading}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-white/10 transition disabled:opacity-50"
-                    aria-label={showConfirm ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                    aria-label={
+                      showConfirm
+                        ? "Masquer le mot de passe"
+                        : "Afficher le mot de passe"
+                    }
                   >
-                    {showConfirm ? (
-                      <EyeOff className="h-4 w-4 text-white/50" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-white/50" />
-                    )}
+                    <EyeOff className="h-4 w-4 text-white/50" />
                   </button>
                 </div>
               </div>
@@ -291,7 +342,9 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                       disabled:cursor-not-allowed
                     "
                   />
-                  <span className="text-sm text-slate-100/85">Se souvenir de moi</span>
+                  <span className="text-sm text-slate-100/85">
+                    Se souvenir de moi
+                  </span>
                 </label>
               </div>
 
@@ -318,11 +371,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
                 )}
               </button>
 
-              {/* ✅ si on a successInfo, on propose d'aller à la connexion */}
+              {/* ✅ si on a successInfo, on propose d'aller à la connexion (avec redirect) */}
               {successInfo && (
                 <button
                   type="button"
-                  onClick={() => (window.location.hash = "/login")}
+                  onClick={goToLogin}
                   disabled={loading}
                   className="
                     h-12 w-full rounded-2xl font-semibold
@@ -338,7 +391,11 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
               <div className="pt-2 text-center">
                 <button
                   type="button"
-                  onClick={onToggleMode}
+                  onClick={() => {
+                    // ✅ conserve redirect quand on repasse sur login
+                    goToLogin();
+                    onToggleMode(); // si ton parent gère l’état "mode", tu peux retirer cette ligne si besoin
+                  }}
                   disabled={loading}
                   className="text-sm font-semibold text-yellow-300/90 hover:text-yellow-200 transition disabled:opacity-50"
                 >

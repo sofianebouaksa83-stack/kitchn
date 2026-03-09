@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Search,
   AlertCircle,
@@ -13,9 +13,9 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Clock,
   MoreVertical,
   Tag,
+  Check,
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
 
@@ -98,6 +98,8 @@ type Props = {
   onDuplicate: (recipe: RecipeListMobileRecipe, e: React.MouseEvent) => void;
   onEdit: (recipeId: string, e: React.MouseEvent) => void;
   onTrash: (recipeId: string, e: React.MouseEvent) => void;
+
+  onMoveToFolder: (recipeId: string, folderId: string | null) => void;
 };
 
 function cn(...classes: Array<string | undefined | false>) {
@@ -109,18 +111,6 @@ function safeTitle(r?: RecipeListMobileRecipe | null) {
   return t ? t : "Sans titre";
 }
 
-function fmtTime(n: number | null | undefined) {
-  const v = Number(n ?? 0);
-  return v > 0 ? `${v}min` : "0min";
-}
-
-function recipeSubtitle(r: RecipeListMobileRecipe) {
-  const prep = fmtTime(r.prep_time);
-  const cook = fmtTime(r.cook_time);
-  return `Prépa ${prep} · Cuisson ${cook}`;
-}
-
-/** Chips catégories (horizontal scroll) */
 function CategoryChips({
   categories,
   value,
@@ -194,7 +184,12 @@ function SheetAction({
       >
         {icon}
       </span>
-      <span className={cn("text-sm font-medium", tone === "danger" ? "text-red-100" : "text-slate-100")}>
+      <span
+        className={cn(
+          "text-sm font-medium",
+          tone === "danger" ? "text-red-100" : "text-slate-100"
+        )}
+      >
         {label}
       </span>
     </button>
@@ -238,7 +233,6 @@ export function RecipeListMobile(props: Props) {
     onSelectFolder,
 
     onDropToFolder,
-    onDragStartRecipe,
 
     onCreateFolder,
     onRenameFolder,
@@ -251,46 +245,52 @@ export function RecipeListMobile(props: Props) {
     onDuplicate,
     onEdit,
     onTrash,
+    onMoveToFolder,
   } = props;
 
-  // Bottom-sheet actions (⋯ recette)
-  const [sheetRecipe, setSheetRecipe] = useState<RecipeListMobileRecipe | null>(
-    null
-  );
+  const [sheetRecipe, setSheetRecipe] = useState<RecipeListMobileRecipe | null>(null);
   const sheetOpen = !!sheetRecipe;
   const closeSheet = () => setSheetRecipe(null);
 
-  // Lock scroll when sidebar/sheet open
+  const [moveFolderOpen, setMoveFolderOpen] = useState(false);
+  const [moveRecipe, setMoveRecipe] = useState<RecipeListMobileRecipe | null>(null);
+
   useEffect(() => {
-    const shouldLock = sidebarOpen || sheetOpen;
+    const shouldLock = sidebarOpen || sheetOpen || moveFolderOpen;
     const prev = document.documentElement.style.overflow;
     if (shouldLock) document.documentElement.style.overflow = "hidden";
     return () => {
       document.documentElement.style.overflow = prev;
     };
-  }, [sidebarOpen, sheetOpen]);
+  }, [sidebarOpen, sheetOpen, moveFolderOpen]);
 
-  // ESC closes sheet
   useEffect(() => {
-    if (!sheetOpen) return;
+    if (!sheetOpen && !moveFolderOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeSheet();
+      if (e.key === "Escape") {
+        closeSheet();
+        setMoveFolderOpen(false);
+        setMoveRecipe(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen]);
+  }, [sheetOpen, moveFolderOpen]);
 
-  // Header label
   const headerLabel = useMemo(() => {
     if (selectedFolder) return "Dossier";
     if (showFavoritesOnly) return "Favoris";
     return "Toutes";
   }, [selectedFolder, showFavoritesOnly]);
 
-  const headerCount = useMemo(() => {
-    if (!userExists) return `${filteredCount}`;
-    return `${filteredCount}`;
-  }, [filteredCount, userExists]);
+  const folderCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredRecipes.forEach((r) => {
+      if (!r.folder_id) return;
+      map.set(r.folder_id, (map.get(r.folder_id) ?? 0) + 1);
+    });
+    return map;
+  }, [filteredRecipes]);
 
   function handleCreateFolder() {
     if (!newFolderName.trim()) return;
@@ -299,16 +299,15 @@ export function RecipeListMobile(props: Props) {
 
   return (
     <div className={cn(ui.dashboardBg, "min-h-screen")}>
-      {/* Top spacing (évite la navbar) */}
       <div className="px-4 pt-6 pb-28">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-xl font-semibold text-slate-100 tracking-tight">
               Mes recettes
             </div>
             <div className="mt-1 text-sm text-slate-300/80">
-              {headerLabel} · <span className="text-slate-100 font-semibold">{headerCount}</span>
+              {headerLabel} ·{" "}
+              <span className="text-slate-100 font-semibold">{filteredCount}</span>
             </div>
           </div>
 
@@ -323,22 +322,17 @@ export function RecipeListMobile(props: Props) {
           </button>
         </div>
 
-        {/* CTA Nouvelle recette */}
         <div className="mt-5">
           <button
             type="button"
             onClick={onCreateNew}
-            className={cn(
-              ui.btnPrimary,
-              "w-full h-12 rounded-2xl justify-center"
-            )}
+            className={cn(ui.btnPrimary, "w-full h-12 rounded-2xl justify-center")}
           >
             <Plus className="w-5 h-5" />
             Nouvelle recette
           </button>
         </div>
 
-        {/* Search */}
         <div className="mt-5 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/70 pointer-events-none" />
           <input
@@ -349,7 +343,6 @@ export function RecipeListMobile(props: Props) {
           />
         </div>
 
-        {/* Category chips */}
         <div className="mt-4">
           <CategoryChips
             categories={categories}
@@ -358,7 +351,6 @@ export function RecipeListMobile(props: Props) {
           />
         </div>
 
-        {/* Content */}
         <div className="mt-6">
           {filteredRecipes.length === 0 ? (
             <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-8 text-center">
@@ -390,18 +382,19 @@ export function RecipeListMobile(props: Props) {
               {filteredRecipes.map((r) => {
                 const fav = !!r.is_favorite;
                 const visible = r.is_visible !== false;
+                const folderName = r.folder_id
+                  ? folders.find((f) => f.id === r.folder_id)?.name
+                  : null;
 
                 return (
                   <div
                     key={r.id}
                     className="group py-4"
-                    draggable={false} // IMPORTANT sur mobile (évite les taps foireux iOS)
+                    draggable={false}
                     onDrop={(e) => onDropToFolder(r.folder_id ?? null, e)}
                     onDragOver={(e) => e.preventDefault()}
                   >
-                    {/* Header */}
                     <div className="flex items-start justify-between gap-3">
-                      {/* Zone cliquable */}
                       <div
                         role="button"
                         tabIndex={0}
@@ -420,14 +413,19 @@ export function RecipeListMobile(props: Props) {
                             <Tag className="w-3.5 h-3.5 text-white/40" />
                             {r.category || "Autre"}
                           </span>
-                                             
+
                           <span className="text-white/25">•</span>
 
                           <span>{r.servings ?? "—"} couverts</span>
                         </div>
+
+                        {searchTerm.trim() && folderName && (
+                          <div className="mt-1 text-[11px] text-white/40">
+                            Dossier : {folderName}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Menu ⋯ */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -442,7 +440,6 @@ export function RecipeListMobile(props: Props) {
                       </button>
                     </div>
 
-                    {/* Quick actions */}
                     <div className="mt-3 flex items-center gap-3 text-white/60">
                       <button
                         type="button"
@@ -473,7 +470,11 @@ export function RecipeListMobile(props: Props) {
                         className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
                         title={visible ? "Visible" : "Masquée"}
                       >
-                        {visible ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                        {visible ? (
+                          <Eye className="w-5 h-5" />
+                        ) : (
+                          <EyeOff className="w-5 h-5" />
+                        )}
                       </button>
 
                       <div className="flex-1" />
@@ -482,7 +483,7 @@ export function RecipeListMobile(props: Props) {
                         type="button"
                         onClick={(e) => onTrash(r.id, e)}
                         className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
-                        title="Supprimer"
+                        title={selectedFolder ? "Retirer du dossier" : "Supprimer"}
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -495,7 +496,6 @@ export function RecipeListMobile(props: Props) {
         </div>
       </div>
 
-      {/* Sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-[120]">
           <div
@@ -522,9 +522,7 @@ export function RecipeListMobile(props: Props) {
                   onSelectAll();
                   setSidebarOpen(false);
                 }}
-                className={cn(
-                  "w-full h-11 px-3 rounded-2xl text-left bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition text-slate-100"
-                )}
+                className="w-full h-11 px-3 rounded-2xl text-left bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition text-slate-100"
               >
                 Toutes les recettes
               </button>
@@ -544,7 +542,6 @@ export function RecipeListMobile(props: Props) {
               <div className="mt-3 border-t border-white/10 pt-3 space-y-2">
                 {folders.map((folder) => (
                   <div key={folder.id} className="relative">
-                    {/* ✅ wrapper = DIV cliquable, pas button */}
                     <div
                       role="button"
                       tabIndex={0}
@@ -569,14 +566,17 @@ export function RecipeListMobile(props: Props) {
                     >
                       <Folder className="w-4 h-4" />
                       <span className="flex-1 truncate">{folder.name}</span>
+                      <span className="text-[11px] text-white/40">
+                        ({folderCounts.get(folder.id) ?? 0})
+                      </span>
 
                       <button
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setFolderMenuOpenId((prev) =>
-                            prev === folder.id ? null : folder.id
+                          setFolderMenuOpenId(
+                            folderMenuOpenId === folder.id ? null : folder.id
                           );
                         }}
                         className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-slate-200"
@@ -658,13 +658,9 @@ export function RecipeListMobile(props: Props) {
         </div>
       )}
 
-      {/* Bottom sheet actions */}
       {sheetOpen && sheetRecipe && (
         <div className="fixed inset-0 z-[140]">
-          <div
-            className="absolute inset-0 bg-black/60"
-            onClick={closeSheet}
-          />
+          <div className="absolute inset-0 bg-black/60" onClick={closeSheet} />
           <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
             <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
@@ -691,12 +687,12 @@ export function RecipeListMobile(props: Props) {
                   icon={<Users className="w-5 h-5" />}
                   label="Partager"
                   onClick={() => {
-                    // on crée un faux event pour respecter la signature
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
                     onShareToGroup(sheetRecipe.id, e);
                     closeSheet();
                   }}
                 />
+
                 <SheetAction
                   icon={<Copy className="w-5 h-5" />}
                   label="Dupliquer"
@@ -706,6 +702,7 @@ export function RecipeListMobile(props: Props) {
                     closeSheet();
                   }}
                 />
+
                 <SheetAction
                   icon={<Edit className="w-5 h-5" />}
                   label="Modifier"
@@ -715,27 +712,54 @@ export function RecipeListMobile(props: Props) {
                     closeSheet();
                   }}
                 />
+
                 <SheetAction
                   icon={<Heart className="w-5 h-5" />}
-                  label={sheetRecipe.is_favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  label={
+                    sheetRecipe.is_favorite
+                      ? "Retirer des favoris"
+                      : "Ajouter aux favoris"
+                  }
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
                     onToggleFavorite(sheetRecipe.id, !!sheetRecipe.is_favorite, e);
                     closeSheet();
                   }}
                 />
+
                 <SheetAction
-                  icon={sheetRecipe.is_visible === false ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  icon={
+                    sheetRecipe.is_visible === false ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )
+                  }
                   label={sheetRecipe.is_visible === false ? "Rendre visible" : "Masquer"}
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
-                    onToggleVisibility(sheetRecipe.id, sheetRecipe.is_visible !== false, e);
+                    onToggleVisibility(
+                      sheetRecipe.id,
+                      sheetRecipe.is_visible !== false,
+                      e
+                    );
                     closeSheet();
                   }}
                 />
+
+                <SheetAction
+                  icon={<Folder className="w-5 h-5" />}
+                  label="Déplacer dans un dossier"
+                  onClick={() => {
+                    setMoveRecipe(sheetRecipe);
+                    setMoveFolderOpen(true);
+                    closeSheet();
+                  }}
+                />
+
                 <SheetAction
                   icon={<Trash2 className="w-5 h-5" />}
-                  label="Supprimer"
+                  label={selectedFolder ? "Retirer du dossier" : "Supprimer"}
                   tone="danger"
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
@@ -746,7 +770,98 @@ export function RecipeListMobile(props: Props) {
               </div>
 
               <div className="mt-3 text-xs text-slate-400/70">
-                Astuce : touche la carte pour ouvrir la recette, et utilise ⋯ pour les actions.
+                Astuce : touche la carte pour ouvrir la recette, et utilise ⋯ pour
+                les actions.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {moveFolderOpen && moveRecipe && (
+        <div className="fixed inset-0 z-[150]">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => {
+              setMoveFolderOpen(false);
+              setMoveRecipe(null);
+            }}
+          />
+          <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
+            <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <div className="text-slate-100 font-semibold truncate">
+                    Déplacer : {safeTitle(moveRecipe)}
+                  </div>
+                  <div className="text-xs text-slate-300/70 mt-1">
+                    Choisir un dossier
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoveFolderOpen(false);
+                    setMoveRecipe(null);
+                  }}
+                  className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5 text-slate-100" />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onMoveToFolder(moveRecipe.id, null);
+                    setMoveFolderOpen(false);
+                    setMoveRecipe(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                >
+                  <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                    <Folder className="w-5 h-5" />
+                  </span>
+                  <span className="flex-1 text-sm font-medium text-slate-100">
+                    À la racine
+                  </span>
+                  {!moveRecipe.folder_id && (
+                    <Check className="w-4 h-4 text-amber-300" />
+                  )}
+                </button>
+
+                {folders.map((folder) => {
+                  const active = moveRecipe.folder_id === folder.id;
+
+                  return (
+                    <button
+                      key={folder.id}
+                      type="button"
+                      onClick={() => {
+                        onMoveToFolder(moveRecipe.id, folder.id);
+                        setMoveFolderOpen(false);
+                        setMoveRecipe(null);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                    >
+                      <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                        <Folder className="w-5 h-5" />
+                      </span>
+                      <span className="flex-1">
+                        <span className="block text-sm font-medium text-slate-100">
+                          {folder.name}
+                        </span>
+                        <span className="block text-xs text-slate-300/60">
+                          {folderCounts.get(folder.id) ?? 0} recette
+                          {(folderCounts.get(folder.id) ?? 0) > 1 ? "s" : ""}
+                        </span>
+                      </span>
+                      {active && <Check className="w-4 h-4 text-amber-300" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

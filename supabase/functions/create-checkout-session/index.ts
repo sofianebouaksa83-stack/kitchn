@@ -1,156 +1,127 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import Stripe from 'npm:stripe@14.11.0';
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import Stripe from "npm:stripe@14.21.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!stripeSecretKey) {
-      throw new Error('Missing STRIPE_SECRET_KEY');
+    if (!stripeSecret || !supabaseUrl || !supabaseKey) {
+      throw new Error("Missing environment variables");
     }
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase configuration');
-    }
+    const stripe = new Stripe(stripeSecret, {
+      apiVersion: "2024-06-20",
+    });
 
-    const authHeader = req.headers.get('Authorization');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error('Missing authorization header');
+      throw new Error("Missing authorization header");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const token = authHeader.replace('Bearer ', '');
-    
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const token = authHeader.replace("Bearer ", "");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token);
+
     if (userError || !user) {
-      throw new Error('Invalid authorization token');
+      throw new Error("Unauthorized");
     }
 
-    const { planId, successUrl, cancelUrl } = await req.json();
+    const { planId } = await req.json();
 
-    if (!planId) {
-      throw new Error('Missing planId parameter');
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('restaurant_id')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile?.restaurant_id) {
-      throw new Error('User has no restaurant');
+    if (planId !== "premium") {
+      throw new Error("Invalid plan");
     }
 
     const { data: plan, error: planError } = await supabase
-      .from('subscription_plans')
-      .select('*')
-      .eq('id', planId)
+      .from("subscription_plans")
+      .select("*")
+      .eq("id", "premium")
       .single();
 
     if (planError || !plan) {
-      throw new Error('Invalid plan');
+      throw new Error("Plan not found");
     }
 
     if (!plan.stripe_price_id) {
-      throw new Error('Plan has no Stripe price ID configured');
+      throw new Error("Stripe price not configured");
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2024-11-20.acacia',
-    });
-
-    const { data: restaurant, error: restaurantError } = await supabase
-      .from('restaurants')
-      .select('name, owner_user_id')
-      .eq('id', profile.restaurant_id)
-      .single();
-
-    if (restaurantError || !restaurant) {
-      throw new Error('Restaurant not found');
-    }
-
-    let customerId: string | undefined;
-
-    const { data: existingSub } = await supabase
-      .from('subscriptions')
-      .select('stripe_customer_id')
-      .eq('restaurant_id', profile.restaurant_id)
+    let { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
       .maybeSingle();
 
-    if (existingSub?.stripe_customer_id) {
-      customerId = existingSub.stripe_customer_id;
-    } else {
+    let customerId = subscription?.stripe_customer_id;
+
+    if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: {
-          restaurant_id: profile.restaurant_id,
           user_id: user.id,
         },
       });
+
       customerId = customer.id;
     }
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
+      payment_method_types: ["card"],
+      mode: "subscription",
       line_items: [
         {
           price: plan.stripe_price_id,
           quantity: 1,
         },
       ],
-      success_url: successUrl || `${req.headers.get('origin')}/subscription/success`,
-      cancel_url: cancelUrl || `${req.headers.get('origin')}/subscription/cancel`,
+      success_url: "https://www.kitchnpro.com/#subscription-success",
+      cancel_url: "https://www.kitchnpro.com/#subscription-cancel",
       metadata: {
-        restaurant_id: profile.restaurant_id,
-        plan_id: planId,
         user_id: user.id,
+        plan_id: "premium",
       },
       subscription_data: {
         metadata: {
-          restaurant_id: profile.restaurant_id,
-          plan_id: planId,
+          user_id: user.id,
+          plan_id: "premium",
         },
       },
     });
 
     return new Response(
-      JSON.stringify({ sessionId: session.id, url: session.url }),
+      JSON.stringify({ url: session.url }),
       {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
       }
     );
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+    console.error(error);
+
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
       }
     );
   }

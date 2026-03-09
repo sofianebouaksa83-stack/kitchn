@@ -12,6 +12,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
+import { getAiImportQuota, type AiImportQuota } from "../../services/aiImportQuota";
 
 declare global {
   interface Window {
@@ -72,6 +73,9 @@ export function RecipeImportAI() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const [quota, setQuota] = useState<AiImportQuota | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+
   const queueRef = useRef<QueueItem[]>([]);
   useEffect(() => {
     queueRef.current = queue;
@@ -102,6 +106,11 @@ export function RecipeImportAI() {
 
     loadGoogleAPIs();
   }, []);
+
+  useEffect(() => {
+    void refreshQuota();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const overall = useMemo(() => {
     if (!queue.length) return { pct: 0, done: 0, total: 0, failed: 0 };
@@ -227,12 +236,18 @@ export function RecipeImportAI() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+
       if (!session) throw new Error("Non authentifié");
 
       setQueue((prev) =>
         prev.map((q) =>
           q.id === itemId
-            ? { ...q, status: "uploading", message: "Envoi du fichier...", progress: Math.max(q.progress, 1) }
+            ? {
+                ...q,
+                status: "uploading",
+                message: "Envoi du fichier...",
+                progress: Math.max(q.progress, 1),
+              }
             : q
         )
       );
@@ -248,10 +263,20 @@ export function RecipeImportAI() {
 
         xhr.upload.onprogress = (evt) => {
           if (!evt.lengthComputable) return;
+
           const upPct = Math.round((evt.loaded / evt.total) * 100);
           const mixed = Math.min(70, Math.round((upPct / 100) * 70));
+
           setQueue((prev) =>
-            prev.map((q) => (q.id === itemId ? { ...q, uploadProgress: upPct, progress: Math.max(q.progress, mixed) } : q))
+            prev.map((q) =>
+              q.id === itemId
+                ? {
+                    ...q,
+                    uploadProgress: upPct,
+                    progress: Math.max(q.progress, mixed),
+                  }
+                : q
+            )
           );
         };
 
@@ -260,6 +285,7 @@ export function RecipeImportAI() {
         xhr.onload = () => {
           try {
             const json = JSON.parse(xhr.responseText || "{}");
+
             if (xhr.status >= 200 && xhr.status < 300 && json?.success) {
               setQueue((prev) =>
                 prev.map((q) =>
@@ -275,14 +301,23 @@ export function RecipeImportAI() {
                     : q
                 )
               );
+
+              void refreshQuota();
               resolve();
-            } else reject(new Error(json?.error || "Erreur lors de l'import"));
+            } else {
+              if (json?.code === "AI_IMPORT_LIMIT_REACHED") {
+                setStatus("error");
+                setMessage(json?.error || "Limite atteinte, passez à Premium");
+                void refreshQuota();
+              }
+
+              reject(new Error(json?.error || "Erreur lors de l'import"));
+            }
           } catch {
             reject(new Error("Réponse serveur invalide"));
           }
         };
 
-        // fake progress pendant processing
         let alive = false;
         let tickTimer: number | null = null;
 
@@ -293,20 +328,31 @@ export function RecipeImportAI() {
             setQueue((prev) =>
               prev.map((q) =>
                 q.id === itemId
-                  ? { ...q, status: "processing", message: "Analyse IA en cours...", progress: Math.max(q.progress, 75) }
+                  ? {
+                      ...q,
+                      status: "processing",
+                      message: "Analyse IA en cours...",
+                      progress: Math.max(q.progress, 75),
+                    }
                   : q
               )
             );
 
             const tick = () => {
               if (!alive) return;
+
               setQueue((prev) =>
                 prev.map((q) => {
                   if (q.id !== itemId) return q;
                   if (q.status !== "processing") return q;
-                  return { ...q, progress: Math.min(95, (q.progress || 75) + 1) };
+
+                  return {
+                    ...q,
+                    progress: Math.min(95, (q.progress || 75) + 1),
+                  };
                 })
               );
+
               tickTimer = window.setTimeout(tick, 250);
             };
 
@@ -322,7 +368,9 @@ export function RecipeImportAI() {
         xhr.send(formData);
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'importation";
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur lors de l'importation";
+
       setStatus("error");
       setMessage(
         errorMessage.includes("OPENAI_API_KEY")
@@ -331,11 +379,22 @@ export function RecipeImportAI() {
       );
 
       setQueue((prev) =>
-        prev.map((q) => (q.id === itemId ? { ...q, status: "error", message: errorMessage, progress: Math.min(q.progress || 0, 90) } : q))
+        prev.map((q) =>
+          q.id === itemId
+            ? {
+                ...q,
+                status: "error",
+                message: errorMessage,
+                progress: Math.min(q.progress || 0, 90),
+              }
+            : q
+        )
       );
     } finally {
       setQueue((prev) => {
-        const stillBusy = prev.some((q) => q.status === "uploading" || q.status === "processing");
+        const stillBusy = prev.some(
+          (q) => q.status === "uploading" || q.status === "processing"
+        );
         setStatus(stillBusy ? "processing" : "idle");
         return prev;
       });
@@ -352,15 +411,30 @@ export function RecipeImportAI() {
 
     try {
       while (true) {
+        const latestQuota = await getAiImportQuota();
+        setQuota(latestQuota);
+
+        if (latestQuota.plan === "free" && !latestQuota.can_import) {
+          setStatus("error");
+          setMessage("Limite atteinte, passez à Premium");
+          break;
+        }
+
         const current = queueRef.current;
         const next = current.find((q) => q.status === "idle" || q.status === "error");
+
         if (!next) break;
+
         // eslint-disable-next-line no-await-in-loop
         await importOne(next.id);
       }
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Erreur lors du traitement");
     } finally {
       processingRef.current = false;
       setStatus("idle");
+      void refreshQuota();
     }
   }
 
@@ -481,7 +555,25 @@ export function RecipeImportAI() {
     }
   }
 
-  const canAnalyze = queue.some((q) => q.status === "idle" || q.status === "error");
+  async function refreshQuota() {
+    if (!user) {
+      setQuota(null);
+      return;
+    }
+
+    try {
+      setQuotaLoading(true);
+      const result = await getAiImportQuota();
+      setQuota(result);
+    } catch (error) {
+      console.error("Erreur quota IA:", error);
+    } finally {
+      setQuotaLoading(false);
+    }
+  }
+
+  const hasPendingImports = queue.some((q) => q.status === "idle" || q.status === "error");
+  const canAnalyze = hasPendingImports && (quota?.plan === "premium" || quota == null || quota.can_import);
   const canClear = queue.some((q) => q.status === "success");
 
   return (
@@ -503,6 +595,25 @@ export function RecipeImportAI() {
                 <p className="text-sm text-slate-300/70 mt-1 truncate">
                   Dépose des fichiers, Kitch’n structure automatiquement la recette.
                 </p>
+                <div className="mt-2">
+                {quotaLoading ? (
+                  <p className="text-xs text-slate-400">Chargement du quota IA…</p>
+                ) : quota ? (
+                  quota.plan === "premium" ? (
+                    <p className="text-xs text-emerald-300">Premium • imports IA illimités</p>
+                  ) : quota.can_import ? (
+                    <p className="text-xs text-slate-300">
+                      Il vous reste{" "}
+                      <span className="font-semibold text-white">{quota.remaining}</span>{" "}
+                      imports IA ce mois-ci
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-300 font-medium">
+                      Limite atteinte, passez à Premium
+                    </p>
+                  )
+                ) : null}
+              </div>
 
                 {queue.length > 0 ? (
                   <div className="mt-3">
@@ -763,44 +874,6 @@ export function RecipeImportAI() {
                     );
                   })}
                 </div>
-              </div>
-
-              <div className="w-full max-w-full rounded-2xl bg-white/[0.05] ring-1 ring-white/10 p-4 overflow-hidden">
-                <div className="text-sm font-semibold text-slate-100 min-w-0">
-                  Sélection
-                  <span className="text-xs text-slate-400 font-normal truncate">
-                    {" "}
-                    • {selected?.relativePath || selected?.file?.name || "—"}
-                  </span>
-                </div>
-
-                {queue.length > 0 && queue.every((q) => q.status === "success") && (
-                  <div className="mt-4 space-y-3">
-                    <div className="rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/20 p-3 flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-emerald-300 flex-shrink-0 mt-0.5" />
-                      <p className="text-emerald-200 font-medium text-sm">
-                        Tout est terminé ✅ ({queue.length} recette(s) importée(s))
-                      </p>
-                    </div>
-
-                    <button onClick={viewRecipe} className={`${ui.btnGhost} w-full py-3 rounded-2xl`} type="button">
-                      Voir mes recettes
-                    </button>
-                  </div>
-                )}
-
-                {status === "error" && message && (
-                  <div className="mt-4 rounded-xl bg-red-500/10 ring-1 ring-red-400/20 p-3 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-300 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-200 font-medium text-sm whitespace-pre-wrap">{message}</p>
-                  </div>
-                )}
-
-                {!message && queue.length > 0 && selected?.message && (
-                  <div className="mt-4 rounded-xl bg-white/5 ring-1 ring-white/10 p-3">
-                    <div className="text-xs text-slate-300/90 whitespace-pre-wrap">{selected.message}</div>
-                  </div>
-                )}
               </div>
             </div>
           )}

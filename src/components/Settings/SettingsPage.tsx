@@ -11,10 +11,14 @@ import {
   Trash2,
   Upload,
   Building2,
-  Eye,
   EyeOff,
+  Eye,
   KeyRound,
   X,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 
@@ -36,7 +40,26 @@ type ProfileRow = {
   updated_at: string | null;
 };
 
-function cn(...classes: Array<string | undefined | false>) {
+type SettingsTab =
+  | "profile"
+  | "notifications"
+  | "invitations"
+  | "security"
+  | "restaurant"
+  | "account";
+
+type PendingInvitationRow = {
+  id: string;
+  token: string;
+  email: string | null;
+  role: string | null;
+  work_group_id: string | null;
+  work_group_name: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+};
+
+function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
 
@@ -66,8 +89,6 @@ function passwordScore(pw: string) {
   return Math.min(s, 5);
 }
 
-// Essaie d’extraire le path storage à partir d’une URL publique Supabase
-// Ex: https://xxx.supabase.co/storage/v1/object/public/avatars/<PATH>
 function storagePathFromPublicUrl(url: string, bucket = "avatars") {
   try {
     const marker = `/storage/v1/object/public/${bucket}/`;
@@ -79,10 +100,50 @@ function storagePathFromPublicUrl(url: string, bucket = "avatars") {
   }
 }
 
-// petit cache-bust pour éviter le vieux cache navigateur
 function withCacheBuster(url: string, token: string) {
   const join = url.includes("?") ? "&" : "?";
   return `${url}${join}v=${encodeURIComponent(token)}`;
+}
+
+/** lit #/settings?tab=invitations */
+function getTabFromHash(): SettingsTab | null {
+  const raw = window.location.hash.slice(1); // "/settings?tab=invitations"
+  const qs = raw.split("?")[1] ?? "";
+  const tab = new URLSearchParams(qs).get("tab");
+  if (!tab) return null;
+
+  const allowed: SettingsTab[] = [
+    "profile",
+    "notifications",
+    "invitations",
+    "security",
+    "restaurant",
+    "account",
+  ];
+  return allowed.includes(tab as any) ? (tab as SettingsTab) : null;
+}
+
+/** set #/settings?tab=... */
+function setTabInHash(tab: SettingsTab) {
+  const raw = window.location.hash.slice(1);
+  const base = raw.split("?")[0] || "/settings";
+  const qs = raw.split("?")[1] ?? "";
+  const p = new URLSearchParams(qs);
+  p.set("tab", tab);
+  window.location.hash = `${base}?${p.toString()}`;
+}
+
+function roleLabel(role: string | null) {
+  const r = (role ?? "").toLowerCase();
+  if (r === "admin") return "Second";
+  if (r === "chef_de_partie") return "Chef de partie";
+  if (r === "commis") return "Commis";
+  return role ?? "Membre";
+}
+
+function isExpired(expiresAt: string | null) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() < Date.now();
 }
 
 export default function SettingsPage() {
@@ -132,6 +193,16 @@ export default function SettingsPage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwShow, setPwShow] = useState(false);
 
+  // ✅ tabs
+  const [tab, setTab] = useState<SettingsTab>("profile");
+
+  // ✅ invitations
+  const [invLoading, setInvLoading] = useState(false);
+  const [invErr, setInvErr] = useState<string | null>(null);
+  const [invitations, setInvitations] = useState<PendingInvitationRow[]>([]);
+  const [invCount, setInvCount] = useState<number>(0);
+  const [joiningToken, setJoiningToken] = useState<string | null>(null);
+
   const pwStrength = useMemo(() => passwordScore(pw1), [pw1]);
   const pwMatch = pw1.length > 0 && pw1 === pw2;
 
@@ -152,15 +223,11 @@ export default function SettingsPage() {
 
   // Initiale pour avatar par défaut
   const avatarInitial = useMemo(() => {
-    const v =
-      fullName?.trim()?.[0] ||
-      username?.trim()?.[0] ||
-      user?.email?.trim()?.[0] ||
-      "?";
+    const v = fullName?.trim()?.[0] || username?.trim()?.[0] || user?.email?.trim()?.[0] || "?";
     return String(v).toUpperCase();
   }, [fullName, username, user?.email]);
 
-  // teinte pseudo-aléatoire stable (basée sur l’initiale + id)
+  // teinte pseudo-aléatoire stable
   const defaultAvatarBg = useMemo(() => {
     const seed = `${user?.id ?? ""}-${avatarInitial}`;
     let h = 0;
@@ -169,6 +236,20 @@ export default function SettingsPage() {
     return `linear-gradient(135deg, hsla(${hue}, 85%, 60%, 0.35), hsla(${(hue + 40) % 360}, 85%, 55%, 0.18))`;
   }, [user?.id, avatarInitial]);
 
+  // ✅ init tab depuis hash + écoute hashchange
+  useEffect(() => {
+    const t = getTabFromHash();
+    if (t) setTab(t);
+
+    const onHash = () => {
+      const next = getTabFromHash();
+      if (next) setTab(next);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // ✅ profile
   useEffect(() => {
     let alive = true;
 
@@ -225,22 +306,105 @@ export default function SettingsPage() {
 
       setRestaurantRole(row.restaurant_role ?? "");
 
-      // cache-bust léger (si updated_at existe)
       const nextAvatar =
-        row.avatar_url && row.updated_at
-          ? withCacheBuster(row.avatar_url, row.updated_at)
-          : row.avatar_url ?? null;
+        row.avatar_url && row.updated_at ? withCacheBuster(row.avatar_url, row.updated_at) : row.avatar_url ?? null;
 
       setAvatarPreview(nextAvatar);
       setLoading(false);
     }
 
     loadProfile();
-
     return () => {
       alive = false;
     };
   }, [user?.id]);
+
+  // ✅ count badge (léger)
+  useEffect(() => {
+    let alive = true;
+
+    async function loadCount() {
+      if (!user?.id) return;
+      try {
+        const { data, error } = await supabase.rpc("get_my_pending_invitations_count");
+        if (error) throw error;
+        if (!alive) return;
+        setInvCount(Number(data ?? 0));
+      } catch {
+        if (!alive) return;
+        setInvCount(0);
+      }
+    }
+
+    loadCount();
+    const t = window.setInterval(loadCount, 15000); // rafraîchit doucement
+    return () => {
+      alive = false;
+      window.clearInterval(t);
+    };
+  }, [user?.id]);
+
+  // ✅ charge la liste UNIQUEMENT quand onglet invitations
+  useEffect(() => {
+    let alive = true;
+
+    async function loadInvitations() {
+      if (!user?.id) return;
+      if (tab !== "invitations") return;
+
+      setInvErr(null);
+      setInvLoading(true);
+
+      try {
+        const { data, error } = await supabase.rpc("get_my_pending_invitations");
+        if (error) throw error;
+        if (!alive) return;
+
+        const rows = ((data as PendingInvitationRow[]) ?? []).filter(Boolean);
+        setInvitations(rows);
+        setInvCount(rows.length);
+      } catch (e: any) {
+        if (!alive) return;
+        setInvErr(e?.message ?? "Impossible de charger les invitations.");
+        setInvitations([]);
+      } finally {
+        if (!alive) return;
+        setInvLoading(false);
+      }
+    }
+
+    loadInvitations();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, tab]);
+
+  async function onAcceptInvitation(token: string) {
+    if (!user?.id) return;
+
+    setInvErr(null);
+    setJoiningToken(token);
+
+    try {
+      const { error } = await supabase.rpc("accept_group_invitation", {
+        invitation_token: token,
+      });
+      if (error) throw error;
+
+      // refresh list + count
+      const { data } = await supabase.rpc("get_my_pending_invitations");
+      const rows = ((data as PendingInvitationRow[]) ?? []).filter(Boolean);
+      setInvitations(rows);
+      setInvCount(rows.length);
+
+      // go groups
+      window.location.hash = "/groups";
+    } catch (e: any) {
+      setInvErr(e?.message ?? "Impossible d'accepter l'invitation.");
+    } finally {
+      setJoiningToken(null);
+    }
+  }
 
   async function onSave() {
     if (!user?.id) return;
@@ -302,7 +466,6 @@ export default function SettingsPage() {
 
       if (saveErr) throw saveErr;
 
-      // cancel undo timers if any
       if (undoTimerRef.current) window.clearInterval(undoTimerRef.current);
       if (deleteTimerRef.current) window.clearTimeout(deleteTimerRef.current);
       undoTimerRef.current = null;
@@ -333,7 +496,6 @@ export default function SettingsPage() {
     setOk(null);
 
     try {
-      // on récupère la valeur la plus fiable (celle du profil chargé)
       const prevUrlRaw = (profile?.avatar_url ?? avatarPreview ?? "").split("?")[0];
       if (!prevUrlRaw) {
         setAvatarRemoving(false);
@@ -344,12 +506,9 @@ export default function SettingsPage() {
         ? storagePathFromPublicUrl(prevUrlRaw, "avatars")
         : prevUrlRaw;
 
-      // animation out
       setAvatarAnimOut(true);
 
-      // après un petit délai, on met à null en DB + UI
       window.setTimeout(async () => {
-        // DB: avatar_url = null (immédiat)
         const { error: upErr } = await supabase
           .from("profiles")
           .update({ avatar_url: null })
@@ -357,17 +516,14 @@ export default function SettingsPage() {
 
         if (upErr) throw upErr;
 
-        // UI: retire l'image
         setAvatarPreview(null);
         setProfile((p) => (p ? { ...p, avatar_url: null } : p));
 
-        // Undo visible 5s
         setUndoPayload({ prevAvatarUrl: prevUrlRaw, prevAvatarPath: prevPath });
         setUndoVisible(true);
         setUndoSecondsLeft(5);
         setOk("Avatar supprimé. Annuler ?");
 
-        // countdown
         if (undoTimerRef.current) window.clearInterval(undoTimerRef.current);
         undoTimerRef.current = window.setInterval(() => {
           setUndoSecondsLeft((s) => {
@@ -376,7 +532,6 @@ export default function SettingsPage() {
           });
         }, 1000);
 
-        // suppression storage après 5s (si pas undo)
         if (deleteTimerRef.current) window.clearTimeout(deleteTimerRef.current);
         deleteTimerRef.current = window.setTimeout(async () => {
           try {
@@ -386,12 +541,11 @@ export default function SettingsPage() {
             if (undoTimerRef.current) window.clearInterval(undoTimerRef.current);
             undoTimerRef.current = null;
 
-            // supprime le fichier seulement si on a un path
             if (prevPath) {
               await supabase.storage.from("avatars").remove([prevPath]);
             }
           } catch {
-            // ignore (si ça rate, on ne casse pas l’UI)
+            // ignore
           } finally {
             deleteTimerRef.current = null;
           }
@@ -411,7 +565,6 @@ export default function SettingsPage() {
     if (!user?.id) return;
     if (!undoPayload) return;
 
-    // stop timers
     if (undoTimerRef.current) window.clearInterval(undoTimerRef.current);
     if (deleteTimerRef.current) window.clearTimeout(deleteTimerRef.current);
     undoTimerRef.current = null;
@@ -424,7 +577,6 @@ export default function SettingsPage() {
     setOk(null);
 
     try {
-      // restore DB
       const { error } = await supabase
         .from("profiles")
         .update({ avatar_url: undoPayload.prevAvatarUrl })
@@ -494,7 +646,6 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    // nettoyage timers
     return () => {
       if (undoTimerRef.current) window.clearInterval(undoTimerRef.current);
       if (deleteTimerRef.current) window.clearTimeout(deleteTimerRef.current);
@@ -513,6 +664,47 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const TabBtn = ({
+    k,
+    label,
+    icon,
+    badge,
+  }: {
+    k: SettingsTab;
+    label: string;
+    icon: React.ReactNode;
+    badge?: number;
+  }) => {
+    const active = tab === k;
+    const showBadge = typeof badge === "number" && badge > 0;
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setTab(k);
+          setTabInHash(k);
+        }}
+        className={cn(
+          "flex items-center justify-between gap-3 w-full rounded-2xl px-3 py-2.5 text-sm transition",
+          "ring-1",
+          active
+            ? "bg-amber-500/15 text-amber-200 ring-amber-400/25"
+            : "bg-white/[0.04] text-slate-200/90 ring-white/10 hover:bg-white/[0.07]"
+        )}
+      >
+        <span className="flex items-center gap-2.5 min-w-0">
+          <span className="text-white/75">{icon}</span>
+          <span className="truncate">{label}</span>
+        </span>
+        {showBadge ? (
+          <span className="min-w-[26px] h-6 px-2 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-xs font-bold">
+            {badge}
+          </span>
+        ) : null}
+      </button>
+    );
+  };
 
   return (
     <div className={cn("min-h-screen text-white", ui?.dashboardBg)}>
@@ -554,7 +746,6 @@ export default function SettingsPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">{err ?? ok}</div>
 
-              {/* Undo (bonus) */}
               {undoVisible && !err && (
                 <div className="shrink-0 flex items-center gap-2">
                   <button
@@ -571,13 +762,12 @@ export default function SettingsPage() {
         )}
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left */}
+          {/* Left tabs */}
           <div className="lg:col-span-4 space-y-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="text-xs text-white/60">Connecté en tant que</div>
               <div className="mt-1 text-sm font-medium break-all">{user.email}</div>
 
-              {/* bouton déconnexion déjà style OK */}
               <button
                 type="button"
                 onClick={signOut}
@@ -595,263 +785,368 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-semibold">Raccourcis</div>
-              <div className="mt-2 text-xs text-white/60">
-                (Plus tard : invitations, préférences UI, etc.)
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2">
+              <div className="px-1 pt-1 text-xs text-white/50 uppercase tracking-wide">
+                Navigation
               </div>
+
+              <TabBtn k="profile" label="Profil" icon={<User className="h-4 w-4" />} />
+              <TabBtn k="notifications" label="Notifications" icon={<Bell className="h-4 w-4" />} />
+              <TabBtn
+                k="invitations"
+                label="Invitations"
+                icon={<Mail className="h-4 w-4" />}
+                badge={invCount}
+              />
+              <TabBtn k="security" label="Sécurité" icon={<Shield className="h-4 w-4" />} />
+              <TabBtn k="restaurant" label="Restaurant" icon={<Building2 className="h-4 w-4" />} />
+              <TabBtn k="account" label="Compte" icon={<Trash2 className="h-4 w-4" />} />
             </div>
           </div>
 
-          {/* Right */}
+          {/* Right content */}
           <div className="lg:col-span-8 space-y-5">
-            {/* Profil */}
-            <Section title="Profil" icon={<User className="h-4 w-4" />} loading={loading}>
-              <div className="flex items-center gap-4">
-                {/* Avatar + X (bonus) */}
-                <div className="relative group">
-                  <div
-                    className={cn(
-                      "h-14 w-14 rounded-2xl overflow-hidden border border-white/10 bg-white/10",
-                      "transition-all duration-200",
-                      avatarAnimOut ? "opacity-0 scale-[0.96]" : "opacity-100 scale-100"
-                    )}
-                  >
-                    {avatarPreview ? (
-                      <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <div
-                        className="h-full w-full flex items-center justify-center"
-                        style={{ backgroundImage: defaultAvatarBg }}
+            {tab === "profile" && (
+              <Section title="Profil" icon={<User className="h-4 w-4" />} loading={loading}>
+                <div className="flex items-center gap-4">
+                  <div className="relative group">
+                    <div
+                      className={cn(
+                        "h-14 w-14 rounded-2xl overflow-hidden border border-white/10 bg-white/10",
+                        "transition-all duration-200",
+                        avatarAnimOut ? "opacity-0 scale-[0.96]" : "opacity-100 scale-100"
+                      )}
+                    >
+                      {avatarPreview ? (
+                        <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
+                      ) : (
+                        <div
+                          className="h-full w-full flex items-center justify-center"
+                          style={{ backgroundImage: defaultAvatarBg }}
+                        >
+                          <div className="h-10 w-10 rounded-full bg-black/20 ring-1 ring-white/10 flex items-center justify-center">
+                            <span className="text-sm font-semibold text-white/80">{avatarInitial}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {avatarPreview && (
+                      <button
+                        type="button"
+                        onClick={onRemoveAvatar}
+                        disabled={avatarRemoving || avatarUploading}
+                        className={cn(
+                          "absolute -top-1 -right-1 h-5 w-5 rounded-full",
+                          "bg-red-500/80 hover:bg-red-500 text-white",
+                          "ring-1 ring-slate-950/70 border border-white/10",
+                          "flex items-center justify-center transition",
+                          "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100",
+                          "duration-150 ease-out",
+                          (avatarRemoving || avatarUploading) && "opacity-60 cursor-not-allowed"
+                        )}
+                        title="Supprimer l’avatar"
+                        aria-label="Supprimer l’avatar"
                       >
-                        <div className="h-10 w-10 rounded-full bg-black/20 ring-1 ring-white/10 flex items-center justify-center">
-                          <span className="text-sm font-semibold text-white/80">{avatarInitial}</span>
+                        {avatarRemoving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      disabled={avatarUploading || avatarRemoving}
+                      onClick={() => fileRef.current?.click()}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border border-white/10 bg-white/10 hover:bg-white/15 transition",
+                        (avatarUploading || avatarRemoving) && "opacity-60 cursor-not-allowed"
+                      )}
+                    >
+                      {avatarUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      Changer l’avatar
+                    </button>
+
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) onPickAvatar(file);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Nom complet">
+                    <input
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+                      placeholder="Sofiane Bouaksa"
+                    />
+                  </Field>
+
+                  <Field label="Nom d’utilisateur" error={!isValidUsername(username) ? "Format invalide" : undefined}>
+                    <input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+                      placeholder="soso_chef"
+                    />
+                  </Field>
+
+                  <Field label="Langue">
+                    <select
+                      value={locale}
+                      onChange={(e) => setLocale(e.target.value as any)}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+                    >
+                      <option value="fr">Français</option>
+                      <option value="en">English</option>
+                    </select>
+                  </Field>
+
+                  <Field label="Site web" error={!isValidUrl(website) ? "URL invalide" : undefined}>
+                    <input
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+                      placeholder="https://..."
+                    />
+                  </Field>
+
+                  <Field label="Bio" className="sm:col-span-2">
+                    <textarea
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={3}
+                      className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+                      placeholder="Quelques mots…"
+                    />
+                  </Field>
+                </div>
+              </Section>
+            )}
+
+            {tab === "notifications" && (
+              <Section title="Notifications" icon={<Bell className="h-4 w-4" />} loading={loading}>
+                <Toggle label="Email (activité & partages)" checked={notifEmail} onChange={setNotifEmail} />
+                <div className="h-2" />
+                <Toggle label="Push (mobile) — plus tard" checked={notifPush} onChange={setNotifPush} />
+                <div className="h-2" />
+                <Toggle label="Emails marketing" checked={marketingEmail} onChange={setMarketingEmail} />
+              </Section>
+            )}
+
+            {tab === "invitations" && (
+              <Section title="Invitations" icon={<Mail className="h-4 w-4" />} loading={invLoading}>
+                <div className="text-sm text-white/60">Rejoins un groupe depuis une invitation.</div>
+
+                {invErr && (
+                  <div className="mt-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100 flex gap-2">
+                    <AlertCircle className="h-4 w-4 mt-0.5" />
+                    {invErr}
+                  </div>
+                )}
+
+                <div className="mt-4 space-y-3">
+                  {!invLoading && invitations.length === 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+                      Aucune invitation en attente.
+                    </div>
+                  )}
+
+                  {invitations.map((inv) => {
+                    const expired = isExpired(inv.expires_at);
+                    const joining = joiningToken === inv.token;
+
+                    return (
+                      <div key={inv.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs text-white/60">Groupe</div>
+                            <div className="mt-0.5 text-base font-semibold truncate">
+                              {inv.work_group_name ?? "Groupe"}
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <span className="inline-flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-1.5 text-xs text-white/80">
+                                <User className="h-3.5 w-3.5" />
+                                Rôle : <span className="text-white/95 font-semibold">{roleLabel(inv.role)}</span>
+                              </span>
+
+                              {inv.expires_at && (
+                                <span className="inline-flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-1.5 text-xs text-white/70">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  Expire le{" "}
+                                  {new Date(inv.expires_at).toLocaleString(undefined, {
+                                    year: "numeric",
+                                    month: "2-digit",
+                                    day: "2-digit",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              )}
+                            </div>
+
+                            {expired && (
+                              <div className="mt-3 text-xs text-amber-200 flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4" />
+                                Invitation expirée — demande un nouveau lien.
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={expired || joining}
+                            onClick={() => onAcceptInvitation(inv.token)}
+                            className={cn(
+                              "shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold",
+                              "bg-amber-400 text-black hover:bg-amber-300 transition ring-1 ring-amber-300/60",
+                              (expired || joining) && "opacity-50 cursor-not-allowed"
+                            )}
+                          >
+                            {joining ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Rejoindre…
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-4 w-4" />
+                                Rejoindre
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Bouton X supprimer */}
-{avatarPreview && (
-  <button
-    type="button"
-    onClick={onRemoveAvatar}
-    disabled={avatarRemoving || avatarUploading}
-    className={cn(
-      "absolute -top-1 -right-1 h-5 w-5 rounded-full",
-      "bg-red-500/80 hover:bg-red-500 text-white",
-      "ring-1 ring-slate-950/70 border border-white/10",
-      "flex items-center justify-center transition",
-      "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100",
-      "duration-150 ease-out",
-      (avatarRemoving || avatarUploading) && "opacity-60 cursor-not-allowed"
-    )}
-    title="Supprimer l’avatar"
-    aria-label="Supprimer l’avatar"
-  >
-    {avatarRemoving ? (
-      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-    ) : (
-      <X className="h-3.5 w-3.5" />
-    )}
-  </button>
-)}
-
+                    );
+                  })}
                 </div>
+              </Section>
+            )}
 
-                <div>
-                  <button
-                    type="button"
-                    disabled={avatarUploading || avatarRemoving}
-                    onClick={() => fileRef.current?.click()}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border border-white/10 bg-white/10 hover:bg-white/15 transition",
-                      (avatarUploading || avatarRemoving) && "opacity-60 cursor-not-allowed"
-                    )}
-                  >
-                    {avatarUploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    Changer l’avatar
-                  </button>
-
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) onPickAvatar(file);
-                      e.currentTarget.value = "";
-                    }}
-                  />               
-                </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Nom complet">
-                  <input
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                    placeholder="Sofiane Bouaksa"
-                  />
-                </Field>
-
-                <Field
-                  label="Nom d’utilisateur"
-                  hint=""
-                  error={!isValidUsername(username) ? "Format invalide" : undefined}
-                >
-                  <input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                    placeholder="soso_chef"
-                  />
-                </Field>
-
-                <Field label="Langue">
-                  <select
-                    value={locale}
-                    onChange={(e) => setLocale(e.target.value as any)}
-                    className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                  >
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                    <option value="es">Espagnol</option>
-                  </select>
-                </Field>
-              </div>
-            </Section>
-
-            {/* Notifications */}
-            <Section title="Notifications" icon={<Bell className="h-4 w-4" />} loading={loading}>
-              <Toggle label="Email (activité & partages)" checked={notifEmail} onChange={setNotifEmail} />
-              <div className="h-2" />
-              <Toggle label="Push (mobile) — plus tard" checked={notifPush} onChange={setNotifPush} />
-              <div className="h-2" />
-              <Toggle label="Emails marketing" checked={marketingEmail} onChange={setMarketingEmail} />
-            </Section>
-
-            {/* Sécurité */}
-            <Section title="Sécurité" icon={<Shield className="h-4 w-4" />} loading={loading}>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="h-4 w-4 text-white/80" />
-                    <div className="text-sm font-medium">Changer le mot de passe</div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setPwShow((v) => !v)}
-                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs border border-white/10 bg-white/10 hover:bg-white/15 transition"
-                  >
-                    {pwShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    {pwShow ? "Masquer" : "Afficher"}
-                  </button>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-white/60 mb-1">Nouveau mot de passe</div>
-                    <input
-                      type={pwShow ? "text" : "password"}
-                      value={pw1}
-                      onChange={(e) => setPw1(e.target.value)}
-                      className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                    />
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
-                        <div
-                          className="h-full bg-yellow-300/50"
-                          style={{ width: `${(pwStrength / 5) * 100}%` }}
-                        />
-                      </div>
-                      <div className="text-[11px] text-white/60">
-                        {pw1.length === 0
-                          ? "—"
-                          : pwStrength <= 2
-                          ? "Faible"
-                          : pwStrength === 3
-                          ? "OK"
-                          : "Fort"}
-                      </div>
+            {tab === "security" && (
+              <Section title="Sécurité" icon={<Shield className="h-4 w-4" />} loading={loading}>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <KeyRound className="h-4 w-4 text-white/80" />
+                      <div className="text-sm font-medium">Changer le mot de passe</div>
                     </div>
-                    <div className="mt-1 text-[11px] text-white/50">Min. 8 caractères.</div>
+
+                    <button
+                      type="button"
+                      onClick={() => setPwShow((v) => !v)}
+                      className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs border border-white/10 bg-white/10 hover:bg-white/15 transition"
+                    >
+                      {pwShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {pwShow ? "Masquer" : "Afficher"}
+                    </button>
                   </div>
 
-                  <div>
-                    <div className="text-xs text-white/60 mb-1">Confirmer</div>
-                    <input
-                      type={pwShow ? "text" : "password"}
-                      value={pw2}
-                      onChange={(e) => setPw2(e.target.value)}
-                      className={cn(
-                        "w-full rounded-xl bg-white/5 border px-3 py-2 text-sm outline-none",
-                        "focus:border-white/20",
-                        pw2.length > 0 && !pwMatch ? "border-red-500/40" : "border-white/10"
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs text-white/60 mb-1">Nouveau mot de passe</div>
+                      <input
+                        type={pwShow ? "text" : "password"}
+                        value={pw1}
+                        onChange={(e) => setPw1(e.target.value)}
+                        className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
+                          <div
+                            className="h-full bg-yellow-300/50"
+                            style={{ width: `${(pwStrength / 5) * 100}%` }}
+                          />
+                        </div>
+                        <div className="text-[11px] text-white/60">
+                          {pw1.length === 0 ? "—" : pwStrength <= 2 ? "Faible" : pwStrength === 3 ? "OK" : "Fort"}
+                        </div>
+                      </div>
+                      <div className="mt-1 text-[11px] text-white/50">Min. 8 caractères.</div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-white/60 mb-1">Confirmer</div>
+                      <input
+                        type={pwShow ? "text" : "password"}
+                        value={pw2}
+                        onChange={(e) => setPw2(e.target.value)}
+                        className={cn(
+                          "w-full rounded-xl bg-white/5 border px-3 py-2 text-sm outline-none",
+                          "focus:border-white/20",
+                          pw2.length > 0 && !pwMatch ? "border-red-500/40" : "border-white/10"
+                        )}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      {pw2.length > 0 && !pwMatch && (
+                        <div className="mt-1 text-xs text-red-200">
+                          Les mots de passe ne correspondent pas.
+                        </div>
                       )}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                    />
-                    {pw2.length > 0 && !pwMatch && (
-                      <div className="mt-1 text-xs text-red-200">Les mots de passe ne correspondent pas.</div>
-                    )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={onChangePassword}
+                      disabled={!canChangePassword || pwSaving}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium border",
+                        "border-white/10 bg-white/10 hover:bg-white/15 transition",
+                        (!canChangePassword || pwSaving) && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      {pwSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                      Mettre à jour
+                    </button>
+
+                    <div className="mt-2 text-xs text-white/50">
+                      Si Supabase refuse (session trop vieille), déconnecte-toi puis reconnecte-toi et réessaie.
+                    </div>
                   </div>
                 </div>
+              </Section>
+            )}
 
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={onChangePassword}
-                    disabled={!canChangePassword || pwSaving}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium border",
-                      "border-white/10 bg-white/10 hover:bg-white/15 transition",
-                      (!canChangePassword || pwSaving) && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    {pwSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                    Mettre à jour
-                  </button>
+            {tab === "restaurant" && (
+              <Section title="Restaurant" icon={<Building2 className="h-4 w-4" />} loading={loading}>
+                <Field label="Rôle restaurant (restaurant_role)">
+                  <input
+                    value={restaurantRole}
+                    onChange={(e) => setRestaurantRole(e.target.value)}
+                    className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+                    placeholder="chef | second | employé..."
+                  />
+                </Field>
+              </Section>
+            )}
 
-                  <div className="mt-2 text-xs text-white/50">
-                    Si Supabase refuse (session trop vieille), déconnecte-toi puis reconnecte-toi et réessaie.
-                  </div>
-                </div>
-              </div>
-            </Section>
-
-            {/* Restaurant */}
-            <Section title="Restaurant" icon={<Building2 className="h-4 w-4" />} loading={loading}>
-              <Field label="Rôle restaurant (restaurant_role)">
-                <input
-                  value={restaurantRole}
-                  onChange={(e) => setRestaurantRole(e.target.value)}
-                  className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                  placeholder="chef | second | employé..."
-                />
-              </Field>
-            </Section>
-
-            {/* Compte */}
-            <Section title="Compte" icon={<Trash2 className="h-4 w-4" />} loading={loading}>
-              <button
-                type="button"
-                onClick={onDeleteAccount}
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border border-red-500/30 bg-red-500/50 hover:bg-red-500/15 transition text-red-100"
-              >
-                <Trash2 className="h-4 w-4" />
-                Supprimer mon compte
-              </button>
-            </Section>
+            {tab === "account" && (
+              <Section title="Compte" icon={<Trash2 className="h-4 w-4" />} loading={loading}>
+                <button
+                  type="button"
+                  onClick={onDeleteAccount}
+                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 transition text-red-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer mon compte
+                </button>
+              </Section>
+            )}
           </div>
         </div>
 
@@ -936,25 +1231,19 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm hover:bg-white/10 transition"
-    >
-      <span className="text-white/80">{label}</span>
-      <span
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+      <div className="text-sm text-white/85">{label}</div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
         className={cn(
-          "relative inline-flex h-6 w-11 items-center rounded-full border transition",
-          checked ? "bg-yellow-300/20 border-yellow-300/30" : "bg-white/10 border-white/10"
+          "h-7 w-12 rounded-full p-1 transition ring-1 ring-white/10",
+          checked ? "bg-amber-400/80" : "bg-white/10"
         )}
+        aria-pressed={checked}
       >
-        <span
-          className={cn(
-            "inline-block h-5 w-5 translate-x-0 rounded-full bg-white/80 transition",
-            checked ? "translate-x-5" : false
-          )}
-        />
-      </span>
-    </button>
+        <div className={cn("h-5 w-5 rounded-full bg-white transition", checked ? "translate-x-5" : "translate-x-0")} />
+      </button>
+    </div>
   );
 }

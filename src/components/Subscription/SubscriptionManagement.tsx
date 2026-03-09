@@ -1,140 +1,171 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Loader2, CreditCard, Users, Calendar, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, Calendar, AlertCircle, Crown } from "lucide-react";
 import { PricingPlans } from "./PricingPlans";
 import { ui } from "../../styles/ui";
 
-interface Subscription {
+type Subscription = {
   id: string;
+  user_id: string;
   plan_id: string;
   status: string;
-  current_period_start: string;
-  current_period_end: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
   cancel_at_period_end: boolean;
-}
+};
 
-interface Plan {
+type PlanFeatures = {
+  premium?: boolean;
+  import_ai?: boolean;
+  creation_recettes?: boolean;
+};
+
+type Plan = {
   id: string;
   name: string;
   price_monthly: number;
   max_users: number;
-  features: {
-    creation_recettes: boolean;
-    import_ai: boolean;
-    multi_etablissements: boolean;
-  };
-}
+  features: PlanFeatures;
+};
+
+const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 export function SubscriptionManagement() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
   const [managingSubscription, setManagingSubscription] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadSubscription();
   }, []);
 
-  const loadSubscription = async () => {
+  async function loadSubscription() {
+    setLoading(true);
+    setError(null);
+
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
-      if (!user) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("restaurant_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.restaurant_id) return;
-
-      const { data: subData } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("restaurant_id", profile.restaurant_id)
-        .maybeSingle();
-
-      if (subData) {
-        setSubscription(subData);
-
-        const { data: planData } = await supabase
-          .from("subscription_plans")
-          .select("*")
-          .eq("id", subData.plan_id)
-          .single();
-
-        if (planData) setPlan(planData);
-      }
-    } catch (error) {
-      console.error("Error loading subscription:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleManageSubscription = async () => {
-    setManagingSubscription(true);
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        alert("Vous devez être connecté");
+      if (userError) throw userError;
+      if (!user) {
+        setSubscription(null);
+        setPlan(null);
         return;
       }
 
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-subscription`;
+      const { data: subData, error: subError } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ returnUrl: window.location.href }),
-      });
+      if (subError) throw subError;
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to create portal session");
+      const normalizedPlanId =
+        subData && ACTIVE_STATUSES.has(subData.status) && subData.plan_id === "premium"
+          ? "premium"
+          : "free";
+
+      setSubscription(subData ?? null);
+
+      const { data: planData, error: planError } = await supabase
+        .from("subscription_plans")
+        .select("*")
+        .eq("id", normalizedPlanId)
+        .single();
+
+      if (planError) throw planError;
+      setPlan(planData);
+    } catch (err) {
+      console.error("Error loading subscription:", err);
+      setError(err instanceof Error ? err.message : "Impossible de charger l’abonnement");
+      setSubscription(null);
+      setPlan(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleManageSubscription() {
+    setManagingSubscription(true);
+    setError(null);
+
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("manage-subscription");
+
+      if (invokeError) {
+        const details = await (invokeError as { context?: { text?: () => Promise<string> } }).context
+          ?.text?.()
+          .catch(() => null);
+        throw new Error(details || invokeError.message || "Impossible d’ouvrir le portail Stripe");
       }
 
-      const { url } = await response.json();
-      window.location.href = url;
-    } catch (error) {
-      console.error("Error managing subscription:", error);
-      alert("Erreur lors de l'ouverture du portail de gestion");
+      if (!data?.url) {
+        throw new Error("URL du portail introuvable");
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      console.error("Error managing subscription:", err);
+      setError(err instanceof Error ? err.message : "Erreur lors de l’ouverture du portail de gestion");
     } finally {
       setManagingSubscription(false);
     }
-  };
+  }
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString("fr-FR", {
+  function formatDate(dateString: string | null) {
+    if (!dateString) return "—";
+    return new Date(dateString).toLocaleDateString("fr-FR", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
+  }
 
-  const getStatusBadge = (status: string) => {
+  function getStatusBadge(status?: string) {
     const statusMap: Record<string, { label: string; className: string }> = {
-      active: { label: "Actif", className: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/25" },
-      past_due: { label: "Paiement échoué", className: "bg-red-500/15 text-red-300 ring-1 ring-red-400/25" },
-      canceled: { label: "Annulé", className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10" },
-      trialing: { label: "Essai gratuit", className: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/25" },
+      active: {
+        label: "Actif",
+        className: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/25",
+      },
+      past_due: {
+        label: "Paiement à vérifier",
+        className: "bg-red-500/15 text-red-300 ring-1 ring-red-400/25",
+      },
+      canceled: {
+        label: "Annulé",
+        className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10",
+      },
+      trialing: {
+        label: "Essai",
+        className: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/25",
+      },
+      inactive: {
+        label: "Free",
+        className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10",
+      },
     };
 
-    const s =
-      statusMap[status] || { label: status, className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10" };
+    const resolved = statusMap[status ?? "inactive"] ?? {
+      label: status ?? "Inconnu",
+      className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10",
+    };
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${s.className}`}>
-        {s.label}
+      <span className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${resolved.className}`}>
+        {resolved.label}
       </span>
     );
-  };
+  }
+
+  const isPremium = plan?.id === "premium";
 
   if (loading) {
     return (
@@ -146,9 +177,7 @@ export function SubscriptionManagement() {
                 <CreditCard className="w-5 h-5 text-amber-200" />
               </div>
               <div>
-                <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
-                  Abonnement
-                </h1>
+                <h1 className="text-lg sm:text-xl font-semibold text-slate-100">Abonnement</h1>
                 <p className="text-sm text-slate-300/70 mt-1">Chargement…</p>
               </div>
             </div>
@@ -162,57 +191,52 @@ export function SubscriptionManagement() {
     );
   }
 
-  // Pas d’abonnement -> affiche les plans (PricingPlans est déjà plein écran)
-  if (!subscription || !plan) {
-    return <PricingPlans currentPlanId={null} />;
+  if (!plan || !isPremium) {
+    return <PricingPlans currentPlanId={plan?.id ?? "free"} />;
   }
 
-  // Abonnement actif
   return (
     <div className={ui.dashboardBg}>
       <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
           <div className="flex items-start gap-4 mb-8">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center">
               <CreditCard className="w-5 h-5 text-amber-200" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
-                Mon abonnement
-              </h1>
+              <h1 className="text-lg sm:text-xl font-semibold text-slate-100">Mon abonnement</h1>
               <p className="text-sm text-slate-300/70 mt-1">
-                Gérez votre abonnement et consultez vos informations de facturation
+                Gérez votre abonnement Premium et consultez vos informations de facturation.
               </p>
             </div>
           </div>
 
+          {error && (
+            <div className="mb-6 rounded-2xl bg-red-500/10 text-red-300 ring-1 ring-red-500/20 px-4 py-3 text-sm">
+              {error}
+            </div>
+          )}
+
           <div className={`${ui.glassPanel} p-6 sm:p-7 mb-6`}>
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
+                <div className="inline-flex items-center gap-2 text-amber-300 text-sm font-semibold mb-2">
+                  <Crown className="w-4 h-4" />
+                  Premium
+                </div>
                 <h2 className="text-2xl font-bold text-slate-100">{plan.name}</h2>
-                <p className="text-slate-300 mt-1">{(plan.price_monthly / 100).toFixed(0)}€ / mois</p>
+                <p className="text-slate-300 mt-1">{(plan.price_monthly / 100).toFixed(2)}€ / mois</p>
               </div>
-              <div>{getStatusBadge(subscription.status)}</div>
+              <div>{getStatusBadge(subscription?.status)}</div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div className={`${ui.card} p-4`}>
-                <div className="flex items-start gap-3">
-                  <Users className="w-5 h-5 text-slate-300 mt-1" />
-                  <div>
-                    <p className="text-sm text-slate-400">Utilisateurs</p>
-                    <p className="font-semibold text-slate-100">Jusqu&apos;à {plan.max_users}</p>
-                  </div>
-                </div>
-              </div>
-
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
               <div className={`${ui.card} p-4`}>
                 <div className="flex items-start gap-3">
                   <Calendar className="w-5 h-5 text-slate-300 mt-1" />
                   <div>
                     <p className="text-sm text-slate-400">Prochain renouvellement</p>
-                    <p className="font-semibold text-slate-100">{formatDate(subscription.current_period_end)}</p>
+                    <p className="font-semibold text-slate-100">{formatDate(subscription?.current_period_end ?? null)}</p>
                   </div>
                 </div>
               </div>
@@ -228,14 +252,13 @@ export function SubscriptionManagement() {
               </div>
             </div>
 
-            {subscription.cancel_at_period_end && (
+            {subscription?.cancel_at_period_end && (
               <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-400/20 ring-1 ring-amber-400/10 mb-6">
                 <AlertCircle className="w-5 h-5 text-amber-300 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-amber-200">Abonnement en cours d&apos;annulation</p>
+                  <p className="font-semibold text-amber-200">Abonnement en cours d’annulation</p>
                   <p className="text-sm text-amber-200/80 mt-1">
-                    Votre abonnement sera annulé le {formatDate(subscription.current_period_end)}. Vous conserverez
-                    l&apos;accès jusqu&apos;à cette date.
+                    Votre abonnement restera actif jusqu’au {formatDate(subscription.current_period_end)}.
                   </p>
                 </div>
               </div>
@@ -247,19 +270,13 @@ export function SubscriptionManagement() {
                 {plan.features.creation_recettes && (
                   <li className="flex items-center gap-2 text-slate-200/90">
                     <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-                    Création de recettes illimitée
+                    Création de recettes
                   </li>
                 )}
                 {plan.features.import_ai && (
                   <li className="flex items-center gap-2 text-slate-200/90">
                     <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                     Import et génération IA
-                  </li>
-                )}
-                {plan.features.multi_etablissements && (
-                  <li className="flex items-center gap-2 text-slate-200/90">
-                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-                    Gestion multi-établissements
                   </li>
                 )}
                 <li className="flex items-center gap-2 text-slate-200/90">
@@ -273,8 +290,7 @@ export function SubscriptionManagement() {
           <div className={`${ui.glassPanel} p-6 sm:p-7`}>
             <h3 className="font-semibold text-slate-100 mb-3">Gérer mon abonnement</h3>
             <p className={`${ui.muted} mb-5`}>
-              Accédez au portail Stripe pour modifier votre plan, mettre à jour votre moyen de paiement ou annuler
-              votre abonnement.
+              Accédez au portail Stripe pour mettre à jour votre moyen de paiement ou annuler votre abonnement.
             </p>
 
             <button

@@ -1,5 +1,3 @@
-// src/components/Sharing/SharedRecipeGroupMobile.tsx
-
 import {
   useEffect,
   useMemo,
@@ -23,6 +21,7 @@ import {
   Tag,
   Eye,
   Pencil,
+  Check,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
@@ -32,10 +31,15 @@ type Props = {
   groupId: string;
   groupName?: string;
   onBack?: () => void;
-  onEdit?: (recipeId: string) => void; // ✅ optionnel
+  onEdit?: (recipeId: string) => void;
 };
 
-type GroupFolder = { id: string; name: string; created_by: string };
+type GroupFolder = {
+  id: string;
+  group_id: string;
+  name: string;
+  created_by: string;
+};
 
 type RecipeRow = {
   id: string;
@@ -163,17 +167,19 @@ export function SharedRecipeGroupMobile({
   const [folderMenuOpenId, setFolderMenuOpenId] = useState<string | null>(null);
   const folderMenuRef = useRef<HTMLDivElement>(null);
 
-  // Bottom-sheet recipe actions
   const [sheetRecipe, setSheetRecipe] = useState<RecipeRow | null>(null);
   const sheetOpen = !!sheetRecipe;
   const closeSheet = () => setSheetRecipe(null);
 
-  // ✅ membership / permissions
+  const [moveFolderOpen, setMoveFolderOpen] = useState(false);
+  const [moveRecipe, setMoveRecipe] = useState<RecipeRow | null>(null);
+
   const [memberRole, setMemberRole] = useState<string | null>(null);
 
   const canShare = memberRole === "admin" || memberRole === "second";
   const canEdit = memberRole === "admin" || memberRole === "second";
   const canRemoveFromGroup = memberRole === "admin" || memberRole === "second";
+  const canManageFolders = memberRole === "chef" || memberRole === "admin";
 
   useEffect(() => {
     void loadAll();
@@ -193,22 +199,26 @@ export function SharedRecipeGroupMobile({
   }, [folderMenuOpenId]);
 
   useEffect(() => {
-    const shouldLock = sidebarOpen || sheetOpen;
+    const shouldLock = sidebarOpen || sheetOpen || moveFolderOpen;
     const prev = document.documentElement.style.overflow;
     if (shouldLock) document.documentElement.style.overflow = "hidden";
     return () => {
       document.documentElement.style.overflow = prev;
     };
-  }, [sidebarOpen, sheetOpen]);
+  }, [sidebarOpen, sheetOpen, moveFolderOpen]);
 
   useEffect(() => {
-    if (!sheetOpen) return;
+    if (!sheetOpen && !moveFolderOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeSheet();
+      if (e.key === "Escape") {
+        closeSheet();
+        setMoveFolderOpen(false);
+        setMoveRecipe(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen]);
+  }, [sheetOpen, moveFolderOpen]);
 
   async function loadAll() {
     setLoading(true);
@@ -221,6 +231,7 @@ export function SharedRecipeGroupMobile({
 
   async function loadMembership() {
     if (!user) return;
+
     const { data, error } = await supabase
       .from("group_members")
       .select("role")
@@ -229,7 +240,7 @@ export function SharedRecipeGroupMobile({
       .maybeSingle();
 
     if (error) return;
-    setMemberRole((data as any)?.role ?? null);
+    setMemberRole((data as { role?: string } | null)?.role ?? null);
   }
 
   async function loadFolders() {
@@ -237,7 +248,7 @@ export function SharedRecipeGroupMobile({
 
     const { data } = await supabase
       .from("work_group_folders")
-      .select("id,name,created_by")
+      .select("id,group_id,name,created_by")
       .eq("group_id", groupId)
       .order("name");
 
@@ -302,34 +313,53 @@ export function SharedRecipeGroupMobile({
     [recipes]
   );
 
+  const folderCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    recipes.forEach((r) => {
+      if (!r.folder_id) return;
+      map.set(r.folder_id, (map.get(r.folder_id) ?? 0) + 1);
+    });
+    return map;
+  }, [recipes]);
+
   const filteredRecipes = useMemo(() => {
+    const hasSearch = searchTerm.trim().length > 0;
+
     return recipes.filter((r) => {
       if (showFavoritesOnly && !r.is_favorite) return false;
-      if (selectedFolder && r.folder_id !== selectedFolder) return false;
+      if (!hasSearch && selectedFolder && r.folder_id !== selectedFolder) return false;
+
       if (
         categoryFilter !== "Toutes" &&
         (r.category || "Sans catégorie") !== categoryFilter
-      )
+      ) {
         return false;
+      }
+
       if (
-        searchTerm.trim() &&
-        !(r.title || "")
-          .toLowerCase()
-          .includes(searchTerm.trim().toLowerCase())
-      )
+        hasSearch &&
+        !(r.title || "").toLowerCase().includes(searchTerm.trim().toLowerCase())
+      ) {
         return false;
+      }
+
       return true;
     });
   }, [recipes, showFavoritesOnly, selectedFolder, categoryFilter, searchTerm]);
 
   async function handleCreateFolder() {
-    if (!user) return;
+    if (!user || !canManageFolders) return;
+
     const name = newFolderName.trim();
     if (!name) return;
 
     const { data, error } = await supabase
       .from("work_group_folders")
-      .insert({ work_group_id: groupId, name, created_by: user.id })
+      .insert({
+        group_id: groupId,
+        name,
+        created_by: user.id,
+      })
       .select()
       .maybeSingle();
 
@@ -345,25 +375,37 @@ export function SharedRecipeGroupMobile({
   }
 
   async function handleRenameFolder(folderId: string) {
+    if (!canManageFolders) return;
+
     const folder = folders.find((f) => f.id === folderId);
     const next = prompt("Nouveau nom :", folder?.name ?? "");
-    if (!next) return;
-    await supabase.from("work_group_folders").update({ name: next }).eq("id", folderId);
+    if (!next?.trim()) return;
+
+    await supabase
+      .from("work_group_folders")
+      .update({ name: next.trim() })
+      .eq("id", folderId)
+      .eq("group_id", groupId);
 
     await loadFolders();
     setFolderMenuOpenId(null);
   }
 
   async function handleDeleteFolder(folderId: string) {
+    if (!canManageFolders) return;
     if (!confirm("Supprimer ce dossier ?")) return;
-
-    await supabase.from("work_group_folders").delete().eq("id", folderId);
 
     await supabase
       .from("work_group_folder_recipes")
       .delete()
       .eq("group_id", groupId)
       .eq("folder_id", folderId);
+
+    await supabase
+      .from("work_group_folders")
+      .delete()
+      .eq("id", folderId)
+      .eq("group_id", groupId);
 
     if (selectedFolder === folderId) setSelectedFolder(null);
     setFolderMenuOpenId(null);
@@ -391,7 +433,7 @@ export function SharedRecipeGroupMobile({
   }
 
   async function handleMoveToFolder(recipeId: string, folderId: string | null) {
-    if (!user) return;
+    if (!user || !canManageFolders) return;
 
     await supabase
       .from("work_group_folder_recipes")
@@ -401,7 +443,7 @@ export function SharedRecipeGroupMobile({
 
     if (folderId) {
       await supabase.from("work_group_folder_recipes").insert({
-        work_group_id: groupId,
+        group_id: groupId,
         recipe_id: recipeId,
         folder_id: folderId,
       });
@@ -410,6 +452,13 @@ export function SharedRecipeGroupMobile({
     setRecipes((prev) =>
       prev.map((r) => (r.id === recipeId ? { ...r, folder_id: folderId } : r))
     );
+  }
+
+  async function handleSelectMoveFolder(folderId: string | null) {
+    if (!moveRecipe) return;
+    await handleMoveToFolder(moveRecipe.id, folderId);
+    setMoveFolderOpen(false);
+    setMoveRecipe(null);
   }
 
   async function handleRemoveFromGroup(recipeId: string) {
@@ -431,10 +480,25 @@ export function SharedRecipeGroupMobile({
     await loadRecipes();
   }
 
+  async function handleRemoveFromFolder(recipeId: string) {
+  if (!canManageFolders) return;
+  if (!confirm("Retirer cette recette du dossier ?")) return;
+
+  await supabase
+    .from("work_group_folder_recipes")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("recipe_id", recipeId);
+
+  setRecipes((prev) =>
+    prev.map((r) => (r.id === recipeId ? { ...r, folder_id: null } : r))
+  );
+}
+
   async function handleDrop(folderId: string | null, e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!draggedRecipe) return;
+    if (!draggedRecipe || !canManageFolders) return;
     await handleMoveToFolder(draggedRecipe, folderId);
     setDraggedRecipe(null);
   }
@@ -442,16 +506,16 @@ export function SharedRecipeGroupMobile({
   function handleEdit(recipeId: string) {
     if (!canEdit) return;
     if (onEdit) return onEdit(recipeId);
-    // fallback
     setViewingRecipeId(recipeId);
   }
 
   const headerLabel = useMemo(() => {
-    if (selectedFolder)
+    if (selectedFolder && !searchTerm.trim()) {
       return folders.find((f) => f.id === selectedFolder)?.name ?? "Dossier";
+    }
     if (showFavoritesOnly) return "Favoris";
     return groupName;
-  }, [selectedFolder, showFavoritesOnly, folders, groupName]);
+  }, [selectedFolder, showFavoritesOnly, folders, groupName, searchTerm]);
 
   if (viewingRecipeId) {
     return (
@@ -465,7 +529,6 @@ export function SharedRecipeGroupMobile({
   return (
     <div className={cn(ui.dashboardBg, "min-h-screen")}>
       <div className="px-4 pt-6 pb-28">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-xl font-semibold text-slate-100 tracking-tight">
@@ -499,7 +562,6 @@ export function SharedRecipeGroupMobile({
           </button>
         </div>
 
-        {/* Search */}
         <div className="mt-5 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/70 pointer-events-none" />
           <input
@@ -510,7 +572,6 @@ export function SharedRecipeGroupMobile({
           />
         </div>
 
-        {/* Category chips */}
         <div className="mt-4">
           <CategoryChips
             categories={categories}
@@ -519,12 +580,9 @@ export function SharedRecipeGroupMobile({
           />
         </div>
 
-        {/* Content */}
         <div className="mt-6">
           {loading ? (
-            <div className="text-slate-300/80 text-center py-10">
-              Chargement…
-            </div>
+            <div className="text-slate-300/80 text-center py-10">Chargement…</div>
           ) : filteredRecipes.length === 0 ? (
             <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-8 text-center">
               <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
@@ -541,24 +599,28 @@ export function SharedRecipeGroupMobile({
             <div className="divide-y divide-white/10">
               {filteredRecipes.map((r) => {
                 const fav = !!r.is_favorite;
+                const folderName = r.folder_id
+                  ? folders.find((f) => f.id === r.folder_id)?.name
+                  : null;
 
                 return (
                   <div key={r.id} className="group py-4">
-                    {/* Header row */}
                     <div className="flex items-start justify-between gap-3">
                       <div
                         role="button"
                         tabIndex={0}
                         onClick={() => setViewingRecipeId(r.id)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ")
+                          if (e.key === "Enter" || e.key === " ") {
                             setViewingRecipeId(r.id);
+                          }
                         }}
                         className="min-w-0 flex-1 outline-none"
                       >
                         <div className="text-[15px] font-medium tracking-tight text-white truncate">
                           {r.title || "Sans titre"}
                         </div>
+
                         <div className="mt-1 text-xs text-white/50 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="inline-flex items-center gap-1">
                             <Tag className="w-3.5 h-3.5 text-white/40" />
@@ -567,9 +629,14 @@ export function SharedRecipeGroupMobile({
                           <span className="text-white/25">•</span>
                           <span>{r.servings ?? "—"} couverts</span>
                         </div>
+
+                        {searchTerm.trim() && folderName && (
+                          <div className="mt-1 text-[11px] text-white/40">
+                            Dossier : {folderName}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Menu ⋯ */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -583,9 +650,7 @@ export function SharedRecipeGroupMobile({
                       </button>
                     </div>
 
-                    {/* Quick actions */}
                     <div className="mt-3 flex items-center gap-3 text-white/60">
-                      {/* ✅ Partager (admin/second) */}
                       {canShare && (
                         <button
                           type="button"
@@ -601,7 +666,6 @@ export function SharedRecipeGroupMobile({
                         </button>
                       )}
 
-                      {/* ✅ Favoris */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -619,7 +683,6 @@ export function SharedRecipeGroupMobile({
                         <Heart className={cn("w-5 h-5", fav && "fill-current")} />
                       </button>
 
-                      {/* ✅ Voir */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -632,7 +695,6 @@ export function SharedRecipeGroupMobile({
                         <Eye className="w-5 h-5" />
                       </button>
 
-                      {/* ✅ Modifier (admin/second) */}
                       {canEdit && (
                         <button
                           type="button"
@@ -649,21 +711,28 @@ export function SharedRecipeGroupMobile({
 
                       <div className="flex-1" />
 
-                      {/* ✅ Retirer du groupe (admin/second) */}
-                      {canRemoveFromGroup && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                    {(canRemoveFromGroup || canManageFolders) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          if (selectedFolder && canManageFolders && r.folder_id === selectedFolder) {
+                            void handleRemoveFromFolder(r.id);
+                            return;
+                          }
+
+                          if (canRemoveFromGroup) {
                             void handleRemoveFromGroup(r.id);
-                          }}
-                          className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
-                          title="Retirer du groupe"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
+                          }
+                        }}
+                        className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
+                        title={selectedFolder ? "Retirer du dossier" : "Retirer du groupe"}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                      </div>
                   </div>
                 );
               })}
@@ -672,7 +741,6 @@ export function SharedRecipeGroupMobile({
         </div>
       </div>
 
-      {/* Bottom sheet actions */}
       {sheetOpen && sheetRecipe && (
         <div className="fixed inset-0 z-[140]">
           <div className="absolute inset-0 bg-black/60" onClick={closeSheet} />
@@ -707,7 +775,6 @@ export function SharedRecipeGroupMobile({
                   }}
                 />
 
-                {/* ✅ Modifier (admin/second) */}
                 {canEdit && (
                   <SheetAction
                     icon={<Pencil className="w-5 h-5" />}
@@ -719,7 +786,6 @@ export function SharedRecipeGroupMobile({
                   />
                 )}
 
-                {/* ✅ Partager (admin/second) */}
                 {canShare && (
                   <SheetAction
                     icon={<Share2 className="w-5 h-5" />}
@@ -748,24 +814,33 @@ export function SharedRecipeGroupMobile({
                   }}
                 />
 
-                <SheetAction
-                  icon={<Folder className="w-5 h-5" />}
-                  label="Déplacer dans un dossier"
-                  onClick={() => {
-                    setDraggedRecipe(sheetRecipe.id);
-                    setSidebarOpen(true);
-                    closeSheet();
-                  }}
-                />
+                {canManageFolders && (
+                  <SheetAction
+                    icon={<Folder className="w-5 h-5" />}
+                    label="Déplacer dans un dossier"
+                    onClick={() => {
+                      setMoveRecipe(sheetRecipe);
+                      setMoveFolderOpen(true);
+                      closeSheet();
+                    }}
+                  />
+                )}
 
-                {/* ✅ Retirer (admin/second) */}
-                {canRemoveFromGroup && (
+                {(canRemoveFromGroup || canManageFolders) && (
                   <SheetAction
                     icon={<Trash2 className="w-5 h-5" />}
-                    label="Retirer du groupe"
+                    label={selectedFolder ? "Retirer du dossier" : "Retirer du groupe"}
                     tone="danger"
                     onClick={() => {
-                      void handleRemoveFromGroup(sheetRecipe.id);
+                      if (
+                        selectedFolder &&
+                        canManageFolders &&
+                        sheetRecipe.folder_id === selectedFolder
+                      ) {
+                        void handleRemoveFromFolder(sheetRecipe.id);
+                      } else if (canRemoveFromGroup) {
+                        void handleRemoveFromGroup(sheetRecipe.id);
+                      }
                       closeSheet();
                     }}
                   />
@@ -776,7 +851,88 @@ export function SharedRecipeGroupMobile({
         </div>
       )}
 
-      {/* Sidebar overlay (inchangé) */}
+      {moveFolderOpen && moveRecipe && (
+        <div className="fixed inset-0 z-[150]">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => {
+              setMoveFolderOpen(false);
+              setMoveRecipe(null);
+            }}
+          />
+          <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
+            <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <div className="text-slate-100 font-semibold truncate">
+                    Déplacer : {moveRecipe.title || "Sans titre"}
+                  </div>
+                  <div className="text-xs text-slate-300/70 mt-1">
+                    Choisir un dossier
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoveFolderOpen(false);
+                    setMoveRecipe(null);
+                  }}
+                  className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5 text-slate-100" />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+                <button
+                  type="button"
+                  onClick={() => void handleSelectMoveFolder(null)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                >
+                  <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                    <Folder className="w-5 h-5" />
+                  </span>
+                  <span className="flex-1 text-sm font-medium text-slate-100">
+                    À la racine
+                  </span>
+                  {!moveRecipe.folder_id && (
+                    <Check className="w-4 h-4 text-amber-300" />
+                  )}
+                </button>
+
+                {folders.map((folder) => {
+                  const active = moveRecipe.folder_id === folder.id;
+
+                  return (
+                    <button
+                      key={folder.id}
+                      type="button"
+                      onClick={() => void handleSelectMoveFolder(folder.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                    >
+                      <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                        <Folder className="w-5 h-5" />
+                      </span>
+                      <span className="flex-1">
+                        <span className="block text-sm font-medium text-slate-100">
+                          {folder.name}
+                        </span>
+                        <span className="block text-xs text-slate-300/60">
+                          {folderCounts.get(folder.id) ?? 0} recette
+                          {(folderCounts.get(folder.id) ?? 0) > 1 ? "s" : ""}
+                        </span>
+                      </span>
+                      {active && <Check className="w-4 h-4 text-amber-300" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {sidebarOpen && (
         <div className="fixed inset-0 z-[120]">
           <div
@@ -841,7 +997,10 @@ export function SharedRecipeGroupMobile({
                         }
                       }}
                       onDrop={(e) => handleDrop(folder.id, e as unknown as DragEvent)}
-                      onDragOver={(e) => e.preventDefault()}
+                      onDragOver={(e) => {
+                        if (!canManageFolders) return;
+                        e.preventDefault();
+                      }}
                       className={cn(
                         "w-full px-3 py-2.5 rounded-2xl flex items-center gap-2 transition-all duration-200 cursor-pointer",
                         selectedFolder === folder.id
@@ -852,37 +1011,43 @@ export function SharedRecipeGroupMobile({
                       <Folder className="w-4 h-4" />
                       <span className="flex-1 truncate">{folder.name}</span>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setFolderMenuOpenId((prev) =>
-                            prev === folder.id ? null : folder.id
-                          );
-                        }}
-                        className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-slate-200"
-                        aria-label="Options dossier"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                      <span className="text-[11px] text-white/40">
+                        ({folderCounts.get(folder.id) ?? 0})
+                      </span>
+
+                      {canManageFolders && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setFolderMenuOpenId((prev) =>
+                              prev === folder.id ? null : folder.id
+                            );
+                          }}
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-slate-200"
+                          aria-label="Options dossier"
+                        >
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
 
-                    {folderMenuOpenId === folder.id && (
+                    {canManageFolders && folderMenuOpenId === folder.id && (
                       <div
                         ref={folderMenuRef}
                         className="absolute right-2 top-[52px] z-[130] w-48 rounded-2xl bg-[#0B1020] ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] overflow-hidden"
                       >
                         <button
                           type="button"
-                          onClick={() => handleRenameFolder(folder.id)}
+                          onClick={() => void handleRenameFolder(folder.id)}
                           className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
                         >
                           Renommer
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteFolder(folder.id)}
+                          onClick={() => void handleDeleteFolder(folder.id)}
                           className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
                         >
                           Supprimer
@@ -893,47 +1058,49 @@ export function SharedRecipeGroupMobile({
                 ))}
               </div>
 
-              <div className="mt-4">
-                {showNewFolderInput ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-                      placeholder="Nom du dossier"
-                      className="w-full h-11 px-4 rounded-2xl bg-white/5 ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
-                      autoFocus
-                    />
+              {canManageFolders && (
+                <div className="mt-4">
+                  {showNewFolderInput ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && void handleCreateFolder()}
+                        placeholder="Nom du dossier"
+                        className="w-full h-11 px-4 rounded-2xl bg-white/5 ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => void handleCreateFolder()}
+                        className={cn(ui.btnPrimary, "h-11 px-4 rounded-2xl")}
+                        type="button"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowNewFolderInput(false);
+                          setNewFolderName("");
+                        }}
+                        className={cn(ui.btnGhost, "h-11 px-4 rounded-2xl")}
+                        type="button"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
                     <button
-                      onClick={handleCreateFolder}
-                      className={cn(ui.btnPrimary, "h-11 px-4 rounded-2xl")}
+                      onClick={() => setShowNewFolderInput(true)}
+                      className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
                       type="button"
                     >
-                      ✓
+                      <Plus className="w-4 h-4" />
+                      Nouveau dossier
                     </button>
-                    <button
-                      onClick={() => {
-                        setShowNewFolderInput(false);
-                        setNewFolderName("");
-                      }}
-                      className={cn(ui.btnGhost, "h-11 px-4 rounded-2xl")}
-                      type="button"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowNewFolderInput(true)}
-                    className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
-                    type="button"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nouveau dossier
-                  </button>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

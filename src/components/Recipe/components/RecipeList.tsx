@@ -53,20 +53,20 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
   const [showGroupsModal, setShowGroupsModal] = useState(false);
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
 
-  // --- menu "..." folders
   const [folderMenuOpenId, setFolderMenuOpenId] = useState<string | null>(null);
   const folderMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    function onDocMouseDown(e: MouseEvent | globalThis.MouseEvent) {
+    function onDocMouseDown(e: globalThis.MouseEvent) {
       if (!folderMenuOpenId) return;
       const target = e.target as Node | null;
       if (!target) return;
       if (folderMenuRef.current && folderMenuRef.current.contains(target)) return;
       setFolderMenuOpenId(null);
     }
-    document.addEventListener("mousedown", onDocMouseDown as any);
-    return () => document.removeEventListener("mousedown", onDocMouseDown as any);
+
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [folderMenuOpenId]);
 
   useEffect(() => {
@@ -106,7 +106,9 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
             .eq("recipe_id", recipe.id)
             .order("order_index");
 
-          if (ingErr) console.error("[RecipeList] ingredients error:", ingErr);
+          if (ingErr) {
+            console.error("[RecipeList] ingredients error:", ingErr);
+          }
 
           const isFav = Array.isArray(recipe.favorite_recipes)
             ? recipe.favorite_recipes.some((f: any) => f.user_id === user.id)
@@ -116,6 +118,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
             ...recipe,
             ingredients: ingredients || [],
             is_favorite: isFav,
+            folder_id: recipe.folder_id ?? null,
           } as RecipeWithIngredients;
         })
       );
@@ -137,7 +140,10 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       .eq("created_by", user.id)
       .order("name");
 
-    if (error) console.error("[RecipeList] Error loading folders:", error);
+    if (error) {
+      console.error("[RecipeList] Error loading folders:", error);
+    }
+
     setFolders((data || []) as RecipeFolder[]);
   }
 
@@ -152,7 +158,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       filtered = filtered.filter((r) => r.is_favorite);
     }
 
-    if (searchTerm) {
+    if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (r) =>
@@ -184,24 +190,26 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette recette ?")) return;
 
     try {
-      const { error } = await supabase.from("recipes").delete().eq("id", recipeId);
+      const { error } = await supabase
+        .from("recipes")
+        .delete()
+        .eq("id", recipeId)
+        .eq("created_by", user?.id);
+
       if (error) throw error;
 
       setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
     } catch (err) {
       console.error("[RecipeList] Error deleting recipe:", err);
-      alert("Impossible de supprimer la recette (RLS ?).");
+      alert("Impossible de supprimer la recette.");
     }
   }
 
-  // ✅ Trash behavior:
-  // - If inside a folder => remove from folder only (folder_id=null)
-  // - Otherwise => hard delete recipe
   async function handleTrashClick(recipeId: string, e: MouseEvent) {
     e.stopPropagation();
 
     if (selectedFolder) {
-      await handleMoveToFolder(recipeId, null);
+      await handleMoveRecipeToFolder(recipeId, null);
       return;
     }
 
@@ -219,7 +227,8 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
     const { error } = await supabase
       .from("recipes")
       .update({ is_visible: next })
-      .eq("id", recipeId);
+      .eq("id", recipeId)
+      .eq("created_by", user?.id);
 
     if (!error) {
       setRecipes((prev) =>
@@ -243,11 +252,13 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
           .delete()
           .eq("user_id", user.id)
           .eq("recipe_id", recipeId);
+
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("favorite_recipes")
           .insert({ user_id: user.id, recipe_id: recipeId });
+
         if (error) throw error;
       }
 
@@ -261,7 +272,6 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
     }
   }
 
-  // ✅ Create folder: return created row + select it
   async function handleCreateFolder() {
     const name = newFolderName.trim();
     if (!name || !user) return;
@@ -289,30 +299,31 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       setShowNewFolderInput(false);
     } catch (err: any) {
       console.error("[RecipeList] Error creating folder:", err);
-      alert(err?.message ?? "Impossible de créer le dossier (RLS / contrainte DB).");
+      alert(err?.message ?? "Impossible de créer le dossier.");
     }
   }
 
-  // ✅ Move recipe into folder (or null to remove from folder)
-  async function handleMoveToFolder(recipeId: string, folderId: string | null) {
+  async function handleMoveRecipeToFolder(recipeId: string, folderId: string | null) {
+    if (!user) return;
+
     try {
       const { error } = await supabase
         .from("recipes")
         .update({ folder_id: folderId })
-        .eq("id", recipeId);
+        .eq("id", recipeId)
+        .eq("created_by", user.id);
 
       if (error) throw error;
 
       setRecipes((prev) =>
         prev.map((r) => (r.id === recipeId ? { ...r, folder_id: folderId } : r))
       );
-    } catch (err) {
-      console.error("[RecipeList] Error moving to folder:", err);
-      alert("Impossible de déplacer la recette (RLS ?).");
+    } catch (err: any) {
+      console.error("[RecipeList] Error moving recipe to folder:", err);
+      alert(err?.message ?? "Impossible de déplacer la recette dans le dossier.");
     }
   }
 
-  // ✅ Delete folder: detach recipes then delete folder
   async function handleDeleteFolder(folderId: string) {
     const folderName = folders.find((f) => f.id === folderId)?.name ?? "ce dossier";
 
@@ -325,13 +336,17 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       const { error: unlinkErr } = await supabase
         .from("recipes")
         .update({ folder_id: null })
-        .eq("folder_id", folderId);
+        .eq("folder_id", folderId)
+        .eq("created_by", user?.id);
+
       if (unlinkErr) throw unlinkErr;
 
       const { error: delErr } = await supabase
         .from("recipe_folders")
         .delete()
-        .eq("id", folderId);
+        .eq("id", folderId)
+        .eq("created_by", user?.id);
+
       if (delErr) throw delErr;
 
       setFolders((prev) => prev.filter((f) => f.id !== folderId));
@@ -343,7 +358,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       setFolderMenuOpenId(null);
     } catch (err: any) {
       console.error("[RecipeList] Error deleting folder:", err);
-      alert(err?.message ?? "Impossible de supprimer le dossier (RLS ?).");
+      alert(err?.message ?? "Impossible de supprimer le dossier.");
     }
   }
 
@@ -356,7 +371,8 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       const { error } = await supabase
         .from("recipe_folders")
         .update({ name: next })
-        .eq("id", folderId);
+        .eq("id", folderId)
+        .eq("created_by", user?.id);
 
       if (error) throw error;
 
@@ -393,7 +409,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
           notes: recipe.notes,
           is_base_recipe: recipe.is_base_recipe,
           is_visible: recipe.is_visible,
-          folder_id: recipe.folder_id,
+          folder_id: recipe.folder_id ?? null,
         })
         .select()
         .single();
@@ -401,7 +417,7 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
       if (recipeError) throw recipeError;
 
       if (recipe.ingredients.length > 0) {
-        await supabase.from("ingredients").insert(
+        const { error: ingredientsError } = await supabase.from("ingredients").insert(
           recipe.ingredients.map((ing, index) => ({
             recipe_id: (newRecipe as any).id,
             order_index: index,
@@ -412,6 +428,8 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
             cost_per_unit: ing.cost_per_unit,
           }))
         );
+
+        if (ingredientsError) throw ingredientsError;
       }
 
       void loadRecipes();
@@ -420,9 +438,6 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
     }
   }
 
-  // -----------------------------
-  // UI routing
-  // -----------------------------
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -432,14 +447,15 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
   }
 
   if (viewingRecipe) {
-    return <RecipeDisplay recipeId={viewingRecipe} onBack={() => setViewingRecipe(null)} />;
+    return (
+      <RecipeDisplay
+        recipeId={viewingRecipe}
+        onBack={() => setViewingRecipe(null)}
+      />
+    );
   }
 
-  // -----------------------------
-  // Controller helpers to pass down
-  // -----------------------------
   const userExists = !!user;
-
   const recipesCount = recipes.length;
   const filteredCount = filteredRecipes.length;
 
@@ -473,9 +489,20 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
     onEdit(recipeId);
   };
 
+  const onDragStartRecipe = (recipeId: string, e: React.DragEvent) => {
+    e.dataTransfer.setData("text/plain", recipeId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const onDropToFolder = (folderId: string | null, e: React.DragEvent) => {
+    e.preventDefault();
+    const recipeId = e.dataTransfer.getData("text/plain");
+    if (!recipeId) return;
+    void handleMoveRecipeToFolder(recipeId, folderId);
+  };
+
   return (
     <>
-      {/* ✅ MOBILE = plein écran */}
       <div className="lg:hidden">
         <RecipeListMobile
           userExists={userExists}
@@ -513,14 +540,15 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
           onDuplicate={handleDuplicate}
           onEdit={onEditRecipe}
           onTrash={handleTrashClick}
+          onMoveToFolder={handleMoveRecipeToFolder}
+          onDropToFolder={onDropToFolder}
+          onDragStartRecipe={onDragStartRecipe}
         />
       </div>
 
-      {/* ✅ DESKTOP = liste premium sur fond dashboard */}
       <div className="hidden lg:block">
         <div className={ui.dashboardBg}>
           <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>
-            {/* Header desktop CTA */}
             {userExists && (
               <div className="mb-6 flex justify-end">
                 <button onClick={onCreateNew} className={ui.btnPrimary} type="button">
@@ -563,12 +591,14 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
               onDuplicate={handleDuplicate}
               onEdit={onEditRecipe}
               onTrash={handleTrashClick}
+              onMoveToFolder={handleMoveRecipeToFolder}
+              onDropToFolder={onDropToFolder}
+              onDragStartRecipe={onDragStartRecipe}
             />
           </div>
         </div>
       </div>
 
-      {/* Modal unique */}
       <RecipeGroupsModal
         open={showGroupsModal}
         recipeId={activeRecipeId ?? ""}

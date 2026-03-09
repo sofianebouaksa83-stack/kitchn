@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   Search,
   AlertCircle,
@@ -12,7 +12,8 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Clock,
+  Check,
+  X,
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
 
@@ -76,14 +77,29 @@ type Props = {
   onRenameFolder: (folderId: string) => void;
   onDeleteFolder: (folderId: string) => void;
 
-  onToggleFavorite: (recipeId: string, isFav: boolean, e: React.MouseEvent) => void;
-  onToggleVisibility: (recipeId: string, isVisible: boolean, e: React.MouseEvent) => void;
+  onToggleFavorite: (
+    recipeId: string,
+    isFav: boolean,
+    e: React.MouseEvent
+  ) => void;
+  onToggleVisibility: (
+    recipeId: string,
+    isVisible: boolean,
+    e: React.MouseEvent
+  ) => void;
 
   onShareToGroup: (recipeId: string, e: React.MouseEvent) => void;
   onDuplicate: (recipe: RecipeListDesktopRecipe, e: React.MouseEvent) => void;
   onEdit: (recipeId: string, e: React.MouseEvent) => void;
   onTrash: (recipeId: string, e: React.MouseEvent) => void;
+
+  onMoveToFolder: (recipeId: string, folderId: string | null) => void;
 };
+
+function safeTitle(r?: RecipeListDesktopRecipe | null) {
+  const t = (r?.title || "").trim();
+  return t ? t : "Sans titre";
+}
 
 export function RecipeListDesktop(props: Props) {
   const {
@@ -131,344 +147,468 @@ export function RecipeListDesktop(props: Props) {
     onDuplicate,
     onEdit,
     onTrash,
+    onMoveToFolder,
   } = props;
 
+  const [moveFolderOpen, setMoveFolderOpen] = useState(false);
+  const [moveRecipe, setMoveRecipe] = useState<RecipeListDesktopRecipe | null>(null);
+
+  const folderCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredRecipes.forEach((r) => {
+      if (!r.folder_id) return;
+      map.set(r.folder_id, (map.get(r.folder_id) ?? 0) + 1);
+    });
+    return map;
+  }, [filteredRecipes]);
+
   return (
-    <div className="flex gap-6 relative">
-      {/* Sidebar desktop */}
-      <div
-        className={[
-          "w-72 rounded-[28px] bg-white/[0.06] ring-1 ring-white/10",
-          "shadow-[0_18px_60px_rgba(0,0,0,0.30)] backdrop-blur-md p-5",
-          "h-fit sticky top-24",
-        ].join(" ")}
-      >
-        <h3 className="text-sm font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
-          Dossiers
-        </h3>
-
-        <button
-          onClick={onSelectAll}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.currentTarget.classList.add("ring-2", "ring-amber-400/25");
-          }}
-          onDragLeave={(e) => {
-            e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
-          }}
-          onDrop={(e) => {
-            e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
-            onDropToFolder(null, e);
-          }}
+    <>
+      <div className="flex gap-6 relative">
+        <div
           className={[
-            "w-full text-left px-3 py-2.5 rounded-2xl mb-2 transition-all duration-200",
-            selectedFolder === null && !showFavoritesOnly
-              ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
-              : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100",
+            "w-72 rounded-[28px] bg-white/[0.06] ring-1 ring-white/10",
+            "shadow-[0_18px_60px_rgba(0,0,0,0.30)] backdrop-blur-md p-5",
+            "h-fit sticky top-24",
           ].join(" ")}
-          type="button"
         >
-          Toutes les recettes
-        </button>
+          <h3 className="text-sm font-semibold tracking-[0.18em] text-slate-200 uppercase mb-4">
+            Dossiers
+          </h3>
 
-        <button
-          onClick={onSelectFavorites}
-          className={[
-            "w-full text-left px-3 py-2.5 rounded-2xl mb-3 flex items-center gap-2 transition-all duration-200",
-            showFavoritesOnly
-              ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
-              : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100",
-          ].join(" ")}
-          type="button"
-        >
-          <Heart className="w-4 h-4" />
-          Mes favoris
-        </button>
+          <button
+            onClick={onSelectAll}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.add("ring-2", "ring-amber-400/25");
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
+            }}
+            onDrop={(e) => {
+              e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
+              onDropToFolder(null, e);
+            }}
+            className={[
+              "w-full text-left px-3 py-2.5 rounded-2xl mb-2 transition-all duration-200",
+              selectedFolder === null && !showFavoritesOnly
+                ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
+                : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100",
+            ].join(" ")}
+            type="button"
+          >
+            Toutes les recettes
+          </button>
 
-        <div className="h-px bg-white/10 my-4" />
+          <button
+            onClick={onSelectFavorites}
+            className={[
+              "w-full text-left px-3 py-2.5 rounded-2xl mb-3 flex items-center gap-2 transition-all duration-200",
+              showFavoritesOnly
+                ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
+                : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100",
+            ].join(" ")}
+            type="button"
+          >
+            <Heart className="w-4 h-4" />
+            Mes favoris
+          </button>
 
-        {folders.map((folder) => (
-          <div key={folder.id} className="relative">
-            <button
-              onClick={() => onSelectFolder(folder.id)}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add("ring-2", "ring-amber-400/25");
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
-              }}
-              onDrop={(e) => {
-                e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
-                onDropToFolder(folder.id, e);
-              }}
-              className={[
-                "w-full text-left px-3 py-2.5 rounded-2xl mb-2 flex items-center gap-2 transition-all duration-200",
-                selectedFolder === folder.id
-                  ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
-                  : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100",
-              ].join(" ")}
-              type="button"
-            >
-              <Folder className="w-4 h-4" />
-              <span className="flex-1 truncate">{folder.name}</span>
+          <div className="h-px bg-white/10 my-4" />
 
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFolderMenuOpenId((prev) => (prev === folder.id ? null : folder.id));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setFolderMenuOpenId((prev) => (prev === folder.id ? null : folder.id));
-                  }
-                }}
-                className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-black/10 ring-1 ring-white/10 hover:bg-black/15 transition-colors text-slate-200 cursor-pointer"
-                title="Options"
-              >
-                <MoreVertical className="w-5 h-5" />
-              </div>
-            </button>
-
-            {folderMenuOpenId === folder.id && (
-              <div
-                ref={folderMenuRef}
-                className="absolute right-2 top-[52px] z-50 w-48 rounded-2xl bg-[#0B1020]/95 ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)] overflow-hidden"
-              >
-                <button
-                  type="button"
-                  onClick={() => onRenameFolder(folder.id)}
-                  className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
-                >
-                  Renommer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteFolder(folder.id)}
-                  className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
-                >
-                  Supprimer
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {userExists && (
-          <div className="mt-4">
-            {showNewFolderInput ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && onCreateFolder()}
-                  placeholder="Nom du dossier"
-                  className="w-full h-11 px-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10
-                             text-slate-100 placeholder:text-slate-400/70 outline-none
-                             focus:ring-2 focus:ring-amber-400/25"
-                  autoFocus
-                />
-                <button onClick={onCreateFolder} className={`${ui.btnPrimary} h-11 px-4 rounded-2xl`} type="button">
-                  ✓
-                </button>
-                <button
-                  onClick={() => {
-                    setShowNewFolderInput(false);
-                    setNewFolderName("");
-                  }}
-                  className={`${ui.btnGhost} h-11 px-4 rounded-2xl`}
-                  type="button"
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
+          {folders.map((folder) => (
+            <div key={folder.id} className="relative">
               <button
-                onClick={() => setShowNewFolderInput(true)}
-                className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
+                onClick={() => onSelectFolder(folder.id)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.add("ring-2", "ring-amber-400/25");
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
+                }}
+                onDrop={(e) => {
+                  e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
+                  onDropToFolder(folder.id, e);
+                }}
+                className={[
+                  "w-full text-left px-3 py-2.5 rounded-2xl mb-2 flex items-center gap-2 transition-all duration-200",
+                  selectedFolder === folder.id
+                    ? "bg-white/[0.08] text-slate-100 ring-1 ring-white/10"
+                    : "text-slate-300 hover:bg-white/[0.06] hover:text-slate-100",
+                ].join(" ")}
                 type="button"
               >
-                <Plus className="w-4 h-4" />
-                Nouveau dossier
+                <Folder className="w-4 h-4" />
+                <span className="flex-1 truncate">{folder.name}</span>
+                <span className="text-[11px] text-white/40">
+                  ({folderCounts.get(folder.id) ?? 0})
+                </span>
+
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFolderMenuOpenId(
+                      folderMenuOpenId === folder.id ? null : folder.id
+                    );
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setFolderMenuOpenId(
+                        folderMenuOpenId === folder.id ? null : folder.id
+                      );
+                    }
+                  }}
+                  className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-black/10 ring-1 ring-white/10 hover:bg-black/15 transition-colors text-slate-200 cursor-pointer"
+                  title="Options"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </div>
               </button>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* Content desktop */}
-      <div className="flex-1 min-w-0">
-        {/* Search + filter */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/70 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => onChangeSearch(e.target.value)}
-              placeholder="Rechercher par nom ou ingrédient…"
-              className="w-full h-11 pl-12 pr-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10
-                         text-slate-100 placeholder:text-slate-400/70 outline-none
-                         focus:ring-2 focus:ring-amber-400/25"
-            />
-          </div>
+              {folderMenuOpenId === folder.id && (
+                <div
+                  ref={folderMenuRef}
+                  className="absolute right-2 top-[52px] z-50 w-48 rounded-2xl bg-[#0B1020]/95 ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.35)] overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onRenameFolder(folder.id)}
+                    className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
+                  >
+                    Renommer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteFolder(folder.id)}
+                    className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
 
-          <select
-            value={categoryFilter}
-            onChange={(e) => onChangeCategory(e.target.value)}
-            className="w-full h-11 px-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10
-                       text-slate-100 outline-none focus:ring-2 focus:ring-amber-400/25"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat} className="bg-[#0B1020]">
-                {cat}
-              </option>
-            ))}
-          </select>
+          {userExists && (
+            <div className="mt-4">
+              {showNewFolderInput ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && onCreateFolder()}
+                    placeholder="Nom du dossier"
+                    className="w-full h-11 px-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
+                    autoFocus
+                  />
+                  <button
+                    onClick={onCreateFolder}
+                    className={`${ui.btnPrimary} h-11 px-4 rounded-2xl`}
+                    type="button"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNewFolderInput(false);
+                      setNewFolderName("");
+                    }}
+                    className={`${ui.btnGhost} h-11 px-4 rounded-2xl`}
+                    type="button"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewFolderInput(true)}
+                  className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
+                  type="button"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nouveau dossier
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {filteredRecipes.length === 0 ? (
-          <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
-            <AlertCircle className="w-14 h-14 text-slate-500 mx-auto mb-4" />
-            <p className="text-slate-200 text-lg font-semibold">
-              {recipesCount === 0 ? "Aucune recette pour le moment" : "Aucune recette trouvée"}
-            </p>
-            <p className="text-sm text-slate-300/70 mt-2">
-              Crée une recette ou change tes filtres.
-            </p>
-            {userExists && (
-              <div className="mt-6">
-                <button className={ui.btnPrimary} onClick={onCreateNew} type="button">
-                  <Plus className="w-5 h-5" />
-                  Nouvelle recette
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-white/10 border-t border-white/10">
-            {filteredRecipes.map((recipe) => (
-              <div
-                key={recipe.id}
-                draggable={userExists}
-                onDragStart={(e) => userExists && onDragStartRecipe(recipe.id, e)}
-                onClick={() => onOpenRecipe(recipe.id)}
-                className={[
-                  "group cursor-pointer select-none",
-                  "px-4 py-4",
-                  "transition-colors hover:bg-white/5 active:bg-white/10",
-                ].join(" ")}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <button
-                    className="min-w-0 flex-1 text-left"
-                    type="button"
-                    onClick={() => onOpenRecipe(recipe.id)}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <h3 className="min-w-0 truncate text-[15px] font-medium tracking-tight text-slate-100">
-                        {recipe.title || "Sans titre"}
-                      </h3>
+        <div className="flex-1 min-w-0">
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/70 pointer-events-none" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => onChangeSearch(e.target.value)}
+                placeholder="Rechercher par nom ou ingrédient…"
+                className="w-full h-11 pl-12 pr-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
+              />
+            </div>
 
-                      {recipe.category && (
-                        <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-black/15 ring-1 ring-white/10 text-slate-200/90">
-                          {recipe.category}
-                        </span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => onChangeCategory(e.target.value)}
+              className="w-full h-11 px-4 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 border border-white/10 text-slate-100 outline-none focus:ring-2 focus:ring-amber-400/25"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat} className="bg-[#0B1020]">
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {filteredRecipes.length === 0 ? (
+            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
+              <AlertCircle className="w-14 h-14 text-slate-500 mx-auto mb-4" />
+              <p className="text-slate-200 text-lg font-semibold">
+                {recipesCount === 0
+                  ? "Aucune recette pour le moment"
+                  : "Aucune recette trouvée"}
+              </p>
+              <p className="text-sm text-slate-300/70 mt-2">
+                Crée une recette ou change tes filtres.
+              </p>
+              {userExists && (
+                <div className="mt-6">
+                  <button className={ui.btnPrimary} onClick={onCreateNew} type="button">
+                    <Plus className="w-5 h-5" />
+                    Nouvelle recette
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-white/10 border-t border-white/10">
+              {filteredRecipes.map((recipe) => (
+                <div
+                  key={recipe.id}
+                  draggable={userExists}
+                  onDragStart={(e) => userExists && onDragStartRecipe(recipe.id, e)}
+                  onClick={() => onOpenRecipe(recipe.id)}
+                  className="group cursor-pointer select-none px-4 py-4 transition-colors hover:bg-white/5 active:bg-white/10"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <button
+                      className="min-w-0 flex-1 text-left"
+                      type="button"
+                      onClick={() => onOpenRecipe(recipe.id)}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="min-w-0 truncate text-[15px] font-medium tracking-tight text-slate-100">
+                          {recipe.title || "Sans titre"}
+                        </h3>
+
+                        {recipe.category && (
+                          <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-black/15 ring-1 ring-white/10 text-slate-200/90">
+                            {recipe.category}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-1 text-xs text-white/50">
+                        Prép {recipe.prep_time ?? 0}min · Cuisson {recipe.cook_time ?? 0}
+                        min · {recipe.servings ?? "—"} couverts
+                      </p>
+
+                      {searchTerm.trim() && recipe.folder_id && (
+                        <p className="mt-1 text-[11px] text-white/40">
+                          Dossier :{" "}
+                          {folders.find((f) => f.id === recipe.folder_id)?.name ?? "—"}
+                        </p>
+                      )}
+                    </button>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => onToggleFavorite(recipe.id, !!recipe.is_favorite, e)}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                        type="button"
+                        title="Favori"
+                      >
+                        <Heart
+                          className={`w-5 h-5 ${
+                            recipe.is_favorite ? "fill-red-500 text-red-500" : "text-white/50"
+                          }`}
+                        />
+                      </button>
+
+                      <button
+                        onClick={(e) =>
+                          onToggleVisibility(recipe.id, recipe.is_visible ?? true, e)
+                        }
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                        type="button"
+                        title={recipe.is_visible === false ? "Masquée" : "Visible"}
+                      >
+                        {recipe.is_visible === false ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+
+                      {userExists && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMoveRecipe(recipe);
+                              setMoveFolderOpen(true);
+                            }}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            type="button"
+                            title="Déplacer dans un dossier"
+                          >
+                            <Folder className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={(e) => onShareToGroup(recipe.id, e)}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            title="Partager à un groupe"
+                            type="button"
+                          >
+                            <Users className="w-5 h-5" />
+                          </button>
+
+                          <button
+                            onClick={(e) => onDuplicate(recipe, e)}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            type="button"
+                            title="Dupliquer"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={(e) => onEdit(recipe.id, e)}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            type="button"
+                            title="Modifier"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={(e) => onTrash(recipe.id, e)}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            type="button"
+                            title={selectedFolder ? "Retirer du dossier" : "Supprimer"}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
+                            type="button"
+                            title="Plus"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
-
-                    <p className="mt-1 text-xs text-white/50">
-                      Prép {recipe.prep_time ?? 0}min · Cuisson {recipe.cook_time ?? 0}min ·{" "}
-                      {recipe.servings ?? "—"} couverts
-                    </p>
-                  </button>
-
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={(e) => onToggleFavorite(recipe.id, !!recipe.is_favorite, e)}
-                      className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                      type="button"
-                      title="Favori"
-                    >
-                      <Heart
-                        className={`w-5 h-5 ${
-                          recipe.is_favorite ? "fill-red-500 text-red-500" : "text-white/50"
-                        }`}
-                      />
-                    </button>
-
-                    <button
-                      onClick={(e) => onToggleVisibility(recipe.id, recipe.is_visible ?? true, e)}
-                      className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                      type="button"
-                      title={recipe.is_visible === false ? "Masquée" : "Visible"}
-                    >
-                      {recipe.is_visible === false ? (
-                        <EyeOff className="w-5 h-5" />
-                      ) : (
-                        <Eye className="w-5 h-5" />
-                      )}
-                    </button>
-
-                    {userExists && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => onShareToGroup(recipe.id, e)}
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                          title="Partager à un groupe"
-                          type="button"
-                        >
-                          <Users className="w-5 h-5" />
-                        </button>
-
-                        <button
-                          onClick={(e) => onDuplicate(recipe, e)}
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                          type="button"
-                          title="Dupliquer"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={(e) => onEdit(recipe.id, e)}
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                          type="button"
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={(e) => onTrash(recipe.id, e)}
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                          type="button"
-                          title="Supprimer / Retirer du dossier"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                          type="button"
-                          title="Plus"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {moveFolderOpen && moveRecipe && (
+        <div className="fixed inset-0 z-[140]">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => {
+              setMoveFolderOpen(false);
+              setMoveRecipe(null);
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-5">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <div className="text-slate-100 font-semibold truncate">
+                    Déplacer : {safeTitle(moveRecipe)}
+                  </div>
+                  <div className="text-xs text-slate-300/70 mt-1">
+                    Choisir un dossier
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoveFolderOpen(false);
+                    setMoveRecipe(null);
+                  }}
+                  className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                >
+                  <X className="w-5 h-5 text-slate-100" />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onMoveToFolder(moveRecipe.id, null);
+                    setMoveFolderOpen(false);
+                    setMoveRecipe(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                >
+                  <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                    <Folder className="w-5 h-5" />
+                  </span>
+                  <span className="flex-1 text-sm font-medium text-slate-100">
+                    À la racine
+                  </span>
+                  {!moveRecipe.folder_id && (
+                    <Check className="w-4 h-4 text-amber-300" />
+                  )}
+                </button>
+
+                {folders.map((folder) => {
+                  const active = moveRecipe.folder_id === folder.id;
+
+                  return (
+                    <button
+                      key={folder.id}
+                      type="button"
+                      onClick={() => {
+                        onMoveToFolder(moveRecipe.id, folder.id);
+                        setMoveFolderOpen(false);
+                        setMoveRecipe(null);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                    >
+                      <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                        <Folder className="w-5 h-5" />
+                      </span>
+                      <span className="flex-1">
+                        <span className="block text-sm font-medium text-slate-100">
+                          {folder.name}
+                        </span>
+                      </span>
+                      {active && <Check className="w-4 h-4 text-amber-300" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
