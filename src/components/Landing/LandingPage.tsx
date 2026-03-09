@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Crown, Loader2, Sparkles, Users } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, Users, BookOpen } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -223,6 +223,73 @@ export function LandingPage({
           <ScrollShowcaseDesktop />
         </div>
       </div>
+
+      {/* POURQUOI KITCH'N */}
+<section className="relative mt-20 sm:mt-28">
+  <div className="mx-auto max-w-6xl px-4 sm:px-6">
+    
+    <div className="text-center max-w-3xl mx-auto">
+      <div className={cn(ui.badge, "inline-flex mx-auto")}>
+        Pourquoi Kitch’n
+      </div>
+
+      <h2 className="mt-6 text-3xl sm:text-4xl font-semibold text-slate-100">
+        Pensé pour les cuisines professionnelles
+      </h2>
+
+      <p className="mt-4 text-slate-300/70 text-base sm:text-lg">
+        Kitch’n centralise les recettes, simplifie le partage et permet
+        à toute la brigade de travailler avec la même base.
+      </p>
+    </div>
+
+    <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+        <div className="mb-4 text-amber-300">
+          <BookOpen className="w-6 h-6" />
+        </div>
+
+        <h3 className="text-lg font-semibold text-white">
+          Recettes centralisées
+        </h3>
+
+        <p className="mt-2 text-sm text-slate-300/70 leading-6">
+          Une seule source de vérité pour toute la brigade.
+        </p>
+      </div>
+
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+        <div className="mb-4 text-amber-300">
+          <Users className="w-6 h-6" />
+        </div>
+
+        <h3 className="text-lg font-semibold text-white">
+          Travail d’équipe
+        </h3>
+
+        <p className="mt-2 text-sm text-slate-300/70 leading-6">
+          Partage structuré par groupes et dossiers.
+        </p>
+      </div>
+
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+        <div className="mb-4 text-amber-300">
+          <Sparkles className="w-6 h-6" />
+        </div>
+
+        <h3 className="text-lg font-semibold text-white">
+          Import intelligent
+        </h3>
+
+        <p className="mt-2 text-sm text-slate-300/70 leading-6">
+          Transforme un document ou un texte en recette exploitable.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
 
       {/* PRICING */}
       <section id="pricing" className="relative mt-20 sm:mt-28 pb-10">
@@ -531,6 +598,47 @@ export function LandingPage({
         </details>
       ))}
     </div>
+  </div>
+</section>
+
+{/* FINAL CTA */}
+<section className="relative mt-24 sm:mt-28 pb-10">
+  <div className="mx-auto max-w-4xl px-4 sm:px-6">
+
+    <div className="rounded-[32px] border border-white/10 bg-white/[0.05] backdrop-blur-xl p-10 sm:p-14 text-center">
+
+      <h2 className="text-3xl sm:text-4xl font-semibold text-white">
+        Commence gratuitement aujourd’hui
+      </h2>
+
+      <p className="mt-4 text-slate-300/70 text-base sm:text-lg">
+        Crée ton espace, organise tes recettes et partage-les avec ton équipe.
+      </p>
+
+      <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+
+        <button
+          onClick={onStart}
+          className={cn(ui.btnPrimary, "px-8 py-3 rounded-2xl")}
+        >
+          Commencer gratuitement
+        </button>
+
+        <button
+          onClick={onLogin}
+          className={cn(ui.btnGhost, "px-8 py-3 rounded-2xl")}
+        >
+          Se connecter
+        </button>
+
+      </div>
+
+      <p className="mt-5 text-xs text-slate-400">
+        Gratuit • Sans engagement
+      </p>
+
+    </div>
+
   </div>
 </section>
 
