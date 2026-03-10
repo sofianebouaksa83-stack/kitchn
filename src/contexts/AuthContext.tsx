@@ -1,11 +1,11 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, AuthError } from "@supabase/supabase-js";
-import { supabase, Profile } from "../lib/supabase";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react"
+import { User, AuthError } from "@supabase/supabase-js"
+import { supabase, Profile } from "../lib/supabase"
 
 type AuthContextType = {
-  user: User | null;
-  profile: Profile | null;
-  loading: boolean;
+  user: User | null
+  profile: Profile | null
+  loading: boolean
 
   signUp: (
     email: string,
@@ -13,72 +13,88 @@ type AuthContextType = {
     fullName: string,
     jobTitle: string,
     restaurantName: string
-  ) => Promise<{ error: AuthError | null; needsEmailConfirmation?: boolean }>;
+  ) => Promise<{ error: AuthError | null; needsEmailConfirmation?: boolean }>
 
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signOut: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signOut: () => Promise<void>
 
-  updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
-  refreshProfile: () => Promise<void>;
-};
+  updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>
+  refreshProfile: () => Promise<void>
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
+    initializeAuth()
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      })();
-    });
+      setUser(session?.user ?? null)
 
-    return () => subscription.unsubscribe();
-  }, []);
+      if (session?.user) {
+        loadProfile(session.user.id)
+      } else {
+        setProfile(null)
+        setLoading(false)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function initializeAuth() {
+    const { data } = await supabase.auth.getSession()
+
+    const session = data.session
+
+    setUser(session?.user ?? null)
+
+    if (session?.user) {
+      await loadProfile(session.user.id)
+    } else {
+      setLoading(false)
+    }
+  }
 
   async function loadProfile(userId: string) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "id, email, full_name, job_title, establishment, restaurant_id, restaurant_role, created_at, updated_at"
-        )
+        .select(`
+          id,
+          email,
+          full_name,
+          job_title,
+          establishment,
+          restaurant_id,
+          restaurant_role,
+          plan,
+          created_at,
+          updated_at
+        `)
         .eq("id", userId)
-        .maybeSingle();
+        .maybeSingle()
 
-      if (error) throw error;
-      setProfile(data ?? null);
+      if (error) throw error
+
+      setProfile(data ?? null)
     } catch (error) {
-      console.error("Error loading profile:", error);
-      setProfile(null);
+      console.error("Error loading profile:", error)
+      setProfile(null)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function refreshProfile() {
-    if (!user?.id) return;
-    await loadProfile(user.id);
+    if (!user?.id) return
+    await loadProfile(user.id)
   }
 
   async function signUp(
@@ -89,9 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restaurantName: string
   ) {
     try {
-      const emailRedirectTo = `${window.location.origin}/#/auth/callback`;
+      const emailRedirectTo = `${window.location.origin}/#/auth/callback`
 
-      // ✅ On met tout dans user_metadata -> trigger DB crée profiles
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -101,74 +116,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             full_name: fullName,
             job_title: jobTitle,
             establishment: restaurantName,
-            restaurant_role: jobTitle, // ✅ snake_case ; ou "chef" si tu veux normaliser
+            restaurant_role: jobTitle,
           },
         },
-      });
+      })
 
-      if (error) return { error };
+      if (error) return { error }
 
-      // ✅ Si confirm email ON : session null => on montre "check email"
-      const needsEmailConfirmation = !data.session;
+      const needsEmailConfirmation = !data.session
 
-      // ⚠️ Pas d'insert restaurants ici.
-      // On le fera après confirmation quand l'utilisateur est connecté,
-      // ou via une edge function (plus tard).
-
-      // Si session existe (confirm email OFF), on charge le profil tout de suite
       if (data.user?.id && data.session) {
-        await loadProfile(data.user.id);
+        await loadProfile(data.user.id)
       }
 
-      return { error: null, needsEmailConfirmation };
+      return { error: null, needsEmailConfirmation }
     } catch (error) {
-      return { error: error as AuthError };
+      return { error: error as AuthError }
     }
   }
 
   async function signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-    // Petit helper UX : si pas de session, souvent email pas confirmé
     if (!error && !data.session) {
-      return { error: new AuthError("Email non confirmé. Vérifie ta boîte mail.") };
+      return { error: new AuthError("Email non confirmé. Vérifie ta boîte mail.") }
     }
 
-    return { error };
+    return { error }
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut()
   }
 
   async function updateProfile(updates: Partial<Profile>) {
-    if (!user) return { error: new Error("No user logged in") };
+    if (!user) return { error: new Error("No user logged in") }
 
     try {
-      const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
-      if (error) throw error;
+      const { error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user.id)
 
-      await loadProfile(user.id);
-      return { error: null };
+      if (error) throw error
+
+      await loadProfile(user.id)
+
+      return { error: null }
     } catch (error) {
-      console.error("updateProfile error:", error);
-      return { error: error as Error };
+      console.error("updateProfile error:", error)
+      return { error: error as Error }
     }
   }
 
+  /**
+   * 🔥 AUTO REFRESH PROFILE
+   * Recharge le plan toutes les 60 secondes
+   * (utile après paiement Stripe)
+   */
+  useEffect(() => {
+    if (!user) return
+
+    const interval = setInterval(() => {
+      refreshProfile()
+    }, 60000)
+
+    return () => clearInterval(interval)
+  }, [user])
+
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signUp, signIn, signOut, updateProfile, refreshProfile }}
+      value={{
+        user,
+        profile,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+        updateProfile,
+        refreshProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  const context = useContext(AuthContext)
+
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider")
   }
-  return context;
+
+  return context
 }

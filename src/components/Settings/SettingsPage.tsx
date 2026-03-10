@@ -19,8 +19,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  CreditCard,
+  Calendar,
+  Crown,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
+import { SubscriptionManagement } from "../Subscription/SubscriptionManagement";
 
 type ProfileRow = {
   id: string;
@@ -45,7 +49,7 @@ type SettingsTab =
   | "notifications"
   | "invitations"
   | "security"
-  | "restaurant"
+  | "subscription"
   | "account";
 
 type PendingInvitationRow = {
@@ -117,7 +121,7 @@ function getTabFromHash(): SettingsTab | null {
     "notifications",
     "invitations",
     "security",
-    "restaurant",
+    "subscription",
     "account",
   ];
   return allowed.includes(tab as any) ? (tab as SettingsTab) : null;
@@ -125,12 +129,11 @@ function getTabFromHash(): SettingsTab | null {
 
 /** set #/settings?tab=... */
 function setTabInHash(tab: SettingsTab) {
-  const raw = window.location.hash.slice(1);
-  const base = raw.split("?")[0] || "/settings";
-  const qs = raw.split("?")[1] ?? "";
-  const p = new URLSearchParams(qs);
+  const p = new URLSearchParams();
   p.set("tab", tab);
-  window.location.hash = `${base}?${p.toString()}`;
+
+  // garde la route /settings sans déclencher ton router hash
+  window.history.replaceState(null, "", `#/settings?${p.toString()}`);
 }
 
 function roleLabel(role: string | null) {
@@ -711,7 +714,6 @@ export default function SettingsPage() {
         type="button"
         onClick={() => {
           setTab(k);
-          setTabInHash(k);
         }}
         className={cn(
           "flex items-center justify-between gap-3 w-full rounded-2xl px-3 py-2.5 text-sm transition",
@@ -827,7 +829,7 @@ export default function SettingsPage() {
                 badge={invCount}
               />
               <TabBtn k="security" label="Sécurité" icon={<Shield className="h-4 w-4" />} />
-              <TabBtn k="restaurant" label="Restaurant" icon={<Building2 className="h-4 w-4" />} />
+              <TabBtn k="subscription" label="abonnement" icon={<CreditCard className="h-4 w-4" />} />              
               <TabBtn k="account" label="Compte" icon={<Trash2 className="h-4 w-4" />} />
             </div>
           </div>
@@ -915,7 +917,7 @@ export default function SettingsPage() {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                      placeholder="Sofiane Bouaksa"
+                      placeholder="Paul Bocuse"
                     />
                   </Field>
 
@@ -924,7 +926,7 @@ export default function SettingsPage() {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                      placeholder="soso_chef"
+                      placeholder="Pseudo"
                     />
                   </Field>
 
@@ -939,14 +941,7 @@ export default function SettingsPage() {
                     </select>
                   </Field>
 
-                  <Field label="Site web" error={!isValidUrl(website) ? "URL invalide" : undefined}>
-                    <input
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                      className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                      placeholder="https://..."
-                    />
-                  </Field>
+
 
                   <Field label="Bio" className="sm:col-span-2">
                     <textarea
@@ -1150,18 +1145,14 @@ export default function SettingsPage() {
               </Section>
             )}
 
-            {tab === "restaurant" && (
-              <Section title="Restaurant" icon={<Building2 className="h-4 w-4" />} loading={loading}>
-                <Field label="Rôle restaurant (restaurant_role)">
-                  <input
-                    value={restaurantRole}
-                    onChange={(e) => setRestaurantRole(e.target.value)}
-                    className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
-                    placeholder="chef | second | employé..."
-                  />
-                </Field>
+            {tab === "subscription" && (
+              <Section>
+                <SubscriptionManagement embedded />
               </Section>
             )}
+                        
+
+
 
             {tab === "account" && (
               <Section title="Compte" icon={<Trash2 className="h-4 w-4" />} loading={loading}>

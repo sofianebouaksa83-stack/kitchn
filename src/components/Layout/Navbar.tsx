@@ -330,6 +330,17 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     window.location.hash = "/settings?tab=invitations";
   };
 
+const openSubscriptionSettings = () => {
+  setAccountMenuOpen(false);
+  setMobileSheetOpen(false);
+
+  handleViewChange("settings");
+
+  setTimeout(() => {
+    window.location.hash = "/settings?tab=subscription";
+  }, 50);
+};
+
   // ✅ plus lisible : hauteur + align + séparation + typo
   const dropdownItem =
     "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl text-sm " +
@@ -489,7 +500,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                   className={[
                     "relative overflow-hidden",
                     "rounded-3xl border border-white/10 ring-1 ring-white/10",
-                    "bg-white/[0.06] backdrop-blur-md",
+                    "bg-slate-900/95 backdrop-blur-xl",
                     "shadow-[0_18px_60px_rgba(0,0,0,0.30)]",
                   ].join(" ")}
                 >
@@ -547,16 +558,12 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                       </button>
 
                       <button
-                        role="menuitem"
-                        onClick={() => {
-                          setAccountMenuOpen(false);
-                          handleViewChange("subscription");
-                        }}
+                        onClick={openSubscriptionSettings}
                         className={dropdownItem}
                         type="button"
                       >
                         <span className={left}>
-                          <CreditCard className="w-4 h-4 text-slate-200" />
+                          <CreditCard className="w-4 h-4" />
                           Abonnement
                         </span>
                       </button>
@@ -745,10 +752,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                   </button>
 
                   <button
-                    onClick={() => {
-                      setMobileSheetOpen(false);
-                      handleViewChange("subscription");
-                    }}
+                    onClick={openSubscriptionSettings}
                     className={dropdownItem}
                     type="button"
                   >
@@ -757,7 +761,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
                       Abonnement
                     </span>
                   </button>
-
+                  
                   <div className="h-px bg-white/10 my-2" />
 
                   <button

@@ -18,13 +18,13 @@ type Group = {
   id: string;
   name: string;
   created_at?: string;
-  created_by?: string; // owner = chef
+  created_by?: string;
 };
 
 type GroupRole = "admin" | "chef_de_partie" | "commis";
 
 type TeamMember = {
-  id: string; // user_id
+  id: string;
   email: string;
   full_name: string;
   job_title: string;
@@ -63,8 +63,10 @@ function roleLabel(role: GroupRole) {
   }
 }
 
-function normalizeRole(value: any): GroupRole {
-  if (value === "admin" || value === "chef_de_partie" || value === "commis") return value;
+function normalizeRole(value: unknown): GroupRole {
+  if (value === "admin" || value === "chef_de_partie" || value === "commis") {
+    return value;
+  }
   return "commis";
 }
 
@@ -78,6 +80,7 @@ export function TeamManagement() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingGroups, setLoadingGroups] = useState(true);
+  const [loadingPlan, setLoadingPlan] = useState(true);
 
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -89,20 +92,102 @@ export function TeamManagement() {
   const [inviteMessage, setInviteMessage] = useState("");
 
   const [canAccess, setCanAccess] = useState(false);
-
   const [groupOwnerId, setGroupOwnerId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<GroupRole | null>(null);
+  const [activeRestaurantId, setActiveRestaurantId] = useState<string | null>(null);
 
+  const [freshPlan, setFreshPlan] = useState<string | null>(null);
   const GROUP_MEMBERS_TO_WORK_GROUPS_FK = "group_members_work_group_id_fkey";
 
+  useEffect(() => {
+    if (!user?.id) {
+      setFreshPlan(null);
+      setLoadingPlan(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadPlan() {
+      setLoadingPlan(true);
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("plan, subscription_status, is_premium")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (cancelled) return;
+
+        if (data?.plan) {
+          setFreshPlan(String(data.plan));
+        } else if (data?.is_premium === true || data?.subscription_status === "active") {
+          setFreshPlan("premium");
+        } else {
+          setFreshPlan("free");
+        }
+      } catch (err) {
+        console.error("[TeamManagement] loadPlan error:", err);
+        if (!cancelled) {
+          const fallbackPlan =
+            profile?.plan === "premium" ||
+            (profile as any)?.is_premium === true ||
+            (profile as any)?.subscription_status === "active"
+              ? "premium"
+              : "free";
+
+          setFreshPlan(fallbackPlan);
+        }
+      } finally {
+        if (!cancelled) setLoadingPlan(false);
+      }
+    }
+
+    void loadPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, profile]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setGroups([]);
+      setActiveGroupId("");
+      setLoadingGroups(false);
+      return;
+    }
+
+    void loadGroups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!activeGroupId) {
+      setTeamMembers([]);
+      setInvitations([]);
+      setCanAccess(false);
+      setGroupOwnerId(null);
+      setMyRole(null);
+      setLoading(false);
+      return;
+    }
+
+    void loadTeamData(activeGroupId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroupId]);
+
   const isPremium = useMemo(() => {
-    const p: any = profile;
+    if (freshPlan) return freshPlan === "premium";
+
     return (
-      p?.is_premium === true ||
-      p?.subscription_status === "active" ||
-      p?.plan === "premium"
+      profile?.plan === "premium" ||
+      (profile as any)?.is_premium === true ||
+      (profile as any)?.subscription_status === "active"
     );
-  }, [profile]);
+  }, [freshPlan, profile]);
 
   const maxMembers = isPremium ? Infinity : 10;
 
@@ -119,7 +204,6 @@ export function TeamManagement() {
   const isSecond = useMemo(() => myRole === "admin", [myRole]);
 
   const roleOptionsForManager = useMemo(() => {
-    // Chef (owner) peut nommer un Second
     if (isOwner) {
       return [
         { value: "admin" as const, label: "Second" },
@@ -127,44 +211,28 @@ export function TeamManagement() {
         { value: "commis" as const, label: "Commis (lecture seule)" },
       ];
     }
-    // Second (admin) peut gérer mais ne peut pas créer un autre second
+
     return [
       { value: "chef_de_partie" as const, label: "Chef de partie (lecture seule)" },
       { value: "commis" as const, label: "Commis (lecture seule)" },
     ];
   }, [isOwner]);
 
-  const [activeRestaurantId, setActiveRestaurantId] = useState<string | null>(null);
+  const currentCount = useMemo(
+    () => teamMembers.length + invitations.length,
+    [teamMembers.length, invitations.length]
+  );
 
-  useEffect(() => {
-    if (!user?.id) {
-      setGroups([]);
-      setActiveGroupId("");
-      setLoadingGroups(false);
-      return;
-    }
-    void loadGroups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!activeGroupId) {
-      setTeamMembers([]);
-      setInvitations([]);
-      setCanAccess(false);
-      setGroupOwnerId(null);
-      setMyRole(null);
-      setLoading(false);
-      return;
-    }
-    void loadTeamData(activeGroupId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroupId]);
+  const remainingSlots = useMemo(() => {
+    if (!Number.isFinite(maxMembers)) return Infinity;
+    return Math.max(0, (maxMembers as number) - currentCount);
+  }, [maxMembers, currentCount]);
 
   async function loadGroups() {
     if (!user?.id) return;
 
     setLoadingGroups(true);
+
     try {
       const { data, error } = await supabase
         .from("group_members")
@@ -197,7 +265,7 @@ export function TeamManagement() {
       setGroups(unique);
       setActiveGroupId((prev) => prev || unique[0]?.id || "");
     } catch (e) {
-      console.error(e);
+      console.error("[TeamManagement] loadGroups error:", e);
       setGroups([]);
       setActiveGroupId("");
     } finally {
@@ -209,22 +277,21 @@ export function TeamManagement() {
     if (!user?.id) return;
 
     setLoading(true);
+
     try {
-      // 1) Groupe (owner = created_by)
-const { data: group, error: groupErr } = await supabase
-  .from("work_groups")
-  .select("id, created_by, name, restaurant_id")
-  .eq("id", workGroupId)
-  .maybeSingle();
+      const { data: group, error: groupErr } = await supabase
+        .from("work_groups")
+        .select("id, created_by, name, restaurant_id")
+        .eq("id", workGroupId)
+        .maybeSingle();
 
-if (groupErr) throw groupErr;
+      if (groupErr) throw groupErr;
 
-setGroupOwnerId(group?.created_by ?? null);
-setActiveRestaurantId(group?.restaurant_id ?? null);
+      setGroupOwnerId(group?.created_by ?? null);
+      setActiveRestaurantId(group?.restaurant_id ?? null);
 
       const isOwnerNow = (group?.created_by ?? null) === user.id;
 
-      // 2) Mon membership
       const { data: myMembership, error: memErr } = await supabase
         .from("group_members")
         .select("role")
@@ -240,7 +307,6 @@ setActiveRestaurantId(group?.restaurant_id ?? null);
       const isSecondNow = myMembership?.role === "admin";
       setCanAccess(Boolean(isOwnerNow || isSecondNow));
 
-      // 3) Membres
       const { data: gm, error: gmErr } = await supabase
         .from("group_members")
         .select(
@@ -268,7 +334,6 @@ setActiveRestaurantId(group?.restaurant_id ?? null);
 
       setTeamMembers(members);
 
-      // 4) Invitations en attente
       const { data: invites, error: invErr } = await supabase
         .from("invitations")
         .select("*")
@@ -285,115 +350,120 @@ setActiveRestaurantId(group?.restaurant_id ?? null);
         setInvitations((invites ?? []) as Invitation[]);
       }
     } catch (err) {
-      console.error(err);
+      console.error("[TeamManagement] loadTeamData error:", err);
       setTeamMembers([]);
       setInvitations([]);
       setCanAccess(false);
       setGroupOwnerId(null);
       setMyRole(null);
+      setActiveRestaurantId(null);
     } finally {
       setLoading(false);
     }
   }
 
-  const currentCount = useMemo(
-    () => teamMembers.length + invitations.length,
-    [teamMembers.length, invitations.length]
-  );
+  async function refreshPremiumStatus() {
+    if (!user?.id) return;
 
-  const remainingSlots = useMemo(() => {
-    if (!Number.isFinite(maxMembers)) return Infinity;
-    return Math.max(0, (maxMembers as number) - currentCount);
-  }, [maxMembers, currentCount]);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("plan, subscription_status, is_premium")
+        .eq("id", user.id)
+        .maybeSingle();
 
-async function handleSendInvitation(e: React.FormEvent) {
-  e.preventDefault();
+      if (error) throw error;
 
-  const email = inviteEmail.trim().toLowerCase();
-  if (!activeGroupId) return;
-
-  if (!email || !isEmail(email)) {
-    setInviteStatus("error");
-    setInviteMessage("Email invalide.");
-    return;
+      if (data?.plan) {
+        setFreshPlan(String(data.plan));
+      } else if (data?.is_premium === true || data?.subscription_status === "active") {
+        setFreshPlan("premium");
+      } else {
+        setFreshPlan("free");
+      }
+    } catch (err) {
+      console.error("[TeamManagement] refreshPremiumStatus error:", err);
+    }
   }
 
-  if (!isPremium && currentCount >= 10) {
-    setInviteStatus("error");
-    setInviteMessage("Limite Free atteinte : 10 membres (invitations incluses).");
-    return;
-  }
+  async function handleSendInvitation(e: React.FormEvent) {
+    e.preventDefault();
 
-  const alreadyMember = teamMembers.some((m) => m.email?.toLowerCase() === email);
-  const alreadyInvited = invitations.some((i) => i.email?.toLowerCase() === email);
-  if (alreadyMember) {
-    setInviteStatus("error");
-    setInviteMessage("Cette personne est déjà membre du groupe.");
-    return;
-  }
-  if (alreadyInvited) {
-    setInviteStatus("error");
-    setInviteMessage("Une invitation est déjà en attente pour cet email.");
-    return;
-  }
+    const email = inviteEmail.trim().toLowerCase();
+    if (!activeGroupId) return;
 
-  // Seul le Chef peut inviter un Second
-  if (!isOwner && inviteRole === "admin") {
-    setInviteStatus("error");
-    setInviteMessage("Seul le Chef peut inviter un Second.");
-    return;
-  }
+    if (!email || !isEmail(email)) {
+      setInviteStatus("error");
+      setInviteMessage("Email invalide.");
+      return;
+    }
 
-  try {
-    setInviteStatus("sending");
-    setInviteMessage("");
+    if (!isPremium && currentCount >= 10) {
+      setInviteStatus("error");
+      setInviteMessage("Limite Free atteinte : 10 membres (invitations incluses).");
+      return;
+    }
 
-    const { data, error } = await supabase.functions.invoke("send-invitation", {
-      body: {
-        email,
-        role: inviteRole,          // "admin" | "chef_de_partie" | "commis"
-        workGroupId: activeGroupId // UUID
-      },
-    });
+    const alreadyMember = teamMembers.some((m) => m.email?.toLowerCase() === email);
+    const alreadyInvited = invitations.some((i) => i.email?.toLowerCase() === email);
 
-    if (error) throw error;
-    if (!data?.ok) throw new Error(data?.error || "Erreur lors de l’envoi");
-    setInviteStatus("success");
-    setInviteMessage(`Invitation envoyée à ${email}`);
-    setInviteEmail("");
-    setInviteRole("commis");
-    setShowInviteForm(false);
+    if (alreadyMember) {
+      setInviteStatus("error");
+      setInviteMessage("Cette personne est déjà membre du groupe.");
+      return;
+    }
 
-    setTimeout(() => {
-      void loadTeamData(activeGroupId);
-      setInviteStatus("idle");
+    if (alreadyInvited) {
+      setInviteStatus("error");
+      setInviteMessage("Une invitation est déjà en attente pour cet email.");
+      return;
+    }
+
+    if (!isOwner && inviteRole === "admin") {
+      setInviteStatus("error");
+      setInviteMessage("Seul le Chef peut inviter un Second.");
+      return;
+    }
+
+    try {
+      setInviteStatus("sending");
       setInviteMessage("");
-    }, 600);
-  } catch (err: any) {
-    setInviteStatus("error");
-    setInviteMessage(err?.message ?? "Erreur lors de l’envoi");
+
+      await refreshPremiumStatus();
+
+      const { data, error } = await supabase.functions.invoke("send-invitation", {
+        body: {
+          email,
+          role: inviteRole,
+          workGroupId: activeGroupId,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Erreur lors de l’envoi");
+
+      setInviteStatus("success");
+      setInviteMessage(`Invitation envoyée à ${email}`);
+      setInviteEmail("");
+      setInviteRole("commis");
+      setShowInviteForm(false);
+
+      setTimeout(() => {
+        void loadTeamData(activeGroupId);
+        void refreshPremiumStatus();
+        setInviteStatus("idle");
+        setInviteMessage("");
+      }, 600);
+    } catch (err: any) {
+      setInviteStatus("error");
+      setInviteMessage(err?.message ?? "Erreur lors de l’envoi");
+    }
   }
-}
 
   async function handleChangeRole(memberId: string, nextRole: GroupRole) {
-    if (!activeGroupId) return;
-    if (!user?.id) return;
-    if (!canAccess) return;
+    if (!activeGroupId || !user?.id || !canAccess) return;
 
-    console.log("[handleChangeRole] memberId:", memberId, "nextRole:", nextRole, {
-      activeGroupId,
-      canAccess,
-      isOwner,
-      isSecond,
-      groupOwnerId,
-      userId: user.id,
-    });
-
-    // ne jamais modifier l’owner
     if (groupOwnerId && memberId === groupOwnerId) return;
-
-    // ✅ IMPORTANT : le Second ne peut pas promouvoir admin, MAIS le Chef oui,
-    // même si son myRole = admin (car il est aussi membre).
     if (!isOwner && isSecond && nextRole === "admin") return;
 
     const { data: updated, error } = await supabase
@@ -402,8 +472,6 @@ async function handleSendInvitation(e: React.FormEvent) {
       .eq("work_group_id", activeGroupId)
       .eq("user_id", memberId)
       .select("work_group_id, user_id, role");
-
-    console.log("UPDATE result:", { updated, error });
 
     if (error) {
       console.error("UPDATE ERROR", error);
@@ -416,54 +484,47 @@ async function handleSendInvitation(e: React.FormEvent) {
       return;
     }
 
-    const { data: check, error: checkErr } = await supabase
-      .from("group_members")
-      .select("role")
-      .eq("work_group_id", activeGroupId)
-      .eq("user_id", memberId)
-      .maybeSingle();
-
-    console.log("ROLE AFTER:", { check, checkErr });
-
     await loadTeamData(activeGroupId);
   }
 
   async function handleRemoveMember(memberId: string) {
-  if (!activeGroupId) return;
-  if (!user?.id) return;
-  if (!canAccess) return;
+    if (!activeGroupId || !user?.id || !canAccess) return;
 
-  // protections
-  if (groupOwnerId && memberId === groupOwnerId) return; // jamais supprimer le chef
-  if (memberId === user.id) return; // évite de te supprimer toi-même
+    if (groupOwnerId && memberId === groupOwnerId) return;
+    if (memberId === user.id) return;
 
-  const ok = confirm("Supprimer ce membre du groupe ?");
-  if (!ok) return;
+    const ok = confirm("Supprimer ce membre du groupe ?");
+    if (!ok) return;
 
-  const { error } = await supabase
-    .from("group_members")
-    .delete()
-    .eq("work_group_id", activeGroupId)
-    .eq("user_id", memberId);
+    const { error } = await supabase
+      .from("group_members")
+      .delete()
+      .eq("work_group_id", activeGroupId)
+      .eq("user_id", memberId);
 
-  if (error) {
-    console.error("DELETE ERROR", error);
-    alert("DELETE ERROR: " + error.message);
-    return;
+    if (error) {
+      console.error("DELETE ERROR", error);
+      alert("DELETE ERROR: " + error.message);
+      return;
+    }
+
+    await loadTeamData(activeGroupId);
   }
-
-  await loadTeamData(activeGroupId);
-}
 
   async function handleDeleteInvitation(id: string) {
     if (!confirm("Supprimer cette invitation ?")) return;
+
     const { error } = await supabase.from("invitations").delete().eq("id", id);
+
     if (error) {
       console.error(error);
       alert(error.message);
       return;
     }
-    if (activeGroupId) void loadTeamData(activeGroupId);
+
+    if (activeGroupId) {
+      await loadTeamData(activeGroupId);
+    }
   }
 
   return (
@@ -513,8 +574,13 @@ async function handleSendInvitation(e: React.FormEvent) {
 
                   {groups.length > 0 && (
                     <div className="text-xs text-slate-400">
-                      {isPremium ? (
-                        <span className="text-emerald-300">Premium</span>
+                      {loadingPlan ? (
+                        <span className="inline-flex items-center gap-2 text-slate-300/70">
+                          <Loader className="w-3.5 h-3.5 animate-spin" />
+                          Vérification de l’abonnement…
+                        </span>
+                      ) : isPremium ? (
+                        <span className="text-emerald-300">Premium — membres illimités</span>
                       ) : (
                         <span>
                           Free — {remainingSlots} place{remainingSlots > 1 ? "s" : ""} restante
@@ -533,6 +599,7 @@ async function handleSendInvitation(e: React.FormEvent) {
                           invitations.length
                         } invitation${invitations.length > 1 ? "s" : ""} en attente`}
                     {activeGroup?.name ? ` — ${activeGroup.name}` : ""}
+                    {activeRestaurantId ? "" : ""}
                     {canAccess ? (
                       <span className="ml-2 text-emerald-300/90">
                         (Gestion : {isOwner ? "Chef" : isSecond ? "Second" : "—"})
@@ -577,7 +644,7 @@ async function handleSendInvitation(e: React.FormEvent) {
                 <>
                   {showInviteForm && (
                     <div className="mt-6 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-                      {!isPremium && currentCount >= 10 ? (
+                      {!loadingPlan && !isPremium && currentCount >= 10 ? (
                         <div className="rounded-2xl bg-red-500/10 ring-1 ring-red-500/20 p-4 flex gap-3">
                           <AlertCircle className="text-red-300" />
                           <p className="text-red-200 text-sm">
@@ -607,17 +674,27 @@ async function handleSendInvitation(e: React.FormEvent) {
 
                           <button
                             type="submit"
-                            disabled={inviteStatus === "sending"}
+                            disabled={inviteStatus === "sending" || loadingPlan}
                             className={ui.btnPrimary}
                           >
                             <Mail className="w-4 h-4" />
-                            {inviteStatus === "sending" ? "Envoi…" : "Envoyer l’invitation"}
+                            {inviteStatus === "sending"
+                              ? "Envoi…"
+                              : loadingPlan
+                              ? "Vérification…"
+                              : "Envoyer l’invitation"}
                           </button>
 
-                          {!isPremium && (
+                          {!loadingPlan && !isPremium && (
                             <p className="text-xs text-slate-400">
                               Free : 10 membres max (membres + invitations en attente). Actuellement :{" "}
                               {currentCount}/10.
+                            </p>
+                          )}
+
+                          {!loadingPlan && isPremium && (
+                            <p className="text-xs text-emerald-300/90">
+                              Premium actif : membres et invitations illimités.
                             </p>
                           )}
                         </form>
@@ -675,7 +752,6 @@ async function handleSendInvitation(e: React.FormEvent) {
                       {teamMembers.map((m) => {
                         const isMe = m.id === user?.id;
                         const isOwnerMember = Boolean(groupOwnerId && m.id === groupOwnerId);
-
                         const rightLabel = isMe ? "Vous" : isOwnerMember ? "Chef" : roleLabel(m.role);
                         const canEditThisMember = canAccess && !isMe && !isOwnerMember;
 
@@ -691,7 +767,7 @@ async function handleSendInvitation(e: React.FormEvent) {
                               </p>
                             </div>
 
-                           {canEditThisMember ? (
+                            {canEditThisMember ? (
                               <div className="flex items-center gap-2">
                                 <select
                                   value={m.role}
@@ -715,7 +791,9 @@ async function handleSendInvitation(e: React.FormEvent) {
                                 </button>
                               </div>
                             ) : (
-                              <div className="text-xs text-slate-300/70 whitespace-nowrap">{rightLabel}</div>
+                              <div className="text-xs text-slate-300/70 whitespace-nowrap">
+                                {rightLabel}
+                              </div>
                             )}
                           </div>
                         );

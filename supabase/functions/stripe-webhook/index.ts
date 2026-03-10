@@ -24,24 +24,91 @@ function toIsoOrNull(unixSeconds?: number | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function getCustomerId(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined
+): string | null {
+  if (!customer) return null;
+  if (typeof customer === "string") return customer;
+  if ("deleted" in customer && customer.deleted) return null;
+  return customer.id ?? null;
+}
+
+function isPremiumStatus(status: string | null | undefined): boolean {
+  return status === "active" || status === "trialing";
+}
+
+async function syncProfilePlan(
+  userId: string,
+  subscriptionStatus: string
+): Promise<void> {
+  const premium = isPremiumStatus(subscriptionStatus);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      plan: premium ? "premium" : "free",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("[stripe-webhook] Profile plan update error:", error);
+    throw error;
+  }
+
+  console.log(
+    "[stripe-webhook] Profile synced:",
+    JSON.stringify({
+      userId,
+      plan: premium ? "premium" : "free",
+      subscriptionStatus,
+    })
+  );
+}
+
 async function getUserIdFromSubscription(
   subscription: Stripe.Subscription
 ): Promise<string | null> {
   const directUserId = subscription.metadata?.user_id;
   if (directUserId) return directUserId;
 
-  const customerId =
-    typeof subscription.customer === "string"
-      ? subscription.customer
-      : subscription.customer?.id;
-
+  const customerId = getCustomerId(subscription.customer);
   if (!customerId) return null;
 
   const customer = await stripe.customers.retrieve(customerId);
-
-  if (customer.deleted) return null;
+  if ("deleted" in customer && customer.deleted) return null;
 
   return customer.metadata?.user_id ?? null;
+}
+
+async function upsertSubscriptionRow(params: {
+  userId: string;
+  customerId: string | null;
+  subscriptionId: string | null;
+  status: string;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean;
+}): Promise<void> {
+  const { error } = await supabase.from("subscriptions").upsert(
+    {
+      user_id: params.userId,
+      stripe_customer_id: params.customerId,
+      stripe_subscription_id: params.subscriptionId,
+      plan_id: isPremiumStatus(params.status) ? "premium" : "free",
+      status: params.status,
+      current_period_start: params.currentPeriodStart ?? null,
+      current_period_end: params.currentPeriodEnd ?? null,
+      cancel_at_period_end: params.cancelAtPeriodEnd ?? false,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (error) {
+    console.error("[stripe-webhook] Subscription upsert error:", error);
+    throw error;
+  }
 }
 
 async function upsertSubscriptionFromStripeSubscription(
@@ -51,34 +118,23 @@ async function upsertSubscriptionFromStripeSubscription(
   const userId = await getUserIdFromSubscription(subscription);
 
   if (!userId) {
-    console.error("Missing user_id for subscription", subscription.id);
+    console.error("[stripe-webhook] Missing user_id for subscription", subscription.id);
     return;
   }
 
-  const customerId =
-    typeof subscription.customer === "string"
-      ? subscription.customer
-      : subscription.customer?.id ?? null;
+  const customerId = getCustomerId(subscription.customer);
 
-  const { error } = await supabase.from("subscriptions").upsert(
-    {
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      plan_id: "premium",
-      status: subscription.status,
-      current_period_start: toIsoOrNull(subscription.current_period_start),
-      current_period_end: toIsoOrNull(subscription.current_period_end),
-      cancel_at_period_end: subscription.cancel_at_period_end ?? false,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
+  await upsertSubscriptionRow({
+    userId,
+    customerId,
+    subscriptionId: subscription.id,
+    status: subscription.status,
+    currentPeriodStart: toIsoOrNull(subscription.current_period_start),
+    currentPeriodEnd: toIsoOrNull(subscription.current_period_end),
+    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+  });
 
-  if (error) {
-    console.error("Upsert subscription error:", error);
-    throw error;
-  }
+  await syncProfilePlan(userId, subscription.status);
 }
 
 async function markSubscriptionActiveFromInvoice(
@@ -97,45 +153,32 @@ async function markSubscriptionActiveFromInvoice(
   const userId = await getUserIdFromSubscription(subscription);
 
   if (!userId) {
-    console.error("Missing user_id for invoice/subscription", subscription.id);
+    console.error("[stripe-webhook] Missing user_id for invoice/subscription", subscription.id);
     return;
   }
 
-  const customerId =
-    typeof subscription.customer === "string"
-      ? subscription.customer
-      : subscription.customer?.id ?? null;
+  const customerId = getCustomerId(subscription.customer);
 
-  const { error } = await supabase.from("subscriptions").upsert(
-    {
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      plan_id: "premium",
-      status: "active",
-      current_period_start: toIsoOrNull(subscription.current_period_start),
-      current_period_end: toIsoOrNull(subscription.current_period_end),
-      cancel_at_period_end: subscription.cancel_at_period_end ?? false,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
+  await upsertSubscriptionRow({
+    userId,
+    customerId,
+    subscriptionId: subscription.id,
+    status: "active",
+    currentPeriodStart: toIsoOrNull(subscription.current_period_start),
+    currentPeriodEnd: toIsoOrNull(subscription.current_period_end),
+    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+  });
 
-  if (error) {
-    console.error("Invoice active upsert error:", error);
-    throw error;
-  }
+  await syncProfilePlan(userId, "active");
 }
 
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
 ): Promise<void> {
   const userId = session.metadata?.user_id ?? null;
-
-  const customerId =
-    typeof session.customer === "string"
-      ? session.customer
-      : session.customer?.id ?? null;
+  const customerId = getCustomerId(
+    session.customer as string | Stripe.Customer | Stripe.DeletedCustomer | null
+  );
 
   const subscriptionId =
     typeof session.subscription === "string"
@@ -143,36 +186,36 @@ async function handleCheckoutCompleted(
       : session.subscription?.id ?? null;
 
   if (!userId) {
-    console.error("Missing user_id in checkout session metadata", session.id);
+    console.error("[stripe-webhook] Missing user_id in checkout session metadata", session.id);
     return;
   }
-
-  const payload: Record<string, unknown> = {
-    user_id: userId,
-    stripe_customer_id: customerId,
-    plan_id: "premium",
-    updated_at: new Date().toISOString(),
-  };
 
   if (subscriptionId) {
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-    payload.stripe_subscription_id = subscription.id;
-    payload.status = subscription.status;
-    payload.current_period_start = toIsoOrNull(subscription.current_period_start);
-    payload.current_period_end = toIsoOrNull(subscription.current_period_end);
-    payload.cancel_at_period_end = subscription.cancel_at_period_end ?? false;
+    await upsertSubscriptionRow({
+      userId,
+      customerId,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      currentPeriodStart: toIsoOrNull(subscription.current_period_start),
+      currentPeriodEnd: toIsoOrNull(subscription.current_period_end),
+      cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+    });
+
+    await syncProfilePlan(userId, subscription.status);
   } else {
-    payload.status = "incomplete";
-  }
+    await upsertSubscriptionRow({
+      userId,
+      customerId,
+      subscriptionId: null,
+      status: "incomplete",
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+    });
 
-  const { error } = await supabase
-    .from("subscriptions")
-    .upsert(payload, { onConflict: "user_id" });
-
-  if (error) {
-    console.error("Checkout completed upsert error:", error);
-    throw error;
+    await syncProfilePlan(userId, "incomplete");
   }
 }
 
@@ -182,27 +225,23 @@ async function handleSubscriptionDeleted(
   const userId = await getUserIdFromSubscription(subscription);
 
   if (!userId) {
-    console.error("Missing user_id in deleted subscription", subscription.id);
+    console.error("[stripe-webhook] Missing user_id in deleted subscription", subscription.id);
     return;
   }
 
-  const { error } = await supabase
-    .from("subscriptions")
-    .update({
-      plan_id: "free",
-      status: "canceled",
-      stripe_subscription_id: null,
-      cancel_at_period_end: false,
-      current_period_start: null,
-      current_period_end: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId);
+  const customerId = getCustomerId(subscription.customer);
 
-  if (error) {
-    console.error("Subscription deleted update error:", error);
-    throw error;
-  }
+  await upsertSubscriptionRow({
+    userId,
+    customerId,
+    subscriptionId: null,
+    status: "canceled",
+    currentPeriodStart: null,
+    currentPeriodEnd: null,
+    cancelAtPeriodEnd: false,
+  });
+
+  await syncProfilePlan(userId, "canceled");
 }
 
 Deno.serve(async (req) => {
@@ -223,12 +262,12 @@ Deno.serve(async (req) => {
       stripeWebhookSecret
     );
   } catch (err) {
-    console.error("Webhook signature error:", err);
+    console.error("[stripe-webhook] Signature error:", err);
     return new Response("Invalid signature", { status: 400 });
   }
 
   try {
-    console.log("Stripe event:", event.type);
+    console.log("[stripe-webhook] Event received:", event.type);
 
     switch (event.type) {
       case "checkout.session.completed": {
@@ -246,32 +285,7 @@ Deno.serve(async (req) => {
 
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-
-        if (!invoice.subscription) break;
-
-        const subscription = await stripe.subscriptions.retrieve(
-          invoice.subscription as string
-        );
-
-        const userId = subscription.metadata?.user_id;
-
-        if (!userId) {
-          console.error("Missing user_id in metadata");
-          break;
-        }
-
-        await supabase
-          .from("subscriptions")
-          .update({
-            status: "active",
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", userId);
-
-        console.log("Subscription activated for user:", userId);
-
+        await markSubscriptionActiveFromInvoice(invoice);
         break;
       }
 
@@ -282,7 +296,7 @@ Deno.serve(async (req) => {
       }
 
       default:
-        console.log("Unhandled event type:", event.type);
+        console.log("[stripe-webhook] Unhandled event type:", event.type);
         break;
     }
 
@@ -291,7 +305,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("Webhook handler error:", err);
+    console.error("[stripe-webhook] Handler error:", err);
     return new Response("Webhook handler error", { status: 500 });
   }
 });
