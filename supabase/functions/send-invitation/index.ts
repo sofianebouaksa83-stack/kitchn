@@ -20,19 +20,22 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendKey = Deno.env.get("RESEND_API_KEY")!;
 
-    // Client "user" (pour lire le JWT)
+    // client user
     const supabaseUser = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: req.headers.get("Authorization")! } },
     });
 
     const { data: authData, error: authErr } = await supabaseUser.auth.getUser();
+
     if (authErr || !authData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
     const callerId = authData.user.id;
 
     const body = (await req.json()) as Partial<ReqBody>;
@@ -46,6 +49,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
     if (!["admin", "chef_de_partie", "commis"].includes(role)) {
       return new Response(JSON.stringify({ error: "Invalid role" }), {
         status: 400,
@@ -53,10 +57,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Client service role (pour bypass RLS côté insert)
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // (Optionnel mais conseillé) : vérifier que l'appelant est admin du groupe
+    // vérifier que l'appelant est admin
     const { data: membership, error: memErr } = await supabaseAdmin
       .from("group_members")
       .select("role")
@@ -65,6 +68,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (memErr) throw memErr;
+
     if (!membership || membership.role !== "admin") {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
@@ -72,78 +76,89 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Génère un token unique
+    // token invitation
     const token = crypto.randomUUID();
 
-    // Insert invitation (work_group orienté)
     const { data: ins, error: insErr } = await supabaseAdmin
       .from("invitations")
       .insert({
-  work_group_id: workGroupId,
-  email,
-  role,
-  token
-})
+        work_group_id: workGroupId,
+        email,
+        role,
+        token,
+      })
       .select("id, token, email, role, work_group_id, created_at")
       .single();
 
     if (insErr) throw insErr;
 
-    return new Response(JSON.stringify({ ok: true, invitation: ins }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // lien invitation
+    const inviteLink = `https://www.kitchnpro.com/#/invitation/${token}`;
+
+    // HTML email
+    const html = `
+      <div style="font-family:Arial,sans-serif;padding:24px">
+        <h2>Invitation Kitch'n</h2>
+        <p>Tu as été invité à rejoindre un groupe de travail.</p>
+
+        <a href="${inviteLink}"
+        style="
+        display:inline-block;
+        padding:12px 18px;
+        background:#f59e0b;
+        color:#111;
+        text-decoration:none;
+        border-radius:8px;
+        font-weight:700;">
+        Rejoindre le groupe
+        </a>
+
+        <p style="margin-top:16px;font-size:12px;color:#666">
+        Si le bouton ne fonctionne pas, copie ce lien :
+        <br/>
+        ${inviteLink}
+        </p>
+      </div>
+    `;
+
+    // envoi email Resend
+    const resend = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Kitch'n <invitation@kitchnpro.com>",
+        to: [email],
+        subject: "Invitation à rejoindre Kitch'n",
+        html,
+      }),
     });
+
+    const resendData = await resend.json();
+
+    if (!resend.ok) {
+      console.error("Resend error:", resendData);
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        invitation: ins,
+        email: resendData,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (e) {
     console.error("send-invitation error:", e);
+
     return new Response(JSON.stringify({ error: String(e?.message ?? e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-if (RESEND_API_KEY) {
-  // URL PROD
-  const inviteUrl = `https://www.kitchnpro.com/invite/${token}`;
-
-  const from = "KITCH’N <invite@kitchnpro.com>"; // domaine à vérifier sur Resend
-
-  const subject = `Invitation à rejoindre KITCH’N`;
-  const html = `
-    <div style="font-family:system-ui;line-height:1.5">
-      <h2>Invitation KITCH’N</h2>
-      <p>Tu as été invité à rejoindre un groupe sur KITCH’N.</p>
-      <p><b>Email invité :</b> ${email}</p>
-      <p>
-        <a href="${inviteUrl}" style="display:inline-block;padding:10px 14px;border-radius:12px;background:#f59e0b;color:#0b1220;text-decoration:none;font-weight:700">
-          Accepter l’invitation
-        </a>
-      </p>
-      <p style="color:#94a3b8;font-size:12px;margin-top:16px">
-        Si tu n’es pas connecté, connecte-toi / crée un compte avec cet email puis reviens sur ce lien.
-      </p>
-    </div>
-  `;
-
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject,
-      html,
-    }),
-  });
-
-  if (!r.ok) {
-    const txt = await r.text();
-    console.error("Resend error:", r.status, txt);
-  }
-} else {
-  console.warn("Missing RESEND_API_KEY, skipping email send.");
-}
 });

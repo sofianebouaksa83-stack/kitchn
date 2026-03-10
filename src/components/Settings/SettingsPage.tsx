@@ -621,28 +621,56 @@ export default function SettingsPage() {
   }
 
   async function onDeleteAccount() {
-    const ok = window.confirm(
+    const confirmed = window.confirm(
       "⚠️ Supprimer ton compte ?\nCette action est irréversible (recettes, groupes, profil, etc.)."
     );
-    if (!ok) return;
+    if (!confirmed) return;
 
     setErr(null);
     setOk(null);
 
-    const { data, error } = await supabase.functions.invoke("delete-account");
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-    if (error) {
-      setErr(error.message);
-      return;
-    }
-    if (!data?.ok) {
-      setErr(data?.error || "Erreur suppression compte");
-      return;
-    }
+      if (sessionError || !session?.access_token) {
+        setErr("Session introuvable. Déconnecte-toi puis reconnecte-toi avant de réessayer.");
+        return;
+      }
 
-    await supabase.auth.signOut();
-    window.location.hash = "/";
-    window.location.reload();
+      const { data, error } = await supabase.functions.invoke("delete-account", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        let message = error.message || "Erreur suppression compte";
+
+        try {
+          const raw = await error.context?.json?.();
+          message = raw?.details || raw?.error || message;
+        } catch {
+          // ignore
+        }
+
+        setErr(message);
+        return;
+      }
+
+      if (!data?.ok) {
+        setErr(data?.error || "Erreur suppression compte");
+        return;
+      }
+
+      await supabase.auth.signOut();
+      window.location.hash = "/";
+      window.location.reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erreur inconnue");
+    }
   }
 
   useEffect(() => {
