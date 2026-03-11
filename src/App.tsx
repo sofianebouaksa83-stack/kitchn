@@ -356,7 +356,9 @@ function MainApp() {
         )}
 
         {currentView === "shared" && <SharedRecipes />}
-        {currentView === "groups" && <WorkGroups />}
+        {currentView === "groups" && (
+          <WorkGroups onViewChange={setCurrentView} />
+        )}        
         {currentView === "import-ai" && <RecipeImportAI />}
         {currentView === "team" && <TeamManagement />}
 

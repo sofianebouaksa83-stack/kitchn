@@ -116,19 +116,7 @@ export function RecipeEditorMobile({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelCls}>Couverts</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={editor.servings}
-                  onChange={(e) =>
-                    editor.setServings(Math.max(1, Number(e.target.value || 1)))
-                  }
-                  className={inputTitleCls}
-                />
-              </div>
-
+       
               <div>
                 <label className={labelCls}>Catégorie</label>
                 <select

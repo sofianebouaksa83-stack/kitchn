@@ -16,6 +16,13 @@ import { GroupsGrid } from "./workgroups/ui/GroupsGrid";
 import { CreateGroupModal } from "./workgroups/ui/CreateGroupModal";
 import { ManageGroupModal } from "./workgroups/ui/ManageGroupModal";
 
+
+type View = "subscription" | "settings";
+
+type WorkGroupsProps = {
+  onViewChange?: (view: View) => void;
+};
+
 function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 3500);
@@ -31,7 +38,7 @@ function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
   );
 }
 
-export function WorkGroups() {
+export function WorkGroups({ onViewChange }: WorkGroupsProps) {
   const { user, refreshProfile } = useAuth();
   const { isPremium, loading: subLoading } = useSubscription(user?.id ?? null);
 
@@ -54,7 +61,9 @@ export function WorkGroups() {
   };
 
   const goSubscription = () => {
-    // branche ta navigation / checkout ici si besoin
+    setPremiumOpen(false);
+    onViewChange?.("settings");
+    window.location.hash = "/settings?tab=subscription";
   };
 
   const ent = getGroupEntitlements(!!isPremium);
@@ -80,7 +89,9 @@ export function WorkGroups() {
   });
 
   const requestCreate = () => {
-    if (!isPremium && wg.groups.length >= ent.maxGroups) {
+    const ownedGroups = wg.groups.filter(g => g.isOwner).length;
+
+    if (!isPremium && ownedGroups >= ent.maxGroups) {
       openPremium("groups.limit");
       return;
     }
@@ -284,7 +295,7 @@ export function WorkGroups() {
 
         <CreateGroupModal
           ui={ui}
-          open={wg.showCreateModal && wg.canManageGroups}
+          open={wg.showCreateModal}
           onClose={() => wg.setShowCreateModal(false)}
           manageLoading={wg.manageLoading}
           newGroupName={wg.newGroupName}

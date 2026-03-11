@@ -722,10 +722,7 @@ export function SharedRecipeGroupDesktop({
                             )}
                           </div>
 
-                          <p className="mt-1 text-xs text-white/50">
-                            Prép {recipe.prep_time ?? 0}min · Cuisson{" "}
-                            {recipe.cook_time ?? 0}min · {recipe.servings ?? "—"} couverts
-                          </p>
+
 
                           {searchTerm.trim() && folderName && (
                             <p className="mt-1 text-[11px] text-white/40">

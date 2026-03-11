@@ -15,6 +15,7 @@ import {
   Mail,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
+import { useSubscription } from "../../hooks/useSubscription";
 
 type View =
   | "recipes"
@@ -144,6 +145,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
 
   // ✅ Profile local pour navbar (fiable)
   const [navProfile, setNavProfile] = useState<NavbarProfile | null>(null);
+  const { isPremium } = useSubscription(user?.id ?? null);
 
   // ✅ Invitations count
   const [invCount, setInvCount] = useState<number>(0);
@@ -460,17 +462,25 @@ const openSubscriptionSettings = () => {
                 onClick={() => setAccountMenuOpen((v) => !v)}
                 className={[
                   "flex items-center gap-3 rounded-2xl px-3 py-2",
-                  "bg-white/[0.04] hover:bg-white/[0.07] transition",
+                  "bg-white/[0.04] hover:bg-white/[0.09] transition",
                   "ring-1",
-                  accountMenuOpen ? "ring-amber-400/25" : "ring-white/10 hover:ring-white/15",
+                  accountMenuOpen ? "ring-amber-400/30" : "ring-white/10 hover:ring-white/15",
                 ].join(" ")}
                 aria-label="Compte"
               >
                 <Avatar />
                 <div className="min-w-0 text-left">
-                  <div className="text-sm font-medium text-white truncate max-w-[220px]">
+                  <div className="flex items-center gap-2 text-sm font-medium text-white truncate max-w-[220px]">
                     {displayName}
-                  </div>
+
+                    {isPremium && (
+                      <img
+                        src="/toque-premium.png"
+                        alt="Premium"
+                        className="w-4 h-4 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]"
+                      />
+                    )}
+                </div>
                   <div className="text-xs text-white/60 truncate max-w-[220px]">
                     {user?.email}
                   </div>

@@ -49,8 +49,7 @@ export function useWorkGroupsData(opts: {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
-  const canManageGroups =
-    !!userId && (restaurantRole === "chef" || restaurantRole === "owner" || restaurantId === null);
+  const canManageGroups = !!userId;
 
   const selectedGroupFresh = useMemo(() => {
     if (!selectedGroup) return null;
@@ -187,10 +186,12 @@ export function useWorkGroupsData(opts: {
   async function handleCreateGroup(): Promise<string | null> {
     if (!userId || !newGroupName.trim()) return null;
 
-    if (!isPremium && groups.length >= ent.maxGroups) {
-      openPremium("groups.limit");
-      return null;
-    }
+  const ownedGroups = groups.filter(g => g.isOwner).length;
+
+  if (!isPremium && ownedGroups >= ent.maxGroups) {
+    openPremium("groups.limit");
+    return null;
+  }
 
     setManageLoading(true);
     setErrorMsg(null);

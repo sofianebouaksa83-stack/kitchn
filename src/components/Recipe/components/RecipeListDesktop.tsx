@@ -412,12 +412,7 @@ export function RecipeListDesktop(props: Props) {
                           </span>
                         )}
                       </div>
-
-                      <p className="mt-1 text-xs text-white/50">
-                        Prép {recipe.prep_time ?? 0}min · Cuisson {recipe.cook_time ?? 0}
-                        min · {recipe.servings ?? "—"} couverts
-                      </p>
-
+                      
                       {searchTerm.trim() && recipe.folder_id && (
                         <p className="mt-1 text-[11px] text-white/40">
                           Dossier :{" "}
@@ -506,13 +501,7 @@ export function RecipeListDesktop(props: Props) {
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <button
-                            className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
-                            type="button"
-                            title="Plus"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+
                         </div>
                       )}
                     </div>

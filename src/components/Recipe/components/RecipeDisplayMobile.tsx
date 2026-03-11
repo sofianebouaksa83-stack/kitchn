@@ -266,8 +266,7 @@ export default function RecipeDisplayMobile({ recipeId, onBack, onEdit }: Props)
     if (!recipe) return null;
     const cat = recipe.category || "Sans catégorie";
     const prep = recipe.prep_time ?? 0;
-    const cook = recipe.cook_time ?? 0;
-    return `${cat} · Prépa ${prep}min · Cuisson ${cook}min`;
+    const cook = recipe.cook_time ?? 0;    
   }, [recipe]);
 
   const ingredientsById = useMemo(() => {
@@ -398,12 +397,7 @@ return (
               <div className="text-xs text-slate-300/60">Multiplier</div>
               <div className="text-sm text-slate-100 font-semibold">
                 ×{Math.round(coefficient * 100) / 100}
-              </div>
-              <div className="mt-0.5 text-[12px] text-slate-300/55">
-                {crossRatio
-                  ? `Produit en croix (x${Math.round(crossRatio * 100) / 100})`
-                  : `${servings} couvert(s) (base ${baseServings})`}
-              </div>
+              </div>          
             </div>
 
             <div className="flex items-center gap-2">

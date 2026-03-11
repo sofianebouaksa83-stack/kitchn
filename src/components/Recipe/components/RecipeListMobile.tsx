@@ -412,11 +412,7 @@ export function RecipeListMobile(props: Props) {
                           <span className="inline-flex items-center gap-1">
                             <Tag className="w-3.5 h-3.5 text-white/40" />
                             {r.category || "Autre"}
-                          </span>
-
-                          <span className="text-white/25">•</span>
-
-                          <span>{r.servings ?? "—"} couverts</span>
+                          </span>                       
                         </div>
 
                         {searchTerm.trim() && folderName && (

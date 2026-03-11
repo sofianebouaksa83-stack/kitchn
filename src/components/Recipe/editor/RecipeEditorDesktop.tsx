@@ -110,19 +110,6 @@ export function RecipeEditorDesktop({
               </div>
 
               <div>
-                <label className={labelCls}>Couverts</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={editor.servings}
-                  onChange={(e) =>
-                    editor.setServings(Math.max(1, Number(e.target.value || 1)))
-                  }
-                  className={`${inputBase} h-11 rounded-2xl px-4`}
-                />
-              </div>
-
-              <div>
                 <label className={labelCls}>Catégorie</label>
                 <select
                   value={editor.category}
