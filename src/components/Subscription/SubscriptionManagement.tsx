@@ -32,7 +32,15 @@ type Plan = {
 
 const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
 
-export function SubscriptionManagement({ embedded = false }: { embedded?: boolean }) {
+type SubscriptionManagementProps = {
+  embedded?: boolean;
+  onOpenCheckout?: () => void;
+};
+
+export function SubscriptionManagement({
+  embedded = false,
+  onOpenCheckout,
+}: SubscriptionManagementProps) {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -269,22 +277,14 @@ if (!isPremium) {
             </p>
 
             <button
-              onClick={handleManageSubscription}
-              disabled={managingSubscription}
+              onClick={onOpenCheckout}
               className={`${ui.btnPrimary} w-full`}
               type="button"
             >
-              {managingSubscription ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Redirection...
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <CreditCard className="w-5 h-5" />
-                  Passer au Premium
-                </span>
-              )}
+              <span className="flex items-center justify-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Passer au Premium
+              </span>
             </button>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">

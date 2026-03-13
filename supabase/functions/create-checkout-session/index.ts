@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import Stripe from "npm:stripe@14.21.0";
+import Stripe from "npm:stripe@15.0.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeSecret, {
-      apiVersion: "2024-06-20",
+      apiVersion: "2025-03-31.basil",
     });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -114,16 +114,16 @@ Deno.serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      payment_method_types: ["card"],
       mode: "subscription",
+      ui_mode: "custom",
+      payment_method_types: ["card"],
       line_items: [
         {
           price: plan.stripe_price_id,
           quantity: 1,
         },
       ],
-      success_url: "https://www.kitchnpro.com/#subscription-success",
-      cancel_url: "https://www.kitchnpro.com/#subscription-cancel",
+      return_url: "https://www.kitchnpro.com/#subscription-success",
       metadata: {
         user_id: user.id,
         plan_id: "premium",
@@ -136,10 +136,16 @@ Deno.serve(async (req) => {
       },
     });
 
-    return new Response(JSON.stringify({ url: session.url }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        clientSecret: session.client_secret,
+        sessionId: session.id,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     console.error("create-checkout-session error:", error);
 

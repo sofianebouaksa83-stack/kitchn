@@ -27,6 +27,7 @@ import { TeamManagement } from "./components/Team/TeamManagement";
 import { SubscriptionManagement } from "./components/Subscription/SubscriptionManagement";
 import { SubscriptionSuccess } from "./components/Subscription/SubscriptionSuccess";
 import { SubscriptionCancel } from "./components/Subscription/SubscriptionCancel";
+import { SubscriptionCheckoutPage } from "./components/Subscription/SubscriptionCheckoutPage";
 
 // ✅ Page Paramètres
 import SettingsPage from "./components/Settings/SettingsPage";
@@ -42,6 +43,7 @@ type View =
   | "import-ai"
   | "team"
   | "subscription"
+  | "subscription-checkout"
   | "subscription-success"
   | "subscription-cancel"
   | "settings";
@@ -358,16 +360,21 @@ function MainApp() {
         {currentView === "shared" && <SharedRecipes />}
         {currentView === "groups" && (
           <WorkGroups onViewChange={setCurrentView} />
-        )}        
+        )}
         {currentView === "import-ai" && <RecipeImportAI />}
         {currentView === "team" && <TeamManagement />}
-
-        {currentView === "subscription" && <SubscriptionManagement />}
+        
+        {currentView === "subscription-checkout" && (
+          <SubscriptionCheckoutPage
+            onBack={() => setCurrentView("subscription")}
+          />
+        )}
         {currentView === "subscription-success" && <SubscriptionSuccess />}
         {currentView === "subscription-cancel" && <SubscriptionCancel />}
 
-        {/* ✅ Paramètres */}
-        {currentView === "settings" && <SettingsPage />}
+        {currentView === "settings" && (
+          <SettingsPage onViewChange={setCurrentView} />
+        )}
       </main>
     </div>
   );

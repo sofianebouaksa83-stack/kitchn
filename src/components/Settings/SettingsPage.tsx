@@ -63,6 +63,23 @@ type PendingInvitationRow = {
   created_at: string | null;
 };
 
+type View =
+  | "recipes"
+  | "editor"
+  | "groups"
+  | "shared"
+  | "import-ai"
+  | "team"
+  | "subscription"
+  | "subscription-checkout"
+  | "subscription-success"
+  | "subscription-cancel"
+  | "settings";
+
+type SettingsPageProps = {
+  onViewChange?: (view: View) => void;
+};
+
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -149,7 +166,7 @@ function isExpired(expiresAt: string | null) {
   return new Date(expiresAt).getTime() < Date.now();
 }
 
-export default function SettingsPage() {
+export default function SettingsPage({ onViewChange }: SettingsPageProps) {
   const { user, signOut } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -1147,7 +1164,10 @@ export default function SettingsPage() {
 
             {tab === "subscription" && (
               <Section>
-                <SubscriptionManagement embedded />
+                <SubscriptionManagement
+                  embedded
+                  onOpenCheckout={() => onViewChange?.("subscription-checkout")}
+                />
               </Section>
             )}
                         

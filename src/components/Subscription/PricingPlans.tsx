@@ -7,13 +7,16 @@ import { useSubscription } from "../../hooks/useSubscription";
 
 type PricingPlansProps = {
   currentPlanId?: string | null;
+  onOpenCheckout?: () => void;
 };
 
-export function PricingPlans({ currentPlanId }: PricingPlansProps) {
+export function PricingPlans({
+    currentPlanId,
+    onOpenCheckout,
+  }: PricingPlansProps) {
   const { user } = useAuth();
   const { isPremium, loading: subLoading } = useSubscription(user?.id);
 
-  const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +28,8 @@ export function PricingPlans({ currentPlanId }: PricingPlansProps) {
 
   async function handleUpgrade() {
     setError(null);
-    setLoadingCheckout(true);
+    onOpenCheckout?.();
+  }
 
     try {
       const { data, error } = await supabase.functions.invoke(
@@ -48,7 +52,7 @@ export function PricingPlans({ currentPlanId }: PricingPlansProps) {
         throw new Error("URL de paiement introuvable");
       }
 
-      window.location.href = data.url;
+      onOpenCheckout?.();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Impossible de passer au Premium";
       setError(message);
@@ -222,7 +226,7 @@ export function PricingPlans({ currentPlanId }: PricingPlansProps) {
                 ) : (
                   <button
                     onClick={handleUpgrade}
-                    disabled={loadingCheckout}
+                    disabled={false}
                     className={`${ui.btnPrimary} w-full`}
                     type="button"
                   >

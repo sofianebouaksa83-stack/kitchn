@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="500"
+   height="500"
+   viewBox="0 0 500 500"
+   sodipodi:docname="toque-premium.png"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="500"
+       height="500"
+       id="page2"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="Image"
+     id="g1">
+    <path
+       style="fill:#e8bc59"
+       d="m 198.05453,334.8361 c -3.43635,-1.24737 -4,-3.57423 -4,-16.51295 v -12.81628 l 63.75,0.25741 63.75,0.2574 0.27817,12.52035 c 0.21525,9.68878 -0.0491,12.96807 -1.16908,14.5 -1.41177,1.93113 -2.91374,1.98405 -61.27816,2.1591 -32.90701,0.0987 -60.50593,-0.0656 -61.33093,-0.36503 z m -4,-66.76911 V 240.6123 l -3.75,-0.62846 c -15.22865,-2.55219 -26.55358,-11.14643 -32.87072,-24.94488 -3.49334,-7.63048 -4.43763,-21.36486 -2.03672,-29.62369 2.40105,-8.25932 8.62183,-17.13535 15.61992,-22.28705 8.81418,-6.48863 14.37195,-8.12885 27.09976,-7.99773 l 10.56224,0.1088 3.29021,-6.34595 c 12.16199,-23.45721 46.19294,-32.55232 71.45353,-19.09666 8.24048,4.38949 16.97075,12.71798 21.13259,20.16006 l 3.45396,6.17626 6.06044,-1.0023 c 16.27899,-2.69227 33.70874,5.82556 42.45304,20.74659 7.26479,12.39642 7.19845,30.83871 -0.157,43.64439 -3.29715,5.74026 -11.16628,13.26732 -16.64095,15.91756 -2.339,1.13229 -7.27167,2.80371 -10.96151,3.71426 l -6.70879,1.65556 v 27.35631 27.35631 h -64 -64 z"
+       id="path1" />
+  </g>
+</svg>
