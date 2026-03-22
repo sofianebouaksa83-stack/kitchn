@@ -35,7 +35,7 @@ export function RecipeEditorDemoPanel({ onBack }: { onBack?: () => void }) {
           <div>
             <div className="text-xs text-slate-400 mb-2">Titre</div>
             <div className="h-11 rounded-2xl bg-white/[0.05] border border-white/10 px-4 flex items-center text-slate-300">
-              Foie gras, coing et lie de vin
+              Foie gras
             </div>
           </div>
 
