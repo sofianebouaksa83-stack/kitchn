@@ -685,6 +685,7 @@ export function RecipeImportAI() {
                 <input
                   id="ai-file-input-mobile"
                   type="file"
+                  accept="*/*"
                   multiple
                   onChange={handleFileSelect}
                   className="hidden"
@@ -725,6 +726,7 @@ export function RecipeImportAI() {
                   <input
                     id="ai-file-input-desktop"
                     type="file"
+                    accept="*/*"
                     multiple
                     onChange={handleFileSelect}
                     className="hidden"
@@ -745,6 +747,7 @@ export function RecipeImportAI() {
                 <input
                   id="ai-folder-input"
                   type="file"
+                  accept="*/*"
                   multiple
                   // @ts-ignore
                   webkitdirectory="true"

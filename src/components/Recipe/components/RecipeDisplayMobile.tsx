@@ -22,6 +22,8 @@ type Props = {
   recipeId: string;
   onBack: () => void;
   onEdit?: (recipeId: string) => void;
+  embedded?: boolean;
+  hideBackButton?: boolean;
 };
 
 type IngredientRow = {
@@ -97,6 +99,8 @@ export default function RecipeDisplayMobile({
   recipeId,
   onBack,
   onEdit,
+  embedded = false,
+  hideBackButton = false,
 }: Props) {
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
@@ -282,8 +286,7 @@ export default function RecipeDisplayMobile({
     const cat = recipe.category || "Sans catégorie";
     const prep = recipe.prep_time ?? 0;
     const cook = recipe.cook_time ?? 0;
-
-    return `${cat} · Prépa ${prep} min · Cuisson ${cook} min`;
+    
   }, [recipe]);
 
   const ingredientsById = useMemo(() => {
@@ -352,26 +355,8 @@ export default function RecipeDisplayMobile({
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
-  return (
-    <PageShell
-      withPanel={false}
-      title={undefined}
-      subtitle={undefined}
-      icon={undefined}
-      actions={
-        onEdit && recipe ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(recipe.id)}
-              className={ui.btnPrimary}
-              type="button"
-            >
-              Modifier
-            </button>
-          </div>
-        ) : null
-      }
-    >
+  const content = (
+    <>
       {/* ✅ Header mobile custom */}
       <div className="mb-6">
         <div className="flex items-start justify-between gap-4">
@@ -384,16 +369,28 @@ export default function RecipeDisplayMobile({
               <p className="text-sm text-slate-300/70 mt-1">{subtitle}</p>
             ) : null}
           </div>
+
+          {embedded && onEdit && recipe ? (
+            <button
+              onClick={() => onEdit(recipe.id)}
+              className={`${ui.btnPrimary} shrink-0 h-10 rounded-2xl px-4`}
+              type="button"
+            >
+              Modifier
+            </button>
+          ) : null}
         </div>
 
-        <button
-          onClick={onBack}
-          className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
-          type="button"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour
-        </button>
+        {!hideBackButton ? (
+          <button
+            onClick={onBack}
+            className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
+            type="button"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour
+          </button>
+        ) : null}
       </div>
 
       {loading ? (
@@ -746,6 +743,34 @@ export default function RecipeDisplayMobile({
           </div>
         </div>
       ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="px-4 pb-8 pt-4">{content}</div>;
+  }
+
+  return (
+    <PageShell
+      withPanel={false}
+      title={undefined}
+      subtitle={undefined}
+      icon={undefined}
+      actions={
+        onEdit && recipe ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onEdit(recipe.id)}
+              className={ui.btnPrimary}
+              type="button"
+            >
+              Modifier
+            </button>
+          </div>
+        ) : null
+      }
+    >
+      {content}
     </PageShell>
   );
 }

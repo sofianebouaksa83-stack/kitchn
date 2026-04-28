@@ -2,12 +2,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import mammoth from "npm:mammoth@1.6.0";
 import pdfParse from "npm:pdf-parse@1.1.1";
+import * as XLSX from "npm:xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-Client-Info, Apikey",
+    "Content-Type, Authorization, X-Client-Info, x-client-info, Apikey, apikey",
 };
 
 interface IngredientData {
@@ -39,10 +40,18 @@ type ConsumeQuotaRow = {
   message: string;
 };
 
-function jsonResponse(
-  body: Record<string, unknown>,
-  status = 200
-): Response {
+type UploadedFile = {
+  buffer: Uint8Array;
+  name: string;
+  type: string;
+};
+
+type OpenAIContentPart =
+  | { type: "input_text"; text: string }
+  | { type: "input_image"; image_url: string; detail?: "low" | "high" | "auto" }
+  | { type: "input_file"; filename: string; file_data: string };
+
+function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -52,6 +61,93 @@ function jsonResponse(
   });
 }
 
+function arrayBufferToBase64(buffer: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let i = 0; i < buffer.length; i += chunkSize) {
+    const chunk = buffer.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}
+
+function guessMimeType(fileName: string, mimeType?: string): string {
+  if (mimeType && mimeType !== "application/octet-stream") {
+    return mimeType;
+  }
+
+  const name = fileName.toLowerCase();
+
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".gif")) return "image/gif";
+  if (name.endsWith(".svg")) return "image/svg+xml";
+
+  if (name.endsWith(".pdf")) return "application/pdf";
+  if (name.endsWith(".txt")) return "text/plain";
+  if (name.endsWith(".md")) return "text/markdown";
+  if (name.endsWith(".csv")) return "text/csv";
+  if (name.endsWith(".json")) return "application/json";
+  if (name.endsWith(".html") || name.endsWith(".htm")) return "text/html";
+  if (name.endsWith(".xml")) return "application/xml";
+
+  if (name.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+
+  if (name.endsWith(".doc")) {
+    return "application/msword";
+  }
+
+  if (name.endsWith(".xlsx")) {
+    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  }
+
+  if (name.endsWith(".xls")) {
+    return "application/vnd.ms-excel";
+  }
+
+  return "application/octet-stream";
+}
+
+function isTextLike(mimeType: string, fileName: string): boolean {
+  const name = fileName.toLowerCase();
+
+  return (
+    mimeType.startsWith("text/") ||
+    mimeType.includes("json") ||
+    mimeType.includes("xml") ||
+    mimeType.includes("javascript") ||
+    name.endsWith(".txt") ||
+    name.endsWith(".md") ||
+    name.endsWith(".csv") ||
+    name.endsWith(".json") ||
+    name.endsWith(".html") ||
+    name.endsWith(".htm") ||
+    name.endsWith(".xml") ||
+    name.endsWith(".svg")
+  );
+}
+
+function isVisionImage(mimeType: string, fileName: string): boolean {
+  const name = fileName.toLowerCase();
+
+  return (
+    mimeType === "image/jpeg" ||
+    mimeType === "image/png" ||
+    mimeType === "image/webp" ||
+    mimeType === "image/gif" ||
+    name.endsWith(".jpg") ||
+    name.endsWith(".jpeg") ||
+    name.endsWith(".png") ||
+    name.endsWith(".webp") ||
+    name.endsWith(".gif")
+  );
+}
+
 function normalizeIngredientQuantity(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -59,6 +155,33 @@ function normalizeIngredientQuantity(value: unknown): number {
 
   if (typeof value === "string") {
     const cleaned = value.replace(",", ".").trim();
+
+    const simpleFraction = cleaned.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+    if (simpleFraction) {
+      const numerator = Number(simpleFraction[1]);
+      const denominator = Number(simpleFraction[2]);
+
+      if (Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0) {
+        return numerator / denominator;
+      }
+    }
+
+    const mixedFraction = cleaned.match(/^(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+    if (mixedFraction) {
+      const whole = Number(mixedFraction[1]);
+      const numerator = Number(mixedFraction[2]);
+      const denominator = Number(mixedFraction[3]);
+
+      if (
+        Number.isFinite(whole) &&
+        Number.isFinite(numerator) &&
+        Number.isFinite(denominator) &&
+        denominator !== 0
+      ) {
+        return whole + numerator / denominator;
+      }
+    }
+
     const parsed = Number(cleaned);
     if (Number.isFinite(parsed)) return parsed;
   }
@@ -79,52 +202,82 @@ function normalizeIngredientDesignation(value: unknown): string {
   return value.trim();
 }
 
-function sanitizeParsedRecipe(raw: ParsedRecipeFromAI): ParsedRecipeFromAI {
+function normalizeInstructions(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  return "";
+}
+
+function normalizeServings(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.round(value);
+  }
+
+  if (typeof value === "string") {
+    const match = value.match(/\d+/);
+    if (match) {
+      const parsed = Number(match[0]);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+
+  return 4;
+}
+
+function sanitizeParsedRecipe(raw: any): ParsedRecipeFromAI {
   const title =
     typeof raw?.title === "string" && raw.title.trim()
       ? raw.title.trim()
       : "Recette importée";
 
-  const servings =
-    typeof raw?.servings === "number" && Number.isFinite(raw.servings) && raw.servings > 0
-      ? Math.round(raw.servings)
-      : 4;
+  const servings = normalizeServings(raw?.servings);
 
-  const generalInstructions =
-    typeof raw?.general_instructions === "string"
-      ? raw.general_instructions.trim()
-      : "";
+  const generalInstructions = normalizeInstructions(
+    raw?.general_instructions ?? raw?.instructions ?? raw?.steps
+  );
 
   const rawSections = Array.isArray(raw?.sections) ? raw.sections : [];
 
+  const normalizeIngredients = (ingredients: any[]): IngredientData[] => {
+    return ingredients
+      .map((ingredient) => ({
+        quantity: normalizeIngredientQuantity(ingredient?.quantity),
+        unit: normalizeIngredientUnit(ingredient?.unit),
+        designation: normalizeIngredientDesignation(
+          ingredient?.designation ?? ingredient?.name ?? ingredient?.ingredient
+        ),
+      }))
+      .filter((ingredient) => ingredient.designation.length > 0);
+  };
+
   const sections: RecipeSectionData[] =
     rawSections.length > 0
-      ? rawSections.map((section, sectionIndex) => ({
+      ? rawSections.map((section: any, sectionIndex: number) => ({
           title:
             typeof section?.title === "string" && section.title.trim()
               ? section.title.trim()
               : `Section ${sectionIndex + 1}`,
-          instructions:
-            typeof section?.instructions === "string"
-              ? section.instructions.trim()
-              : "",
+          instructions: normalizeInstructions(
+            section?.instructions ?? section?.steps ?? section?.method
+          ),
           ingredients: Array.isArray(section?.ingredients)
-            ? section.ingredients
-                .map((ingredient) => ({
-                  quantity: normalizeIngredientQuantity(ingredient?.quantity),
-                  unit: normalizeIngredientUnit(ingredient?.unit),
-                  designation: normalizeIngredientDesignation(
-                    ingredient?.designation
-                  ),
-                }))
-                .filter((ingredient) => ingredient.designation.length > 0)
+            ? normalizeIngredients(section.ingredients)
             : [],
         }))
       : [
           {
             title: "Préparation",
             instructions: generalInstructions,
-            ingredients: [],
+            ingredients: Array.isArray(raw?.ingredients)
+              ? normalizeIngredients(raw.ingredients)
+              : [],
           },
         ];
 
@@ -136,28 +289,133 @@ function sanitizeParsedRecipe(raw: ParsedRecipeFromAI): ParsedRecipeFromAI {
   };
 }
 
-async function parseRecipeWithOpenAI(
-  text: string
-): Promise<ParsedRecipeFromAI> {
-  const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+async function getUploadedFile(request: Request): Promise<UploadedFile | null> {
+  const contentType = request.headers.get("content-type") || "";
 
-  if (!openaiApiKey || openaiApiKey === "votre_cle_openai_ici") {
-    throw new Error(
-      "OPENAI_API_KEY not configured. Please add your OpenAI API key in Supabase Edge Function secrets."
-    );
+  if (!contentType.includes("multipart/form-data")) {
+    return null;
   }
 
-  const systemPrompt = `Tu es un expert cuisinier français spécialisé dans la transformation de recettes en format structuré.
+  const formData = await request.formData();
+  const entry =
+    formData.get("file") ||
+    Array.from(formData.values()).find((value) => value instanceof File);
 
-OBJECTIF: Transformer le texte d'une recette en JSON structuré avec sections.
+  if (!(entry instanceof File)) {
+    return null;
+  }
 
-FORMAT JSON À PRODUIRE (réponds UNIQUEMENT avec ce JSON, sans texte avant ou après):
+  const buffer = new Uint8Array(await entry.arrayBuffer());
+  const name = entry.name || "fichier";
+  const type = guessMimeType(name, entry.type);
+
+  return {
+    buffer,
+    name,
+    type,
+  };
+}
+
+async function tryExtractTextFromFile(
+  buffer: Uint8Array,
+  fileName: string,
+  mimeType: string
+): Promise<string | null> {
+  const name = fileName.toLowerCase();
+
+  try {
+    console.log(`📄 Extracting text from file: ${fileName} (${mimeType})`);
+
+    if (isTextLike(mimeType, fileName)) {
+      const decoder = new TextDecoder("utf-8");
+      return decoder.decode(buffer);
+    }
+
+    if (
+      mimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      name.endsWith(".docx")
+    ) {
+      console.log("🔄 Using mammoth to extract DOCX...");
+
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength
+      );
+
+      const { value } = await mammoth.extractRawText({ arrayBuffer });
+
+      console.log(`✅ Extracted ${value.length} characters from DOCX`);
+      return value;
+    }
+
+    if (mimeType === "application/pdf" || name.endsWith(".pdf")) {
+      console.log("🔄 Using pdf-parse to extract PDF...");
+
+      const data = await pdfParse(buffer);
+
+      console.log(`✅ Extracted ${data.text.length} characters from PDF`);
+      return data.text;
+    }
+
+    if (
+      mimeType ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      mimeType === "application/vnd.ms-excel" ||
+      name.endsWith(".xlsx") ||
+      name.endsWith(".xls")
+    ) {
+      console.log("🔄 Using XLSX to extract spreadsheet...");
+
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const chunks: string[] = [];
+
+      for (const sheetName of workbook.SheetNames.slice(0, 10)) {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+
+        if (csv.trim()) {
+          chunks.push(`--- Feuille: ${sheetName} ---\n${csv}`);
+        }
+      }
+
+      const text = chunks.join("\n\n");
+
+      console.log(`✅ Extracted ${text.length} characters from spreadsheet`);
+      return text || null;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("⚠️ Text extraction failed, fallback to OpenAI file input:", error);
+    return null;
+  }
+}
+
+function getRecipePrompt(): string {
+  return `Tu es un expert cuisinier français spécialisé dans la transformation de recettes en format structuré.
+
+OBJECTIF:
+Analyse le fichier envoyé et transforme son contenu en JSON structuré pour l'application Kitch'n.
+
+Le fichier peut être:
+- une photo de recette
+- une capture d'écran
+- un PDF
+- un document Word
+- un tableau Excel ou CSV
+- un fichier texte
+- ou n'importe quel autre fichier contenant une recette ou une fiche technique.
+
+FORMAT JSON À PRODUIRE:
+Réponds UNIQUEMENT avec ce JSON, sans markdown, sans texte avant ou après.
+
 {
   "title": "Nom de la recette",
   "servings": 4,
   "sections": [
     {
-      "title": "Nom de la section (ex: Foie gras, Sauce lie de vin, etc.)",
+      "title": "Nom de la section",
       "ingredients": [
         {
           "quantity": 0.5,
@@ -172,220 +430,167 @@ FORMAT JSON À PRODUIRE (réponds UNIQUEMENT avec ce JSON, sans texte avant ou a
 }
 
 RÈGLES IMPORTANTES:
-1. Détecte les SECTIONS dans la recette (ex: "Foie gras", "Sauce lie de vin", etc.)
-2. Si tu détectes des sections, crée un objet par section avec ses ingrédients et instructions
-3. Si pas de sections, crée UNE SEULE section appelée "Préparation"
-4. Pour les quantités et unités:
-   - Convertis tout en format numérique (1/2 = 0.5, etc.)
-   - Unités acceptées: g, kg, L, cl, ml, pièce, unité, cuillère, tasse, cs (cuillère à soupe), cc (cuillère à café), pincée, QS
-   - Si AUCUNE quantité n'est spécifiée (ex: "sel", "poivre"), utilise quantity: 0 et unit: "QS"
-   - Si c'est "une pincée", utilise quantity: 1 et unit: "pincée"
-5. Le nombre de couverts (servings) doit être extrait du texte (cherche "pour X personnes" ou "X portions")
-6. Instructions: garde les étapes de préparation textuelles pour chaque section`;
+1. Détecte les sections dans la recette.
+2. Si tu détectes des sections, crée un objet par section.
+3. Si tu ne détectes pas de sections, crée une seule section appelée "Préparation".
+4. Pour les quantités:
+   - Convertis tout en nombre.
+   - 1/2 devient 0.5.
+   - Si aucune quantité n'est indiquée, mets quantity: 0 et unit: "QS".
+   - Pour "une pincée", mets quantity: 1 et unit: "pincée".
+5. Les unités doivent rester courtes: g, kg, L, cl, ml, pièce, unité, cs, cc, pincée, QS.
+6. Si le nombre de portions est absent, mets servings: 4.
+7. Si le fichier n'est pas une recette claire, fais de ton mieux pour extraire une fiche recette exploitable.
+8. Ne renvoie jamais de tableau vide si tu vois des ingrédients dans le fichier.`;
+}
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+async function buildOpenAIContentFromFile(
+  file: UploadedFile
+): Promise<OpenAIContentPart[]> {
+  const prompt = getRecipePrompt();
+  const extractedText = await tryExtractTextFromFile(
+    file.buffer,
+    file.name,
+    file.type
+  );
+
+  const content: OpenAIContentPart[] = [
+    {
+      type: "input_text",
+      text: prompt,
+    },
+  ];
+
+  if (extractedText && extractedText.trim().length > 0) {
+    content.push({
+      type: "input_text",
+      text: `
+Nom du fichier: ${file.name}
+Type du fichier: ${file.type}
+
+Contenu extrait:
+${extractedText.slice(0, 120000)}
+`,
+    });
+
+    return content;
+  }
+
+  const base64 = arrayBufferToBase64(file.buffer);
+  const dataUrl = `data:${file.type};base64,${base64}`;
+
+  if (isVisionImage(file.type, file.name)) {
+    content.push({
+      type: "input_image",
+      image_url: dataUrl,
+      detail: "high",
+    });
+
+    return content;
+  }
+
+  content.push({
+    type: "input_file",
+    filename: file.name,
+    file_data: dataUrl,
+  });
+
+  return content;
+}
+
+function extractOutputText(openaiResult: any): string {
+  if (typeof openaiResult?.output_text === "string") {
+    return openaiResult.output_text.trim();
+  }
+
+  const texts: string[] = [];
+
+  if (Array.isArray(openaiResult?.output)) {
+    for (const item of openaiResult.output) {
+      if (Array.isArray(item?.content)) {
+        for (const content of item.content) {
+          if (typeof content?.text === "string") {
+            texts.push(content.text);
+          }
+        }
+      }
+    }
+  }
+
+  return texts.join("\n").trim();
+}
+
+function parseJsonFromAI(text: string): any {
+  const cleaned = text
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+    }
+
+    throw new Error("La réponse IA n'est pas un JSON valide");
+  }
+}
+
+async function parseRecipeWithOpenAIFile(
+  file: UploadedFile
+): Promise<ParsedRecipeFromAI> {
+  const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+
+  if (!openaiApiKey || openaiApiKey === "votre_cle_openai_ici") {
+    throw new Error(
+      "OPENAI_API_KEY not configured. Please add your OpenAI API key in Supabase Edge Function secrets."
+    );
+  }
+
+  const content = await buildOpenAIContentFromFile(file);
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${openaiApiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
+      model: "gpt-4.1-mini",
+      input: [
         {
           role: "user",
-          content: `Transforme cette recette en JSON:\n\n${text}`,
+          content,
         },
       ],
-      temperature: 0.3,
-      response_format: { type: "json_object" },
+      temperature: 0.2,
     }),
   });
 
+  const openaiResult = await response.json().catch(() => null);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
+    console.error("❌ OpenAI error:", openaiResult);
+
     throw new Error(
-      `OpenAI API error: ${errorData?.error?.message || "Unknown error"}`
+      openaiResult?.error?.message ||
+        "Erreur OpenAI pendant l'analyse du fichier"
     );
   }
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
+  const outputText = extractOutputText(openaiResult);
 
-  if (!content) {
-    throw new Error("No response from OpenAI");
+  if (!outputText) {
+    console.error("❌ Empty OpenAI response:", openaiResult);
+    throw new Error("L'IA n'a pas retourné de recette exploitable");
   }
 
-  const parsed = JSON.parse(content) as ParsedRecipeFromAI;
+  const parsed = parseJsonFromAI(outputText);
   return sanitizeParsedRecipe(parsed);
-}
-
-async function extractTextFromFile(
-  buffer: Uint8Array,
-  fileName: string,
-  mimeType: string
-): Promise<string> {
-  const name = fileName.toLowerCase();
-
-  console.log(`📄 Extracting text from file: ${fileName} (${mimeType})`);
-
-  if (
-    mimeType === "text/plain" ||
-    mimeType === "text/markdown" ||
-    name.endsWith(".txt") ||
-    name.endsWith(".md")
-  ) {
-    const decoder = new TextDecoder("utf-8");
-    return decoder.decode(buffer);
-  }
-
-  if (
-    mimeType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    name.endsWith(".docx")
-  ) {
-    console.log("🔄 Using mammoth to extract DOCX...");
-    const { value } = await mammoth.extractRawText({ buffer });
-    console.log(`✅ Extracted ${value.length} characters from DOCX`);
-    return value;
-  }
-
-  if (mimeType === "application/msword" || name.endsWith(".doc")) {
-    console.log("🔄 Using mammoth to extract DOC...");
-    const { value } = await mammoth.extractRawText({ buffer });
-    console.log(`✅ Extracted ${value.length} characters from DOC`);
-    return value;
-  }
-
-  if (mimeType === "application/pdf" || name.endsWith(".pdf")) {
-    console.log("🔄 Using pdf-parse to extract PDF...");
-    const data = await pdfParse(buffer);
-    console.log(`✅ Extracted ${data.text.length} characters from PDF`);
-    return data.text;
-  }
-
-  throw new Error(`Format de fichier non supporté: ${mimeType || name}`);
-}
-
-async function parseMultipartFormData(
-  request: Request
-): Promise<{ file: { buffer: Uint8Array; name: string; type: string } | null }> {
-  const contentType = request.headers.get("content-type") || "";
-
-  if (!contentType.includes("multipart/form-data")) {
-    return { file: null };
-  }
-
-  const boundary = contentType.split("boundary=")[1];
-  if (!boundary) {
-    return { file: null };
-  }
-
-  const body = await request.arrayBuffer();
-  const uint8Array = new Uint8Array(body);
-
-  const boundaryBytes = new TextEncoder().encode(`--${boundary}`);
-  const boundaryPositions: number[] = [];
-
-  for (let i = 0; i < uint8Array.length - boundaryBytes.length; i++) {
-    let match = true;
-    for (let j = 0; j < boundaryBytes.length; j++) {
-      if (uint8Array[i + j] !== boundaryBytes[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) {
-      boundaryPositions.push(i);
-      i += boundaryBytes.length - 1;
-    }
-  }
-
-  console.log(`📍 Found ${boundaryPositions.length} boundaries`);
-
-  if (boundaryPositions.length < 2) {
-    console.error("❌ Not enough boundaries found");
-    return { file: null };
-  }
-
-  const firstBoundaryEnd = boundaryPositions[0] + boundaryBytes.length;
-  const secondBoundaryStart = boundaryPositions[1];
-  const partBytes = uint8Array.slice(firstBoundaryEnd, secondBoundaryStart);
-
-  console.log(`📦 Part size: ${partBytes.length} bytes`);
-
-  const decoder = new TextDecoder();
-  const headerText = decoder.decode(partBytes.slice(0, Math.min(500, partBytes.length)));
-
-  let fileName = "";
-  let contentTypeValue = "application/octet-stream";
-
-  const headerLines = headerText.split("\r\n");
-  for (const line of headerLines) {
-    if (line.includes("Content-Disposition")) {
-      const match = line.match(/filename="([^"]+)"/);
-      if (match) fileName = match[1];
-    }
-    if (line.includes("Content-Type:")) {
-      const parts = line.split(":");
-      if (parts[1]) contentTypeValue = parts[1].trim();
-    }
-  }
-
-  console.log(`📄 File info: ${fileName}, ${contentTypeValue}`);
-
-  const headerEndMarker = new TextEncoder().encode("\r\n\r\n");
-  let headerEnd = -1;
-
-  for (
-    let i = 0;
-    i < Math.min(1000, partBytes.length - headerEndMarker.length);
-    i++
-  ) {
-    let match = true;
-    for (let j = 0; j < headerEndMarker.length; j++) {
-      if (partBytes[i + j] !== headerEndMarker[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) {
-      headerEnd = i + headerEndMarker.length;
-      break;
-    }
-  }
-
-  if (headerEnd === -1) {
-    console.error("❌ Could not find end of headers");
-    return { file: null };
-  }
-
-  console.log(`📍 Headers end at byte ${headerEnd}`);
-
-  let fileEnd = partBytes.length;
-
-  if (
-    fileEnd >= 2 &&
-    partBytes[fileEnd - 2] === 13 &&
-    partBytes[fileEnd - 1] === 10
-  ) {
-    fileEnd -= 2;
-  }
-
-  const fileBuffer = partBytes.slice(headerEnd, fileEnd);
-
-  console.log(
-    `✅ Extracted file: ${fileName}, ${contentTypeValue}, ${fileBuffer.length} bytes`
-  );
-
-  return {
-    file: {
-      buffer: fileBuffer,
-      name: fileName,
-      type: contentTypeValue,
-    },
-  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -400,6 +605,7 @@ Deno.serve(async (req: Request) => {
     console.log("🔐 Checking authorization...");
 
     const authHeader = req.headers.get("Authorization");
+
     if (!authHeader) {
       return jsonResponse(
         { success: false, error: "Missing authorization header" },
@@ -434,13 +640,33 @@ Deno.serve(async (req: Request) => {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return jsonResponse(
-        { success: false, error: "Unauthorized" },
-        401
-      );
+      return jsonResponse({ success: false, error: "Unauthorized" }, 401);
     }
 
     console.log(`✅ Authenticated user: ${user.id}`);
+
+    // =========================================================
+    // PARSE REQUEST
+    // =========================================================
+    console.log("📦 Parsing multipart form data...");
+
+    const file = await getUploadedFile(req);
+
+    if (!file) {
+      console.error("❌ No file found in request");
+
+      return jsonResponse(
+        {
+          success: false,
+          error: "No file provided",
+        },
+        400
+      );
+    }
+
+    console.log(
+      `✅ File received: ${file.name}, type: ${file.type}, size: ${file.buffer.length} bytes`
+    );
 
     // =========================================================
     // QUOTA CHECK - vraie sécurité backend
@@ -453,6 +679,7 @@ Deno.serve(async (req: Request) => {
 
     if (quotaError) {
       console.error("❌ Quota error:", quotaError);
+
       return jsonResponse(
         {
           success: false,
@@ -486,46 +713,11 @@ Deno.serve(async (req: Request) => {
     );
 
     // =========================================================
-    // PARSE REQUEST
-    // =========================================================
-    console.log("📦 Parsing multipart form data...");
-    const { file } = await parseMultipartFormData(req);
-
-    if (!file) {
-      console.error("❌ No file found in request");
-      return jsonResponse(
-        { success: false, error: "No file provided" },
-        400
-      );
-    }
-
-    console.log(
-      `✅ File received: ${file.name}, type: ${file.type}, size: ${file.buffer.length} bytes`
-    );
-
-    // =========================================================
-    // EXTRACT TEXT
-    // =========================================================
-    const text = await extractTextFromFile(file.buffer, file.name, file.type);
-
-    if (!text || text.trim().length === 0) {
-      return jsonResponse(
-        {
-          success: false,
-          error:
-            "Aucun texte extrait du fichier. Vérifiez que le fichier contient du texte.",
-        },
-        400
-      );
-    }
-
-    console.log(`✅ Text extracted: ${text.length} characters`);
-
-    // =========================================================
     // OPENAI PARSING
     // =========================================================
     console.log("🤖 Parsing recipe with OpenAI...");
-    const parsedRecipe = await parseRecipeWithOpenAI(text);
+
+    const parsedRecipe = await parseRecipeWithOpenAIFile(file);
 
     if (!parsedRecipe.sections || parsedRecipe.sections.length === 0) {
       return jsonResponse(
@@ -577,6 +769,7 @@ Deno.serve(async (req: Request) => {
 
     if (recipeError || !recipeData) {
       console.error("❌ Recipe creation error:", recipeError);
+
       return jsonResponse(
         {
           success: false,

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import {
   Search,
   AlertCircle,
@@ -18,6 +19,7 @@ import {
   Check,
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
+import RecipeDisplayMobile from "./RecipeDisplayMobile";
 
 type IngredientRow = { designation: string | null };
 
@@ -226,7 +228,6 @@ export function RecipeListMobile(props: Props) {
     setNewFolderName,
 
     onCreateNew,
-    onOpenRecipe,
 
     onSelectAll,
     onSelectFavorites,
@@ -248,34 +249,41 @@ export function RecipeListMobile(props: Props) {
     onMoveToFolder,
   } = props;
 
-  const [sheetRecipe, setSheetRecipe] = useState<RecipeListMobileRecipe | null>(null);
-  const sheetOpen = !!sheetRecipe;
-  const closeSheet = () => setSheetRecipe(null);
+  const [openedRecipeId, setOpenedRecipeId] = useState<string | null>(null);
+  const recipeSheetOpen = !!openedRecipeId;
+  const closeRecipeSheet = () => setOpenedRecipeId(null);
+  const recipeDragControls = useDragControls();
+
+  const [actionSheetRecipe, setActionSheetRecipe] =
+    useState<RecipeListMobileRecipe | null>(null);
+  const actionSheetOpen = !!actionSheetRecipe;
+  const closeActionSheet = () => setActionSheetRecipe(null);
 
   const [moveFolderOpen, setMoveFolderOpen] = useState(false);
   const [moveRecipe, setMoveRecipe] = useState<RecipeListMobileRecipe | null>(null);
 
   useEffect(() => {
-    const shouldLock = sidebarOpen || sheetOpen || moveFolderOpen;
+    const shouldLock = sidebarOpen || recipeSheetOpen || actionSheetOpen || moveFolderOpen;
     const prev = document.documentElement.style.overflow;
     if (shouldLock) document.documentElement.style.overflow = "hidden";
     return () => {
       document.documentElement.style.overflow = prev;
     };
-  }, [sidebarOpen, sheetOpen, moveFolderOpen]);
+  }, [sidebarOpen, recipeSheetOpen, actionSheetOpen, moveFolderOpen]);
 
   useEffect(() => {
-    if (!sheetOpen && !moveFolderOpen) return;
+    if (!recipeSheetOpen && !actionSheetOpen && !moveFolderOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        closeSheet();
+        closeRecipeSheet();
+        closeActionSheet();
         setMoveFolderOpen(false);
         setMoveRecipe(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen, moveFolderOpen]);
+  }, [recipeSheetOpen, actionSheetOpen, moveFolderOpen]);
 
   const headerLabel = useMemo(() => {
     if (selectedFolder) return "Dossier";
@@ -398,9 +406,12 @@ export function RecipeListMobile(props: Props) {
                       <div
                         role="button"
                         tabIndex={0}
-                        onClick={() => onOpenRecipe(r.id)}
+                        onClick={() => setOpenedRecipeId(r.id)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") onOpenRecipe(r.id);
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setOpenedRecipeId(r.id);
+                          }
                         }}
                         className="min-w-0 flex-1 outline-none"
                       >
@@ -426,7 +437,7 @@ export function RecipeListMobile(props: Props) {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSheetRecipe(r);
+                          setActionSheetRecipe(r);
                         }}
                         className="h-9 w-9 rounded-full bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition inline-flex items-center justify-center text-white/60 hover:text-white"
                         aria-label="Actions"
@@ -495,7 +506,7 @@ export function RecipeListMobile(props: Props) {
       {sidebarOpen && (
         <div className="fixed inset-0 z-[120]">
           <div
-            className="absolute inset-0 bg-black/55"
+            className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
           <div className="absolute inset-y-0 left-0 w-[86%] max-w-[360px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.60)] p-4">
@@ -654,23 +665,96 @@ export function RecipeListMobile(props: Props) {
         </div>
       )}
 
-      {sheetOpen && sheetRecipe && (
+      <AnimatePresence>
+        {recipeSheetOpen && openedRecipeId && (
+          <div className="fixed inset-0 z-[140] lg:hidden">
+            <motion.div
+              className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeRecipeSheet}
+            />
+
+            <motion.div
+              className="absolute inset-x-0 bottom-0 max-h-[94dvh] overflow-hidden rounded-t-[32px] bg-[#071127] ring-1 ring-white/10 shadow-[0_-24px_90px_rgba(0,0,0,0.70)]"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 280, damping: 30 }}
+              drag="y"
+              dragControls={recipeDragControls}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.28 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 700) {
+                  closeRecipeSheet();
+                }
+              }}
+            >
+              <div
+                className="sticky top-0 z-20 bg-[#071127]/95 px-4 pt-3 pb-3 backdrop-blur-xl border-b border-white/10"
+                onPointerDown={(e) => recipeDragControls.start(e)}
+              >
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/25" />
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-amber-200/70">
+                      Recette
+                    </div>
+                    <div className="truncate text-base font-semibold text-white">
+                      {safeTitle(filteredRecipes.find((r) => r.id === openedRecipeId))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeRecipeSheet}
+                    className="h-10 w-10 shrink-0 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 hover:bg-white/[0.10] transition inline-flex items-center justify-center"
+                    aria-label="Fermer la recette"
+                  >
+                    <X className="w-5 h-5 text-slate-100" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[calc(94dvh-78px)] overflow-y-auto overscroll-contain">
+                <RecipeDisplayMobile
+                  recipeId={openedRecipeId}
+                  onBack={closeRecipeSheet}
+                  onEdit={(recipeId) => {
+                    const e = { stopPropagation() {} } as unknown as React.MouseEvent;
+                    closeRecipeSheet();
+                    onEdit(recipeId, e);
+                  }}
+                  embedded
+                  hideBackButton
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {actionSheetOpen && actionSheetRecipe && (
         <div className="fixed inset-0 z-[140]">
-          <div className="absolute inset-0 bg-black/60" onClick={closeSheet} />
+          <div className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]" onClick={closeActionSheet} />
           <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
             <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0">
                   <div className="text-slate-100 font-semibold truncate">
-                    {safeTitle(sheetRecipe)}
+                    {safeTitle(actionSheetRecipe)}
                   </div>
                   <div className="text-xs text-slate-300/70 mt-1 truncate">
-                    {sheetRecipe.category || "Autre"}
+                    {actionSheetRecipe.category || "Autre"}
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={closeSheet}
+                  onClick={closeActionSheet}
                   className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
                   aria-label="Fermer"
                 >
@@ -684,8 +768,8 @@ export function RecipeListMobile(props: Props) {
                   label="Partager"
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
-                    onShareToGroup(sheetRecipe.id, e);
-                    closeSheet();
+                    onShareToGroup(actionSheetRecipe.id, e);
+                    closeActionSheet();
                   }}
                 />
 
@@ -694,8 +778,8 @@ export function RecipeListMobile(props: Props) {
                   label="Dupliquer"
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
-                    onDuplicate(sheetRecipe, e);
-                    closeSheet();
+                    onDuplicate(actionSheetRecipe, e);
+                    closeActionSheet();
                   }}
                 />
 
@@ -704,42 +788,42 @@ export function RecipeListMobile(props: Props) {
                   label="Modifier"
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
-                    onEdit(sheetRecipe.id, e);
-                    closeSheet();
+                    onEdit(actionSheetRecipe.id, e);
+                    closeActionSheet();
                   }}
                 />
 
                 <SheetAction
                   icon={<Heart className="w-5 h-5" />}
                   label={
-                    sheetRecipe.is_favorite
+                    actionSheetRecipe.is_favorite
                       ? "Retirer des favoris"
                       : "Ajouter aux favoris"
                   }
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
-                    onToggleFavorite(sheetRecipe.id, !!sheetRecipe.is_favorite, e);
-                    closeSheet();
+                    onToggleFavorite(actionSheetRecipe.id, !!actionSheetRecipe.is_favorite, e);
+                    closeActionSheet();
                   }}
                 />
 
                 <SheetAction
                   icon={
-                    sheetRecipe.is_visible === false ? (
+                    actionSheetRecipe.is_visible === false ? (
                       <EyeOff className="w-5 h-5" />
                     ) : (
                       <Eye className="w-5 h-5" />
                     )
                   }
-                  label={sheetRecipe.is_visible === false ? "Rendre visible" : "Masquer"}
+                  label={actionSheetRecipe.is_visible === false ? "Rendre visible" : "Masquer"}
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
                     onToggleVisibility(
-                      sheetRecipe.id,
-                      sheetRecipe.is_visible !== false,
+                      actionSheetRecipe.id,
+                      actionSheetRecipe.is_visible !== false,
                       e
                     );
-                    closeSheet();
+                    closeActionSheet();
                   }}
                 />
 
@@ -747,9 +831,9 @@ export function RecipeListMobile(props: Props) {
                   icon={<Folder className="w-5 h-5" />}
                   label="Déplacer dans un dossier"
                   onClick={() => {
-                    setMoveRecipe(sheetRecipe);
+                    setMoveRecipe(actionSheetRecipe);
                     setMoveFolderOpen(true);
-                    closeSheet();
+                    closeActionSheet();
                   }}
                 />
 
@@ -759,8 +843,8 @@ export function RecipeListMobile(props: Props) {
                   tone="danger"
                   onClick={() => {
                     const e = { stopPropagation() {} } as unknown as React.MouseEvent;
-                    onTrash(sheetRecipe.id, e);
-                    closeSheet();
+                    onTrash(actionSheetRecipe.id, e);
+                    closeActionSheet();
                   }}
                 />
               </div>
@@ -777,7 +861,7 @@ export function RecipeListMobile(props: Props) {
       {moveFolderOpen && moveRecipe && (
         <div className="fixed inset-0 z-[150]">
           <div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
             onClick={() => {
               setMoveFolderOpen(false);
               setMoveRecipe(null);

@@ -5,6 +5,7 @@ import {
   useState,
   type DragEvent,
 } from "react";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
@@ -26,6 +27,7 @@ import {
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
 import { RecipeDisplay } from "../Recipe/components/RecipeDisplay";
+import RecipeDisplayMobile from "../Recipe/components/RecipeDisplayMobile";
 
 type Props = {
   groupId: string;
@@ -54,6 +56,11 @@ type RecipeRow = {
 
 function cn(...classes: Array<string | undefined | false>) {
   return classes.filter(Boolean).join(" ");
+}
+
+function safeTitle(r?: RecipeRow | null) {
+  const t = (r?.title || "").trim();
+  return t ? t : "Sans titre";
 }
 
 function CategoryChips({
@@ -161,6 +168,11 @@ export function SharedRecipeGroupMobile({
 
   const [viewingRecipeId, setViewingRecipeId] = useState<string | null>(null);
 
+  const [openedRecipeId, setOpenedRecipeId] = useState<string | null>(null);
+  const recipeSheetOpen = !!openedRecipeId;
+  const closeRecipeSheet = () => setOpenedRecipeId(null);
+  const recipeDragControls = useDragControls();
+
   const [showGroupsModal, setShowGroupsModal] = useState(false);
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
 
@@ -199,18 +211,19 @@ export function SharedRecipeGroupMobile({
   }, [folderMenuOpenId]);
 
   useEffect(() => {
-    const shouldLock = sidebarOpen || sheetOpen || moveFolderOpen;
+    const shouldLock = sidebarOpen || recipeSheetOpen || sheetOpen || moveFolderOpen;
     const prev = document.documentElement.style.overflow;
     if (shouldLock) document.documentElement.style.overflow = "hidden";
     return () => {
       document.documentElement.style.overflow = prev;
     };
-  }, [sidebarOpen, sheetOpen, moveFolderOpen]);
+  }, [sidebarOpen, recipeSheetOpen, sheetOpen, moveFolderOpen]);
 
   useEffect(() => {
-    if (!sheetOpen && !moveFolderOpen) return;
+    if (!recipeSheetOpen && !sheetOpen && !moveFolderOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        closeRecipeSheet();
         closeSheet();
         setMoveFolderOpen(false);
         setMoveRecipe(null);
@@ -218,7 +231,7 @@ export function SharedRecipeGroupMobile({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen, moveFolderOpen]);
+  }, [recipeSheetOpen, sheetOpen, moveFolderOpen]);
 
   async function loadAll() {
     setLoading(true);
@@ -609,10 +622,11 @@ export function SharedRecipeGroupMobile({
                       <div
                         role="button"
                         tabIndex={0}
-                        onClick={() => setViewingRecipeId(r.id)}
+                        onClick={() => setOpenedRecipeId(r.id)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
-                            setViewingRecipeId(r.id);
+                            e.preventDefault();
+                            setOpenedRecipeId(r.id);
                           }
                         }}
                         className="min-w-0 flex-1 outline-none"
@@ -685,7 +699,7 @@ export function SharedRecipeGroupMobile({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setViewingRecipeId(r.id);
+                          setOpenedRecipeId(r.id);
                         }}
                         className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
                         title="Voir"
@@ -739,9 +753,81 @@ export function SharedRecipeGroupMobile({
         </div>
       </div>
 
+      <AnimatePresence>
+        {recipeSheetOpen && openedRecipeId && (
+          <div className="fixed inset-0 z-[140] lg:hidden">
+            <motion.div
+              className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeRecipeSheet}
+            />
+
+            <motion.div
+              className="absolute inset-x-0 bottom-0 max-h-[94dvh] overflow-hidden rounded-t-[32px] bg-[#071127] ring-1 ring-white/10 shadow-[0_-24px_90px_rgba(0,0,0,0.70)]"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 280, damping: 30 }}
+              drag="y"
+              dragControls={recipeDragControls}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.28 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 700) {
+                  closeRecipeSheet();
+                }
+              }}
+            >
+              <div
+                className="sticky top-0 z-20 bg-[#071127]/95 px-4 pt-3 pb-3 backdrop-blur-xl border-b border-white/10"
+                onPointerDown={(e) => recipeDragControls.start(e)}
+              >
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/25" />
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-amber-200/70">
+                      Recette partagée
+                    </div>
+                    <div className="truncate text-base font-semibold text-white">
+                      {safeTitle(recipes.find((r) => r.id === openedRecipeId))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeRecipeSheet}
+                    className="h-10 w-10 shrink-0 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 hover:bg-white/[0.10] transition inline-flex items-center justify-center"
+                    aria-label="Fermer la recette"
+                  >
+                    <X className="w-5 h-5 text-slate-100" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[calc(94dvh-78px)] overflow-y-auto overscroll-contain">
+                <RecipeDisplayMobile
+                  recipeId={openedRecipeId}
+                  onBack={closeRecipeSheet}
+                  onEdit={(recipeId) => {
+                    closeRecipeSheet();
+                    handleEdit(recipeId);
+                  }}
+                  embedded
+                  hideBackButton
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {sheetOpen && sheetRecipe && (
         <div className="fixed inset-0 z-[140]">
-          <div className="absolute inset-0 bg-black/60" onClick={closeSheet} />
+          <div className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]" onClick={closeSheet} />
           <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
             <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
@@ -768,7 +854,7 @@ export function SharedRecipeGroupMobile({
                   icon={<Eye className="w-5 h-5" />}
                   label="Voir la recette"
                   onClick={() => {
-                    setViewingRecipeId(sheetRecipe.id);
+                    setOpenedRecipeId(sheetRecipe.id);
                     closeSheet();
                   }}
                 />
@@ -852,7 +938,7 @@ export function SharedRecipeGroupMobile({
       {moveFolderOpen && moveRecipe && (
         <div className="fixed inset-0 z-[150]">
           <div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
             onClick={() => {
               setMoveFolderOpen(false);
               setMoveRecipe(null);
@@ -934,7 +1020,7 @@ export function SharedRecipeGroupMobile({
       {sidebarOpen && (
         <div className="fixed inset-0 z-[120]">
           <div
-            className="absolute inset-0 bg-black/55"
+            className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
           <div className="absolute inset-y-0 left-0 w-[86%] max-w-[360px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.60)] p-4">

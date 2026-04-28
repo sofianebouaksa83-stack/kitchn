@@ -134,6 +134,11 @@ export function WorkGroups({ onViewChange }: WorkGroupsProps) {
               acceptSuccess={inv.acceptSuccess}
               onRefreshInvite={inv.loadPendingInvitation}
               onAcceptInvite={inv.handleAcceptInvitation}
+              canCreateGroup={false}
+              onCreateGroup={requestCreate}
+              isPremium={!!isPremium}
+              ent={ent}
+              groupsCount={wg.groups.filter((g) => g.isOwner).length}
             />
 
             <div className="mt-4 flex justify-center">

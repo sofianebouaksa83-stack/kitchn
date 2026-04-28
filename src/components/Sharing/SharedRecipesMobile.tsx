@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Share2, Folder } from "lucide-react";
-import { SharedRecipeGroup } from "./SharedRecipeGroup";
+import { Folder } from "lucide-react";
+import { SharedRecipeGroupMobile } from "./SharedRecipeGroupMobile";
 
 type GroupMini = { id: string; name: string };
 
@@ -45,7 +45,7 @@ const selected = selectedGroupId ? groups.find(g => g.id === selectedGroupId) : 
 
 if (selectedGroupId) {
   return (
-    <SharedRecipeGroup
+    <SharedRecipeGroupMobile
       groupId={selectedGroupId}
       groupName={selected?.name ?? "Groupe"}
       onBack={() => setSelectedGroupId(null)}

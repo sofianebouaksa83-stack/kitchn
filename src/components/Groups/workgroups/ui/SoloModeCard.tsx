@@ -99,7 +99,7 @@ const safeEnt = ent ?? { maxGroups: 1, maxMembersPerGroup: 10 };
             <p className="mt-2 text-xs text-slate-400">
               {isPremium
                 ? "Premium : groupes illimités."
-                : `Version gratuite : ${safeEnt.maxGroups} groupe max / ${safeEnt.maxMembersPerGroupp} membres max.`}
+                : `Version gratuite : ${safeEnt.maxGroups} groupe max / ${safeEnt.maxMembersPerGroup} membres max.`}
             </p>
 
             {freeLimitReached && (
