@@ -1,20 +1,16 @@
 // src/App.tsx
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 import { LandingPage } from "./components/Landing/";
 import { LoginForm } from "./components/Auth/LoginForm";
 import { RegisterForm } from "./components/Auth/RegisterForm";
-import { InvitationSignup } from "./components/Auth/InvitationSignup";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 import { AuthCallback } from "./components/Auth/AuthCallback";
 
-// ✅ Pages publiques (vraies routes + support hash)
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
 import LegalPage from "./pages/Legal";
-
-// ✅ Nouvelle page invitation (token-based)
 import InvitationPage from "./pages/InvitationPage";
 
 import { Navbar } from "./components/Layout/";
@@ -29,7 +25,6 @@ import { SubscriptionSuccess } from "./components/Subscription/SubscriptionSucce
 import { SubscriptionCancel } from "./components/Subscription/SubscriptionCancel";
 import { SubscriptionCheckoutPage } from "./components/Subscription/SubscriptionCheckoutPage";
 
-// ✅ Page Paramètres
 import SettingsPage from "./components/Settings/SettingsPage";
 
 import { ui } from "./styles/ui";
@@ -49,8 +44,44 @@ type View =
   | "subscription-cancel"
   | "settings";
 
-/** Helpers: routing maison */
-function isStaticPath(path: string) {
+const VIEW_PATHS: Record<View, string> = {
+  recipes: "/recipes",
+  editor: "/recipes/edit",
+  groups: "/groups",
+  shared: "/shared",
+  "import-ai": "/import-ai",
+  team: "/team",
+  subscription: "/subscription",
+  "subscription-checkout": "/subscription/checkout",
+  "subscription-success": "/subscription/success",
+  "subscription-cancel": "/subscription/cancel",
+  settings: "/settings",
+};
+
+function cleanPath(route: string) {
+  const path = (route || "/").split("?")[0] || "/";
+  return path.length > 1 ? path.replace(/\/+$/, "") : path;
+}
+
+function normalizeRouteForUrl(route: string) {
+  const withSlash = route.startsWith("/") ? route : `/${route}`;
+  const queryIndex = withSlash.indexOf("?");
+
+  const path = queryIndex >= 0 ? withSlash.slice(0, queryIndex) : withSlash;
+  const query = queryIndex >= 0 ? withSlash.slice(queryIndex) : "";
+
+  return `${cleanPath(path)}${query}`;
+}
+
+function getRouteQuery(route: string) {
+  const queryIndex = route.indexOf("?");
+  const q = queryIndex >= 0 ? route.slice(queryIndex + 1) : "";
+  return new URLSearchParams(q);
+}
+
+function isStaticPath(route: string) {
+  const path = cleanPath(route);
+
   return (
     path === "/privacy" ||
     path === "/terms" ||
@@ -59,11 +90,14 @@ function isStaticPath(path: string) {
   );
 }
 
-function isInvitationPath(path: string) {
+function isInvitationPath(route: string) {
+  const path = cleanPath(route);
   return path.startsWith("/invitation/") || path.startsWith("/invite/");
 }
 
-function extractInvitationToken(path: string) {
+function extractInvitationToken(route: string) {
+  const path = cleanPath(route);
+
   if (!isInvitationPath(path)) return null;
 
   const token = path.startsWith("/invite/")
@@ -73,134 +107,163 @@ function extractInvitationToken(path: string) {
   return token.length > 0 ? token : null;
 }
 
-function stripQuery(route: string) {
-  return route.split("?")[0] || route;
+function viewFromRoute(route: string): View | null {
+  const path = cleanPath(route);
+
+  switch (path) {
+    case "/":
+    case "/recipes":
+      return "recipes";
+
+    case "/recipes/new":
+    case "/recipes/edit":
+      return "editor";
+
+    case "/groups":
+    case "/work_groups":
+    case "/work-groups":
+      return "groups";
+
+    case "/shared":
+    case "/shared-recipes":
+      return "shared";
+
+    case "/import-ai":
+    case "/import":
+      return "import-ai";
+
+    case "/team":
+      return "team";
+
+    case "/subscription":
+      return "subscription";
+
+    case "/subscription/checkout":
+    case "/subscription-checkout":
+      return "subscription-checkout";
+
+    case "/subscription/success":
+    case "/subscription-success":
+      return "subscription-success";
+
+    case "/subscription/cancel":
+    case "/subscription-cancel":
+      return "subscription-cancel";
+
+    case "/settings":
+      return "settings";
+
+    default:
+      return null;
+  }
 }
 
-function getHashQuery(route: string) {
-  const q = route.split("?")[1] ?? "";
-  return new URLSearchParams(q);
+function getCurrentRouteFromUrl() {
+  const rawHash = window.location.hash.slice(1);
+
+  // Supabase reset password peut mettre les infos dans le hash
+  if (rawHash.includes("type=recovery")) {
+    return "/reset-password";
+  }
+
+  // Ancien routing en #/... => conversion automatique en vraie URL
+  if (rawHash.startsWith("/")) {
+    const target = normalizeRouteForUrl(rawHash || "/");
+    const current = `${window.location.pathname || "/"}${
+      window.location.search || ""
+    }`;
+
+    if (current !== target || window.location.hash) {
+      window.history.replaceState({}, "", target);
+    }
+
+    return target;
+  }
+
+  return `${window.location.pathname || "/"}${window.location.search || ""}`;
 }
 
 function MainApp() {
   const { user, loading } = useAuth();
 
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [, setAuthMode] = useState<"login" | "register">("login");
   const [currentView, setCurrentView] = useState<View>("recipes");
-
-  // ✅ IMPORTANT: on accepte null explicitement (Create)
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
-
-  // (legacy) Si tu utilises encore InvitationSignup ailleurs
-  const [invitationToken, setInvitationToken] = useState<string | null>(null);
-
-  /**
-   * routeHash = "route interne"
-   * - support hash routing:   #/login, #/privacy, #/legal...
-   * - support vraie route:    /privacy, /terms, /legal, /auth/callback, /invitation/:token
-   */
-  const [routeHash, setRouteHash] = useState<string>(() => {
-    const path = window.location.pathname;
-
-    // ✅ garder les vraies routes
-    if (isStaticPath(path) || isInvitationPath(path)) {
-      return path;
-    }
-
-    // Sinon, fallback hash
-    return window.location.hash.slice(1);
-  });
-
+  const [routePath, setRoutePath] = useState<string>(() =>
+    getCurrentRouteFromUrl()
+  );
   const [forceResetPassword, setForceResetPassword] = useState(false);
 
-  // ✅ URL sync (token + hash + pathname)
+  const navigateTo = useCallback((path: string, replace = false) => {
+    const target = normalizeRouteForUrl(path);
+
+    if (replace) {
+      window.history.replaceState({}, "", target);
+    } else {
+      window.history.pushState({}, "", target);
+    }
+
+    window.dispatchEvent(new Event("popstate"));
+  }, []);
+
   useEffect(() => {
     const syncFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
-      const path = window.location.pathname;
-
-      // vraies routes (privacy / terms / legal / auth)
-      if (isStaticPath(path)) {
-        setRouteHash(path);
-        return;
-      }
-
-      // invitation
-      if (isInvitationPath(path)) {
-        setRouteHash(path);
-        return;
-}
-
-      // 1) si on a ?reset=1
-      const isResetQuery = params.get("reset") === "1";
-
-      // 2) si Supabase met type=recovery dans le hash
       const rawHash = window.location.hash.slice(1);
+
+      const isResetQuery = params.get("reset") === "1";
       const isRecoveryHash = rawHash.includes("type=recovery");
 
-      setForceResetPassword(isResetQuery || isRecoveryHash);
-
-      // et si reset/recovery : on force la route reset
       if (isResetQuery || isRecoveryHash) {
-        setRouteHash("/reset-password");
+        setForceResetPassword(true);
+        setRoutePath("/reset-password");
         return;
       }
 
-      const hash = window.location.hash.slice(1);
-      const cleanHash = stripQuery(hash);
+      setForceResetPassword(false);
 
-      // ✅ Supabase met souvent le reset dans le hash (type=recovery)
-      if (hash.includes("type=recovery")) {
-        setRouteHash("/reset-password");
+      const route = getCurrentRouteFromUrl();
+      const cleanRoute = cleanPath(route);
+
+      setRoutePath(route);
+
+      if (cleanRoute === "/login") setAuthMode("login");
+      if (cleanRoute === "/register") setAuthMode("register");
+
+      if (isStaticPath(cleanRoute) || isInvitationPath(cleanRoute)) {
         return;
       }
 
-      setRouteHash(hash);
-
-      // Auth routes (support query ?redirect=...)
-      if (cleanHash === "/login") setAuthMode("login");
-      if (cleanHash === "/register") setAuthMode("register");
-
-      // ✅ Landing pages publiques (hash routing)
-      if (
-        cleanHash === "/privacy" ||
-        cleanHash === "/terms" ||
-        cleanHash === "/legal"
-      ) {
-        return;
+      const nextView = viewFromRoute(cleanRoute);
+      if (nextView) {
+        setCurrentView(nextView);
       }
-
-      // ✅ Invitation route (hash routing) : #/invitation/<token>
-      if (
-        cleanHash.startsWith("/invitation/") ||
-        cleanHash.startsWith("/invite/")
-      ) {
-        return;
-      }
-
-      // ✅ App routes (views)
-      if (cleanHash === "/subscription") setCurrentView("subscription");
-      else if (cleanHash === "/subscription/success")
-        setCurrentView("subscription-success");
-      else if (cleanHash === "/subscription/cancel")
-        setCurrentView("subscription-cancel");
-      else if (cleanHash === "/settings") setCurrentView("settings");
-      else if (cleanHash === "/groups") setCurrentView("groups");
-      else if (cleanHash === "/shared") setCurrentView("shared");
-      else if (cleanHash === "/import-ai") setCurrentView("import-ai");
-      else if (cleanHash === "/team") setCurrentView("team");
-      else if (cleanHash === "/" || cleanHash === "") setCurrentView("recipes");
     };
 
     syncFromUrl();
+
+    window.addEventListener("popstate", syncFromUrl);
     window.addEventListener("hashchange", syncFromUrl);
 
     return () => {
+      window.removeEventListener("popstate", syncFromUrl);
       window.removeEventListener("hashchange", syncFromUrl);
     };
   }, []);
 
-  // ✅ Loading
+  const handleViewChange = useCallback(
+    (view: View) => {
+      setCurrentView(view);
+
+      if (view !== "editor") {
+        setEditingRecipeId(null);
+      }
+
+      navigateTo(VIEW_PATHS[view]);
+    },
+    [navigateTo]
+  );
+
   if (loading) {
     return (
       <div className={`${ui.dashboardBg} flex items-center justify-center`}>
@@ -209,95 +272,82 @@ function MainApp() {
     );
   }
 
-  // ✅ Route invitation (prioritaire, marche connecté ou non)
-  // Support: /invitation/<token> et #/invitation/<token>
-  const invitationFromRoute = extractInvitationToken(routeHash);
+  // Route invitation prioritaire
+  const invitationFromRoute = extractInvitationToken(routePath);
   if (invitationFromRoute) {
     return <InvitationPage />;
   }
 
-  // ✅ InvitationSignup legacy (si tu l’utilises encore via state)
-  if (invitationToken) {
-    return <InvitationSignup token={invitationToken} />;
-  }
-
-  // ✅ Reset password (prioritaire)
-  if (forceResetPassword || stripQuery(routeHash) === "/reset-password") {
+  // Reset password prioritaire
+  if (forceResetPassword || cleanPath(routePath) === "/reset-password") {
     return (
       <ResetPasswordForm
         onBackToLogin={() => {
-          // nettoie ?reset=1 (si présent)
-          const url = new URL(window.location.href);
-          url.searchParams.delete("reset");
-          window.history.replaceState({}, "", url.toString());
-
-          // puis retour login
-          window.location.hash = "/login";
+          navigateTo("/login", true);
         }}
       />
     );
   }
 
-  // ✅ Non connecté → Landing / Login / Register / Privacy / Terms / Legal / AuthCallback
+  // Non connecté
   if (!user) {
-    const hash = routeHash;
-    const cleanHash = stripQuery(hash);
+    const cleanRoute = cleanPath(routePath);
 
-    // ✅ Support /auth/callback en vraie route (et aussi #/auth/callback)
-    if (cleanHash === "/auth/callback") {
+    if (cleanRoute === "/auth/callback") {
       return <AuthCallback />;
     }
 
-    if (cleanHash === "/login") {
+    if (cleanRoute === "/login") {
       return (
         <LoginForm
           onToggleMode={() => {
             setAuthMode("register");
-            window.location.hash = "/register";
+            navigateTo("/register");
           }}
           onSuccess={() => {
-            // ✅ redirect après login : #/login?redirect=/invitation/xxx
-            const params = getHashQuery(window.location.hash.slice(1));
+            const params = getRouteQuery(routePath);
             const redirect = params.get("redirect");
-            if (redirect) window.location.hash = redirect;
-            else window.location.hash = "/"; // fallback
+
+            if (redirect && redirect.startsWith("/")) {
+              navigateTo(redirect);
+            } else {
+              navigateTo("/recipes");
+            }
           }}
         />
       );
     }
 
-    if (cleanHash === "/register") {
+    if (cleanRoute === "/register") {
       return (
         <RegisterForm
           onToggleMode={() => {
             setAuthMode("login");
-            window.location.hash = "/login";
+            navigateTo("/login");
           }}
         />
       );
     }
 
-    if (cleanHash === "/reset-password") {
+    if (cleanRoute === "/reset-password") {
       return (
         <ResetPasswordForm
           onBackToLogin={() => {
-            window.location.hash = "/login";
+            navigateTo("/login");
           }}
         />
       );
     }
 
-    // ✅ pages publiques accessibles depuis la landing (footer)
-    // -> marche pour /privacy /terms /legal et aussi #/privacy #/terms #/legal
-    if (cleanHash === "/privacy") {
+    if (cleanRoute === "/privacy") {
       return <PrivacyPage />;
     }
 
-    if (cleanHash === "/terms") {
+    if (cleanRoute === "/terms") {
       return <TermsPage />;
     }
 
-    if (cleanHash === "/legal") {
+    if (cleanRoute === "/legal") {
       return <LegalPage />;
     }
 
@@ -305,41 +355,43 @@ function MainApp() {
       <LandingPage
         onStart={() => {
           setAuthMode("register");
-          window.location.hash = "/register";
+          navigateTo("/register");
         }}
         onLogin={() => {
           setAuthMode("login");
-          window.location.hash = "/login";
+          navigateTo("/login");
         }}
       />
     );
   }
 
-  // ✅ Actions recettes
   const handleCreateNew = () => {
-    setEditingRecipeId(null); // ✅ Create
+    setEditingRecipeId(null);
     setCurrentView("editor");
+    navigateTo("/recipes/new");
   };
 
   const handleEdit = (recipeId: string) => {
     setEditingRecipeId(recipeId);
     setCurrentView("editor");
+    navigateTo("/recipes/edit");
   };
 
   const handleSaveComplete = () => {
     setEditingRecipeId(null);
     setCurrentView("recipes");
+    navigateTo("/recipes");
   };
 
   const handleBackFromEditor = () => {
     setEditingRecipeId(null);
     setCurrentView("recipes");
+    navigateTo("/recipes");
   };
 
-  // ✅ App (connecté)
   return (
     <div className={ui.dashboardBg}>
-      <Navbar currentView={currentView} onViewChange={setCurrentView} />
+      <Navbar currentView={currentView} onViewChange={handleViewChange} />
 
       <main className={`${ui.container} ${ui.page} pb-20 lg:pb-0`}>
         {currentView === "recipes" && (
@@ -354,27 +406,35 @@ function MainApp() {
             onCreated={(id) => {
               setEditingRecipeId(id);
               setCurrentView("editor");
+              navigateTo("/recipes/edit");
             }}
           />
         )}
 
         {currentView === "shared" && <SharedRecipes />}
+
         {currentView === "groups" && (
-          <WorkGroups onViewChange={setCurrentView} />
+          <WorkGroups onViewChange={handleViewChange} />
         )}
+
         {currentView === "import-ai" && <RecipeImportAI />}
+
         {currentView === "team" && <TeamManagement />}
-        
+
+        {currentView === "subscription" && <SubscriptionManagement />}
+
         {currentView === "subscription-checkout" && (
           <SubscriptionCheckoutPage
-            onBack={() => setCurrentView("subscription")}
+            onBack={() => handleViewChange("subscription")}
           />
         )}
+
         {currentView === "subscription-success" && <SubscriptionSuccess />}
+
         {currentView === "subscription-cancel" && <SubscriptionCancel />}
 
         {currentView === "settings" && (
-          <SettingsPage onViewChange={setCurrentView} />
+          <SettingsPage onViewChange={handleViewChange} />
         )}
       </main>
     </div>
