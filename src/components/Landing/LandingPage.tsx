@@ -307,11 +307,6 @@ export function LandingPage({
             <h2 className="mt-6 text-3xl sm:text-4xl font-semibold text-slate-100">
               Simple, clair, prêt pour ton équipe
             </h2>
-
-            <p className="mt-4 text-slate-300/70 text-base sm:text-lg">
-              La même logique que ta page abonnement, directement intégrée à la
-              landing avec Stripe déjà branché.
-            </p>
           </motion.div>
 
           {pricingError && (

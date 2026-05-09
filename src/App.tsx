@@ -34,6 +34,7 @@ import SettingsPage from "./components/Settings/SettingsPage";
 
 import { ui } from "./styles/ui";
 import "./index.css";
+import AddToHomePopup from "./components/AddToHomePopup";
 
 type View =
   | "recipes"
@@ -384,6 +385,7 @@ function App() {
   return (
     <AuthProvider>
       <MainApp />
+      <AddToHomePopup />
     </AuthProvider>
   );
 }

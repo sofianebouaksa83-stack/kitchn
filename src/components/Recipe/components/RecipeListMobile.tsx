@@ -17,6 +17,7 @@ import {
   MoreVertical,
   Tag,
   Check,
+  ArrowLeft,
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
 import RecipeDisplayMobile from "./RecipeDisplayMobile";
@@ -253,6 +254,7 @@ export function RecipeListMobile(props: Props) {
   const recipeSheetOpen = !!openedRecipeId;
   const closeRecipeSheet = () => setOpenedRecipeId(null);
   const recipeDragControls = useDragControls();
+  const foldersDragControls = useDragControls();
 
   const [actionSheetRecipe, setActionSheetRecipe] =
     useState<RecipeListMobileRecipe | null>(null);
@@ -272,9 +274,10 @@ export function RecipeListMobile(props: Props) {
   }, [sidebarOpen, recipeSheetOpen, actionSheetOpen, moveFolderOpen]);
 
   useEffect(() => {
-    if (!recipeSheetOpen && !actionSheetOpen && !moveFolderOpen) return;
+    if (!sidebarOpen && !recipeSheetOpen && !actionSheetOpen && !moveFolderOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        setSidebarOpen(false);
         closeRecipeSheet();
         closeActionSheet();
         setMoveFolderOpen(false);
@@ -283,13 +286,18 @@ export function RecipeListMobile(props: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [recipeSheetOpen, actionSheetOpen, moveFolderOpen]);
+  }, [sidebarOpen, recipeSheetOpen, actionSheetOpen, moveFolderOpen, setSidebarOpen]);
+
+  const currentFolder = useMemo(() => {
+    if (!selectedFolder) return null;
+    return folders.find((folder) => folder.id === selectedFolder) ?? null;
+  }, [folders, selectedFolder]);
 
   const headerLabel = useMemo(() => {
-    if (selectedFolder) return "Dossier";
+    if (selectedFolder) return currentFolder?.name ?? "Dossier";
     if (showFavoritesOnly) return "Favoris";
     return "Toutes";
-  }, [selectedFolder, showFavoritesOnly]);
+  }, [currentFolder?.name, selectedFolder, showFavoritesOnly]);
 
   const folderCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -329,6 +337,17 @@ export function RecipeListMobile(props: Props) {
             <Filter className="w-5 h-5 text-slate-100" />
           </button>
         </div>
+
+        {selectedFolder && (
+          <button
+            type="button"
+            onClick={onSelectAll}
+            className="mt-4 inline-flex h-10 items-center gap-2 rounded-2xl bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 ring-1 ring-white/10 transition active:scale-[0.98] hover:bg-white/[0.08]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Toutes les recettes
+          </button>
+        )}
 
         <div className="mt-5">
           <button
@@ -503,167 +522,209 @@ export function RecipeListMobile(props: Props) {
         </div>
       </div>
 
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-[120]">
-          <div
-            className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[2px]"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <div className="absolute inset-y-0 left-0 w-[86%] max-w-[360px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.60)] p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-slate-100 font-semibold">Dossiers</div>
-              <button
-                type="button"
-                className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
-                onClick={() => setSidebarOpen(false)}
-                aria-label="Fermer"
-              >
-                <X className="w-5 h-5 text-slate-100" />
-              </button>
-            </div>
+      <AnimatePresence>
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-[120] lg:hidden">
+            <motion.div
+              className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+            />
 
-            <div className="mt-4 space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectAll();
+            <motion.div
+              className="absolute bottom-0 left-0 right-0 max-h-[84dvh] overflow-hidden rounded-t-[32px] bg-[#0B1538] ring-1 ring-white/10 shadow-[0_-24px_90px_rgba(0,0,0,0.60)]"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+              drag="y"
+              dragControls={foldersDragControls}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.35 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 700) {
                   setSidebarOpen(false);
-                }}
-                className="w-full h-11 px-3 rounded-2xl text-left bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition text-slate-100"
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                className="sticky top-0 z-20 border-b border-white/10 bg-[#0B1538]/95 px-4 pt-3 pb-4 backdrop-blur-xl"
+                onPointerDown={(e) => foldersDragControls.start(e)}
               >
-                Toutes les recettes
-              </button>
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/25" />
 
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectFavorites();
-                  setSidebarOpen(false);
-                }}
-                className="w-full h-11 px-3 rounded-2xl text-left bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition text-slate-100 inline-flex items-center gap-2"
-              >
-                <Heart className="w-4 h-4" />
-                Mes favoris
-              </button>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-slate-100 font-semibold">Dossiers</div>
+                  <button
+                    type="button"
+                    className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                    onClick={() => setSidebarOpen(false)}
+                    aria-label="Fermer"
+                  >
+                    <X className="w-5 h-5 text-slate-100" />
+                  </button>
+                </div>
+              </div>
 
-              <div className="mt-3 border-t border-white/10 pt-3 space-y-2">
-                {folders.map((folder) => (
-                  <div key={folder.id} className="relative">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        onSelectFolder(folder.id);
-                        setSidebarOpen(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          onSelectFolder(folder.id);
-                          setSidebarOpen(false);
-                        }
-                      }}
-                      onDrop={(e) => onDropToFolder(folder.id, e)}
-                      onDragOver={(e) => e.preventDefault()}
-                      className={cn(
-                        "w-full px-3 py-2.5 rounded-2xl flex items-center gap-2 transition-all duration-200 cursor-pointer",
-                        selectedFolder === folder.id
-                          ? "bg-white/10 text-slate-100 ring-1 ring-white/10"
-                          : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
-                      )}
-                    >
-                      <Folder className="w-4 h-4" />
-                      <span className="flex-1 truncate">{folder.name}</span>
-                      <span className="text-[11px] text-white/40">
-                        ({folderCounts.get(folder.id) ?? 0})
-                      </span>
+              <div className="max-h-[calc(84dvh-78px)] overflow-y-auto px-4 pb-8 pt-4">
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectAll();
+                      setSidebarOpen(false);
+                    }}
+                    className={cn(
+                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-white/10 transition text-slate-100",
+                      !selectedFolder && !showFavoritesOnly
+                        ? "bg-white/10"
+                        : "bg-white/[0.05] hover:bg-white/[0.08]"
+                    )}
+                  >
+                    Toutes les recettes
+                  </button>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setFolderMenuOpenId(
-                            folderMenuOpenId === folder.id ? null : folder.id
-                          );
-                        }}
-                        className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-slate-200"
-                        aria-label="Options dossier"
-                        title="Options"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectFavorites();
+                      setSidebarOpen(false);
+                    }}
+                    className={cn(
+                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-white/10 transition text-slate-100 inline-flex items-center gap-2",
+                      showFavoritesOnly
+                        ? "bg-white/10"
+                        : "bg-white/[0.05] hover:bg-white/[0.08]"
+                    )}
+                  >
+                    <Heart className="w-4 h-4" />
+                    Mes favoris
+                  </button>
 
-                    {folderMenuOpenId === folder.id && (
-                      <div
-                        ref={folderMenuRef}
-                        className="absolute right-2 top-[52px] z-[130] w-48 rounded-2xl bg-[#0B1020] ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] overflow-hidden"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => onRenameFolder(folder.id)}
-                          className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
+                  <div className="mt-3 border-t border-white/10 pt-3 space-y-2">
+                    {folders.map((folder) => (
+                      <div key={folder.id} className="relative">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            onSelectFolder(folder.id);
+                            setSidebarOpen(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              onSelectFolder(folder.id);
+                              setSidebarOpen(false);
+                            }
+                          }}
+                          onDrop={(e) => onDropToFolder(folder.id, e)}
+                          onDragOver={(e) => e.preventDefault()}
+                          className={cn(
+                            "w-full px-3 py-2.5 rounded-2xl flex items-center gap-2 transition-all duration-200 cursor-pointer",
+                            selectedFolder === folder.id
+                              ? "bg-white/10 text-slate-100 ring-1 ring-white/10"
+                              : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
+                          )}
                         >
-                          Renommer
+                          <Folder className="w-4 h-4" />
+                          <span className="flex-1 truncate">{folder.name}</span>
+                          <span className="text-[11px] text-white/40">
+                            ({folderCounts.get(folder.id) ?? 0})
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setFolderMenuOpenId(
+                                folderMenuOpenId === folder.id ? null : folder.id
+                              );
+                            }}
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-slate-200"
+                            aria-label="Options dossier"
+                            title="Options"
+                          >
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {folderMenuOpenId === folder.id && (
+                          <div
+                            ref={folderMenuRef}
+                            className="absolute right-2 top-[52px] z-[130] w-48 rounded-2xl bg-[#0B1020] ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] overflow-hidden"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => onRenameFolder(folder.id)}
+                              className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
+                            >
+                              Renommer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteFolder(folder.id)}
+                              className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4">
+                    {showNewFolderInput ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+                          placeholder="Nom du dossier"
+                          className="w-full h-11 px-4 rounded-2xl bg-white/5 ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleCreateFolder}
+                          className={cn(ui.btnPrimary, "h-11 px-4 rounded-2xl")}
+                          type="button"
+                        >
+                          ✓
                         </button>
                         <button
+                          onClick={() => {
+                            setShowNewFolderInput(false);
+                            setNewFolderName("");
+                          }}
+                          className={cn(ui.btnGhost, "h-11 px-4 rounded-2xl")}
                           type="button"
-                          onClick={() => onDeleteFolder(folder.id)}
-                          className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
                         >
-                          Supprimer
+                          ✕
                         </button>
                       </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowNewFolderInput(true)}
+                        className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
+                        type="button"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Nouveau dossier
+                      </button>
                     )}
                   </div>
-                ))}
+                </div>
               </div>
-
-              <div className="mt-4">
-                {showNewFolderInput ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-                      placeholder="Nom du dossier"
-                      className="w-full h-11 px-4 rounded-2xl bg-white/5 ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleCreateFolder}
-                      className={cn(ui.btnPrimary, "h-11 px-4 rounded-2xl")}
-                      type="button"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowNewFolderInput(false);
-                        setNewFolderName("");
-                      }}
-                      className={cn(ui.btnGhost, "h-11 px-4 rounded-2xl")}
-                      type="button"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowNewFolderInput(true)}
-                    className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
-                    type="button"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nouveau dossier
-                  </button>
-                )}
-              </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {recipeSheetOpen && openedRecipeId && (
