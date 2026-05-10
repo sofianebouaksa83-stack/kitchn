@@ -578,20 +578,21 @@ const openSubscriptionSettings = () => {
                         </span>
                       </button>
 
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setAccountMenuOpen(false);
-                          alert("Centre d’assistance (à brancher)");
-                        }}
-                        className={dropdownItem}
-                        type="button"
-                      >
-                        <span className={left}>
-                          <LifeBuoy className="w-4 h-4 text-slate-200" />
-                          Centre d’assistance
-                        </span>
-                      </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        window.history.pushState({}, "", "/assistance");
+                        window.dispatchEvent(new Event("popstate"));
+                      }}
+                      className={dropdownItem}
+                      type="button"
+                    >
+                      <span className={left}>
+                        <LifeBuoy className="w-4 h-4 text-slate-200" />
+                        Centre d’assistance
+                      </span>
+                    </button>
                     </div>
 
                     <div className="h-px bg-white/10 mx-4" />

@@ -12,6 +12,7 @@ import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
 import LegalPage from "./pages/Legal";
 import InvitationPage from "./pages/InvitationPage";
+import HelpCenterPage from "./pages/HelpCenterPage";
 
 import { Navbar } from "./components/Layout/";
 import { RecipeList, RecipeEditorWithSections } from "./components/Recipe";
@@ -86,6 +87,7 @@ function isStaticPath(route: string) {
     path === "/privacy" ||
     path === "/terms" ||
     path === "/legal" ||
+    path === "/assistance" ||
     path === "/auth/callback"
   );
 }
@@ -272,6 +274,8 @@ function MainApp() {
     );
   }
 
+  const cleanRoute = cleanPath(routePath);
+
   // Route invitation prioritaire
   const invitationFromRoute = extractInvitationToken(routePath);
   if (invitationFromRoute) {
@@ -279,7 +283,7 @@ function MainApp() {
   }
 
   // Reset password prioritaire
-  if (forceResetPassword || cleanPath(routePath) === "/reset-password") {
+  if (forceResetPassword || cleanRoute === "/reset-password") {
     return (
       <ResetPasswordForm
         onBackToLogin={() => {
@@ -289,14 +293,29 @@ function MainApp() {
     );
   }
 
+  // Routes publiques
+  if (cleanRoute === "/privacy") {
+    return <PrivacyPage />;
+  }
+
+  if (cleanRoute === "/terms") {
+    return <TermsPage />;
+  }
+
+  if (cleanRoute === "/legal") {
+    return <LegalPage />;
+  }
+
+  if (cleanRoute === "/assistance") {
+    return <HelpCenterPage />;
+  }
+
+  if (cleanRoute === "/auth/callback") {
+    return <AuthCallback />;
+  }
+
   // Non connecté
   if (!user) {
-    const cleanRoute = cleanPath(routePath);
-
-    if (cleanRoute === "/auth/callback") {
-      return <AuthCallback />;
-    }
-
     if (cleanRoute === "/login") {
       return (
         <LoginForm
@@ -337,18 +356,6 @@ function MainApp() {
           }}
         />
       );
-    }
-
-    if (cleanRoute === "/privacy") {
-      return <PrivacyPage />;
-    }
-
-    if (cleanRoute === "/terms") {
-      return <TermsPage />;
-    }
-
-    if (cleanRoute === "/legal") {
-      return <LegalPage />;
     }
 
     return (
