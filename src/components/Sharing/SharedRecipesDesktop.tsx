@@ -6,44 +6,31 @@ import { SharedRecipeGroupDesktop } from "./SharedRecipeGroupDesktop";
 
 type GroupMini = { id: string; name: string };
 
-type SharedRecipeToOpen = {
-  recipeId: string;
-  groupId: string;
-} | null;
-
-type SharedRecipesDesktopProps = {
-  recipeToOpen?: SharedRecipeToOpen;
-  onRecipeOpened?: () => void;
-};
-
 type MembershipRow = {
   work_group_id: string;
   work_groups: GroupMini | null;
 };
 
-export function SharedRecipesDesktop({
-  recipeToOpen = null,
-  onRecipeOpened,
-}: SharedRecipesDesktopProps) {
+function getPendingSharedOpen() {
+  return {
+    groupId:
+      sessionStorage.getItem("selectedWorkGroupId") ||
+      sessionStorage.getItem("selectedSharedGroupId"),
+    recipeId: sessionStorage.getItem("selectedSharedRecipeId"),
+  };
+}
+
+export function SharedRecipesDesktop() {
   const [loading, setLoading] = useState(true);
 
   const [userGroups, setUserGroups] = useState<GroupMini[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [recipeToOpenId, setRecipeToOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!recipeToOpen?.groupId) return;
-    setSelectedGroupId(recipeToOpen.groupId);
-  }, [recipeToOpen?.groupId]);
-
-  useEffect(() => {
-    if (!recipeToOpen?.groupId) return;
-    setSelectedGroupId(recipeToOpen.groupId);
-  }, [recipeToOpen?.groupId]);
 
   async function loadGroups() {
     setLoading(true);
@@ -78,10 +65,17 @@ export function SharedRecipesDesktop({
 
       setUserGroups(groups);
 
-      // UX: si 1 seul groupe -> auto-entrer, sauf quand on arrive depuis l’accueil pour ouvrir une recette précise
-      if (recipeToOpen?.groupId) setSelectedGroupId(recipeToOpen.groupId);
-      else if (groups.length === 1) setSelectedGroupId(groups[0].id);
-      else setSelectedGroupId(null);
+      const pending = getPendingSharedOpen();
+      if (pending.groupId) {
+        setSelectedGroupId(pending.groupId);
+        setRecipeToOpenId(pending.recipeId);
+      } else if (groups.length === 1) {
+        setSelectedGroupId(groups[0].id);
+        setRecipeToOpenId(null);
+      } else {
+        setSelectedGroupId(null);
+        setRecipeToOpenId(null);
+      }
     } catch (err: any) {
       console.error("[SharedRecipes] Error loading groups:", err);
       setUserGroups([]);
@@ -105,11 +99,16 @@ export function SharedRecipesDesktop({
       <SharedRecipeGroupDesktop
         groupId={selectedGroupId}
         groupName={selectedGroup?.name ?? "Groupe"}
-        initialRecipeId={recipeToOpen?.groupId === selectedGroupId ? recipeToOpen.recipeId : null}
-        onInitialRecipeOpened={onRecipeOpened}
+        initialRecipeId={recipeToOpenId}
+        onInitialRecipeOpened={() => {
+          setRecipeToOpenId(null);
+          sessionStorage.removeItem("selectedSharedRecipeId");
+          sessionStorage.removeItem("selectedWorkGroupId");
+          sessionStorage.removeItem("selectedSharedGroupId");
+        }}
         onBack={() => {
           setSelectedGroupId(null);
-          onRecipeOpened?.();
+          setRecipeToOpenId(null);
         }}
       />
     );
@@ -163,7 +162,7 @@ export function SharedRecipesDesktop({
               {userGroups.map((g) => (
                 <button
                   key={g.id}
-                  onClick={() => setSelectedGroupId(g.id)}
+                  onClick={() => { setSelectedGroupId(g.id); setRecipeToOpenId(null); }}
                   title={`Ouvrir ${g.name}`}
                   type="button"
                   className={[

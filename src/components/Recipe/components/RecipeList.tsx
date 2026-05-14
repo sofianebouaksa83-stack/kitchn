@@ -86,12 +86,15 @@ export function RecipeList({
   useEffect(() => {
     if (!recipeToOpenId) return;
 
-    const recipeExists = recipes.some((recipe) => recipe.id === recipeToOpenId);
-    if (!recipeExists) return;
+    const isDesktop =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches;
 
-    setViewingRecipe(recipeToOpenId);
-    onRecipeOpened?.();
-  }, [recipeToOpenId, recipes, onRecipeOpened]);
+    if (isDesktop) {
+      setViewingRecipe(recipeToOpenId);
+      onRecipeOpened?.();
+    }
+  }, [recipeToOpenId, onRecipeOpened]);
 
   async function loadRecipes() {
     if (!user) {
@@ -560,6 +563,8 @@ export function RecipeList({
           onMoveToFolder={handleMoveRecipeToFolder}
           onDropToFolder={onDropToFolder}
           onDragStartRecipe={onDragStartRecipe}
+          recipeToOpenId={recipeToOpenId}
+          onRecipeOpened={onRecipeOpened}
         />
       </div>
 

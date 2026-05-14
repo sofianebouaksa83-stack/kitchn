@@ -11,6 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Tag,
+  ImagePlus,
+  Trash2,
 } from "lucide-react";
 import { useRecipeEditor, UNITS, CATEGORIES } from "./hooks/useRecipeEditor";
 
@@ -54,7 +56,8 @@ export function RecipeEditorDesktop({
     : "Nouvelle recette";
 
   return (
-    <PageShell withPanel={false} title={undefined} subtitle={undefined} icon={undefined} actions={undefined}
+    <PageShell
+      withPanel={false}
       title={title}
       subtitle="Éditeur"
       icon={<Tag className="w-5 h-5 text-amber-200" />}
@@ -95,7 +98,7 @@ export function RecipeEditorDesktop({
           <div className={`pb-8 ${dividerCls}`}>
             <div className={sectionTitleCls}>Informations</div>
             <div className={`mt-1 ${hintCls}`}>
-              Titre, couverts et catégorie
+              Titre, catégorie et photos
             </div>
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -122,6 +125,85 @@ export function RecipeEditorDesktop({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <label className={labelCls}>Photos de la recette</label>
+                  {editor.recipeImages.length > 0 ? (
+                    <span className="text-[11px] text-slate-300/50">
+                      {editor.recipeImages.length} photo{editor.recipeImages.length > 1 ? "s" : ""}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="rounded-[24px] bg-white/[0.025] ring-1 ring-white/10 p-3">
+                  {editor.recipeImages.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {editor.recipeImages.map((image, index) => (
+                        <div
+                          key={image.localId}
+                          className="relative overflow-hidden rounded-[18px] bg-white/[0.03] ring-1 ring-white/10"
+                        >
+                          <img
+                            src={image.url}
+                            alt={`Photo ${index + 1} de la recette`}
+                            className="h-40 w-full object-contain"
+                          />
+
+                          {index === 0 ? (
+                            <div className="absolute bottom-2 left-2 rounded-full bg-black/45 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">
+                              Principale
+                            </div>
+                          ) : null}
+
+                          <button
+                            type="button"
+                            onClick={() => editor.removeRecipeImage(image.localId)}
+                            className="absolute right-2 top-2 h-8 w-8 rounded-full bg-black/45 text-red-100 backdrop-blur-md ring-1 ring-white/10 hover:bg-red-500/30 inline-flex items-center justify-center"
+                            title="Supprimer cette photo"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="h-44 w-full flex flex-col items-center justify-center gap-2 rounded-[18px] bg-white/[0.035] text-slate-300/70">
+                      <ImagePlus className="h-8 w-8 text-amber-200/80" />
+                      <span className="text-sm">Aucune photo ajoutée</span>
+                      <span className="text-[11px] text-slate-400/60">JPG, PNG ou WebP · max 8 Mo/photo</span>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <label className="flex-1 h-10 cursor-pointer inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-300/10 text-amber-200 ring-1 ring-amber-300/20 hover:bg-amber-300/15 text-sm font-medium">
+                      <ImagePlus className="w-4 h-4" />
+                      Ajouter des photos
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          editor.handleRecipeImagesChange(e.currentTarget.files);
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+
+                    {editor.recipeImages.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={editor.clearAllRecipeImages}
+                        className="h-10 w-10 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200/90 inline-flex items-center justify-center"
+                        title="Supprimer toutes les photos"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

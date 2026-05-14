@@ -199,7 +199,10 @@ function MainApp() {
   const [currentView, setCurrentView] = useState<View>("accueil");
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
   const [recipeToOpenId, setRecipeToOpenId] = useState<string | null>(null);
-  const [sharedRecipeToOpen, setSharedRecipeToOpen] = useState<{ recipeId: string; groupId: string } | null>(null);
+  const [sharedRecipeToOpen, setSharedRecipeToOpen] = useState<{
+    recipeId: string;
+    groupId: string;
+  } | null>(null);
   const [routePath, setRoutePath] = useState<string>(() =>
     getCurrentRouteFromUrl()
   );
@@ -423,10 +426,10 @@ function MainApp() {
               navigateTo("/recipes");
             }}
             openSharedRecipe={(recipeId, groupId) => {
-              sessionStorage.setItem("selectedSharedRecipeId", recipeId);
-              sessionStorage.setItem("selectedWorkGroupId", groupId);
               setSharedRecipeToOpen({ recipeId, groupId });
               setRecipeToOpenId(null);
+              sessionStorage.setItem("selectedSharedRecipeId", recipeId);
+              sessionStorage.setItem("selectedWorkGroupId", groupId);
               setCurrentView("shared");
               navigateTo("/shared");
             }}

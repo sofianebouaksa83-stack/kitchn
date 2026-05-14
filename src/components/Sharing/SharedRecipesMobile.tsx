@@ -2,34 +2,31 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Folder } from "lucide-react";
 import { SharedRecipeGroupMobile } from "./SharedRecipeGroupMobile";
-import type { SharedRecipeToOpen } from "./SharedRecipes";
 
 type GroupMini = { id: string; name: string };
 
-type SharedRecipesMobileProps = {
-  recipeToOpen?: SharedRecipeToOpen;
-  onRecipeOpened?: () => void;
-};
+function getPendingSharedOpen() {
+  return {
+    groupId:
+      sessionStorage.getItem("selectedWorkGroupId") ||
+      sessionStorage.getItem("selectedSharedGroupId"),
+    recipeId: sessionStorage.getItem("selectedSharedRecipeId"),
+  };
+}
 
-export function SharedRecipesMobile({
-  recipeToOpen,
-  onRecipeOpened,
-}: SharedRecipesMobileProps) {
+export function SharedRecipesMobile() {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<GroupMini[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [recipeToOpenId, setRecipeToOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     void load();
   }, []);
 
-  useEffect(() => {
-    if (!recipeToOpen?.groupId) return;
-    setSelectedGroupId(recipeToOpen.groupId);
-  }, [recipeToOpen?.groupId]);
-
   async function load() {
     setLoading(true);
+
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) {
       setLoading(false);
@@ -49,9 +46,10 @@ export function SharedRecipesMobile({
 
     setGroups(list);
 
-    const pendingGroupId = recipeToOpen?.groupId;
-    if (pendingGroupId) {
-      setSelectedGroupId(pendingGroupId);
+    const pending = getPendingSharedOpen();
+    if (pending.groupId) {
+      setSelectedGroupId(pending.groupId);
+      setRecipeToOpenId(pending.recipeId);
     }
 
     setLoading(false);
@@ -63,11 +61,7 @@ export function SharedRecipesMobile({
   );
 
   if (loading) {
-    return (
-      <div className="px-4 py-10 text-center text-slate-300">
-        Chargement…
-      </div>
-    );
+    return <div className="px-4 py-10 text-center text-slate-300">Chargement…</div>;
   }
 
   if (selectedGroupId) {
@@ -75,26 +69,25 @@ export function SharedRecipesMobile({
       <SharedRecipeGroupMobile
         groupId={selectedGroupId}
         groupName={selected?.name ?? "Groupe"}
+        initialRecipeId={recipeToOpenId}
+        onInitialRecipeOpened={() => {
+          setRecipeToOpenId(null);
+          sessionStorage.removeItem("selectedSharedRecipeId");
+          sessionStorage.removeItem("selectedWorkGroupId");
+          sessionStorage.removeItem("selectedSharedGroupId");
+        }}
         onBack={() => {
           setSelectedGroupId(null);
-          onRecipeOpened?.();
+          setRecipeToOpenId(null);
         }}
-        initialRecipeId={
-          recipeToOpen?.groupId === selectedGroupId ? recipeToOpen.recipeId : null
-        }
-        onInitialRecipeOpened={onRecipeOpened}
       />
     );
   }
 
   return (
     <div className="px-4 pt-4 pb-24">
-      <h1 className="text-xl font-semibold text-slate-100 mb-2">
-        Partagées
-      </h1>
-      <p className="text-sm text-slate-300/70 mb-6">
-        Recettes visibles via tes groupes
-      </p>
+      <h1 className="text-xl font-semibold text-slate-100 mb-2">Partagées</h1>
+      <p className="text-sm text-slate-300/70 mb-6">Recettes visibles via tes groupes</p>
 
       <div className="space-y-4">
         {groups.map((g) => (
@@ -109,12 +102,8 @@ export function SharedRecipesMobile({
                 <Folder className="w-5 h-5 text-amber-200" />
               </div>
               <div className="min-w-0">
-                <div className="text-lg font-semibold text-slate-100 truncate">
-                  {g.name}
-                </div>
-                <div className="text-sm text-slate-300/70">
-                  Ouvrir le groupe
-                </div>
+                <div className="text-lg font-semibold text-slate-100 truncate">{g.name}</div>
+                <div className="text-sm text-slate-300/70">Ouvrir le groupe</div>
               </div>
             </div>
           </button>

@@ -74,6 +74,8 @@ type Props = {
 
   onCreateNew: () => void;
   onOpenRecipe: (id: string) => void;
+  recipeToOpenId?: string | null;
+  onRecipeOpened?: () => void;
 
   onSelectAll: () => void;
   onSelectFavorites: () => void;
@@ -229,6 +231,8 @@ export function RecipeListMobile(props: Props) {
     setNewFolderName,
 
     onCreateNew,
+    recipeToOpenId,
+    onRecipeOpened,
 
     onSelectAll,
     onSelectFavorites,
@@ -263,6 +267,12 @@ export function RecipeListMobile(props: Props) {
 
   const [moveFolderOpen, setMoveFolderOpen] = useState(false);
   const [moveRecipe, setMoveRecipe] = useState<RecipeListMobileRecipe | null>(null);
+
+  useEffect(() => {
+    if (!recipeToOpenId) return;
+    setOpenedRecipeId(recipeToOpenId);
+    onRecipeOpened?.();
+  }, [recipeToOpenId, onRecipeOpened]);
 
   useEffect(() => {
     const shouldLock = sidebarOpen || recipeSheetOpen || actionSheetOpen || moveFolderOpen;

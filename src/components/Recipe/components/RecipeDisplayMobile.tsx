@@ -56,6 +56,8 @@ type RecipeRow = {
   cook_time: number | null;
   notes: string | null;
   allergens: string | null;
+  image_url: string | null;
+  image_urls: string[] | null;
   created_at: string | null;
   recipe_sections?: RecipeSectionRow[] | null;
 };
@@ -95,6 +97,19 @@ function ingredientLabel(i: IngredientRow) {
 
 const CROSS_MANUAL_VALUE = "__manual__";
 
+function getRecipeImageUrls(recipe: RecipeRow | null) {
+  if (!recipe) return [];
+
+  const urls = [
+    ...(Array.isArray(recipe.image_urls) ? recipe.image_urls : []),
+    recipe.image_url ?? "",
+  ]
+    .map((url) => String(url ?? "").trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(urls));
+}
+
 export default function RecipeDisplayMobile({
   recipeId,
   onBack,
@@ -129,6 +144,8 @@ export default function RecipeDisplayMobile({
   // ✅ sections accordion (fermées par défaut)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
+  const recipeImages = useMemo(() => getRecipeImageUrls(recipe), [recipe]);
+
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,6 +168,8 @@ export default function RecipeDisplayMobile({
           cook_time,
           notes,
           allergens,
+          image_url,
+          image_urls,
           created_at,
           recipe_sections (
             id,
@@ -286,7 +305,15 @@ export default function RecipeDisplayMobile({
     const cat = recipe.category || "Sans catégorie";
     const prep = recipe.prep_time ?? 0;
     const cook = recipe.cook_time ?? 0;
-    
+    const parts = [cat];
+
+    if (prep > 0) parts.push(`Préparation : ${prep} min`);
+    if (cook > 0) parts.push(`Cuisson : ${cook} min`);
+    if (recipe.servings && recipe.servings > 0) {
+      parts.push(`${recipe.servings} portion${recipe.servings > 1 ? "s" : ""}`);
+    }
+
+    return parts.join(" · ");
   }, [recipe]);
 
   const ingredientsById = useMemo(() => {
@@ -404,6 +431,26 @@ export default function RecipeDisplayMobile({
         </div>
       ) : recipe ? (
         <div className="space-y-6">
+          {recipeImages.length > 0 ? (
+            <div
+              className={
+                recipeImages.length === 1
+                  ? "mx-auto flex w-full justify-center"
+                  : "flex w-full gap-3 overflow-x-auto pb-1"
+              }
+            >
+              {recipeImages.map((imageUrl, index) => (
+                <img
+                  key={imageUrl}
+                  src={imageUrl}
+                  alt={`Photo ${index + 1} de ${recipe.title ?? "la recette"}`}
+                  className="h-auto max-h-60 w-auto max-w-[82vw] shrink-0 rounded-[20px] object-contain"
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          ) : null}
+
           {/* ✅ Outils de calcul en menu déroulant */}
           <div className="space-y-3">
             <div className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.20)] overflow-hidden">
