@@ -7,6 +7,7 @@ import { LoginForm } from "./components/Auth/LoginForm";
 import { RegisterForm } from "./components/Auth/RegisterForm";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 import { AuthCallback } from "./components/Auth/AuthCallback";
+import HomePage from "./components/HomePage/HomePage";
 
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
@@ -33,6 +34,7 @@ import "./index.css";
 import AddToHomePopup from "./components/AddToHomePopup";
 
 type View =
+  | "accueil"
   | "recipes"
   | "editor"
   | "groups"
@@ -46,6 +48,7 @@ type View =
   | "settings";
 
 const VIEW_PATHS: Record<View, string> = {
+  accueil: "/accueil",
   recipes: "/recipes",
   editor: "/recipes/edit",
   groups: "/groups",
@@ -114,6 +117,10 @@ function viewFromRoute(route: string): View | null {
 
   switch (path) {
     case "/":
+    case "/accueil":
+    case "/home":
+      return "accueil";
+
     case "/recipes":
       return "recipes";
 
@@ -189,8 +196,10 @@ function MainApp() {
   const { user, loading } = useAuth();
 
   const [, setAuthMode] = useState<"login" | "register">("login");
-  const [currentView, setCurrentView] = useState<View>("recipes");
+  const [currentView, setCurrentView] = useState<View>("accueil");
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
+  const [recipeToOpenId, setRecipeToOpenId] = useState<string | null>(null);
+  const [sharedRecipeToOpen, setSharedRecipeToOpen] = useState<{ recipeId: string; groupId: string } | null>(null);
   const [routePath, setRoutePath] = useState<string>(() =>
     getCurrentRouteFromUrl()
   );
@@ -261,6 +270,9 @@ function MainApp() {
         setEditingRecipeId(null);
       }
 
+      setRecipeToOpenId(null);
+      setSharedRecipeToOpen(null);
+
       navigateTo(VIEW_PATHS[view]);
     },
     [navigateTo]
@@ -330,7 +342,7 @@ function MainApp() {
             if (redirect && redirect.startsWith("/")) {
               navigateTo(redirect);
             } else {
-              navigateTo("/recipes");
+              navigateTo("/accueil");
             }
           }}
         />
@@ -401,8 +413,33 @@ function MainApp() {
       <Navbar currentView={currentView} onViewChange={handleViewChange} />
 
       <main className={`${ui.container} ${ui.page} pb-20 lg:pb-0`}>
+        {currentView === "accueil" && (
+          <HomePage
+            navigateTo={navigateTo}
+            openRecipe={(recipeId) => {
+              setRecipeToOpenId(recipeId);
+              setSharedRecipeToOpen(null);
+              setCurrentView("recipes");
+              navigateTo("/recipes");
+            }}
+            openSharedRecipe={(recipeId, groupId) => {
+              sessionStorage.setItem("selectedSharedRecipeId", recipeId);
+              sessionStorage.setItem("selectedWorkGroupId", groupId);
+              setSharedRecipeToOpen({ recipeId, groupId });
+              setRecipeToOpenId(null);
+              setCurrentView("shared");
+              navigateTo("/shared");
+            }}
+          />
+        )}
+
         {currentView === "recipes" && (
-          <RecipeList onCreateNew={handleCreateNew} onEdit={handleEdit} />
+          <RecipeList
+            onCreateNew={handleCreateNew}
+            onEdit={handleEdit}
+            recipeToOpenId={recipeToOpenId}
+            onRecipeOpened={() => setRecipeToOpenId(null)}
+          />
         )}
 
         {currentView === "editor" && (
@@ -418,7 +455,12 @@ function MainApp() {
           />
         )}
 
-        {currentView === "shared" && <SharedRecipes />}
+        {currentView === "shared" && (
+          <SharedRecipes
+            recipeToOpen={sharedRecipeToOpen}
+            onRecipeOpened={() => setSharedRecipeToOpen(null)}
+          />
+        )}
 
         {currentView === "groups" && (
           <WorkGroups onViewChange={handleViewChange} />

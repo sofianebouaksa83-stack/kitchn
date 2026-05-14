@@ -1,11 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Folder } from "lucide-react";
 import { SharedRecipeGroupMobile } from "./SharedRecipeGroupMobile";
+import type { SharedRecipeToOpen } from "./SharedRecipes";
 
 type GroupMini = { id: string; name: string };
 
-export function SharedRecipesMobile() {
+type SharedRecipesMobileProps = {
+  recipeToOpen?: SharedRecipeToOpen;
+  onRecipeOpened?: () => void;
+};
+
+export function SharedRecipesMobile({
+  recipeToOpen,
+  onRecipeOpened,
+}: SharedRecipesMobileProps) {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<GroupMini[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -14,10 +23,18 @@ export function SharedRecipesMobile() {
     void load();
   }, []);
 
+  useEffect(() => {
+    if (!recipeToOpen?.groupId) return;
+    setSelectedGroupId(recipeToOpen.groupId);
+  }, [recipeToOpen?.groupId]);
+
   async function load() {
     setLoading(true);
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) return setLoading(false);
+    if (!auth.user) {
+      setLoading(false);
+      return;
+    }
 
     const { data } = await supabase
       .from("group_members")
@@ -31,8 +48,19 @@ export function SharedRecipesMobile() {
         .sort((a: any, b: any) => a.name.localeCompare(b.name)) ?? [];
 
     setGroups(list);
+
+    const pendingGroupId = recipeToOpen?.groupId;
+    if (pendingGroupId) {
+      setSelectedGroupId(pendingGroupId);
+    }
+
     setLoading(false);
   }
+
+  const selected = useMemo(
+    () => (selectedGroupId ? groups.find((g) => g.id === selectedGroupId) : null),
+    [groups, selectedGroupId]
+  );
 
   if (loading) {
     return (
@@ -41,17 +69,23 @@ export function SharedRecipesMobile() {
       </div>
     );
   }
-const selected = selectedGroupId ? groups.find(g => g.id === selectedGroupId) : null;
 
-if (selectedGroupId) {
-  return (
-    <SharedRecipeGroupMobile
-      groupId={selectedGroupId}
-      groupName={selected?.name ?? "Groupe"}
-      onBack={() => setSelectedGroupId(null)}
-    />
-  );
-}
+  if (selectedGroupId) {
+    return (
+      <SharedRecipeGroupMobile
+        groupId={selectedGroupId}
+        groupName={selected?.name ?? "Groupe"}
+        onBack={() => {
+          setSelectedGroupId(null);
+          onRecipeOpened?.();
+        }}
+        initialRecipeId={
+          recipeToOpen?.groupId === selectedGroupId ? recipeToOpen.recipeId : null
+        }
+        onInitialRecipeOpened={onRecipeOpened}
+      />
+    );
+  }
 
   return (
     <div className="px-4 pt-4 pb-24">

@@ -14,6 +14,8 @@ import { ui } from "../../../styles/ui";
 type RecipeListProps = {
   onCreateNew: () => void;
   onEdit: (recipeId: string) => void;
+  recipeToOpenId?: string | null;
+  onRecipeOpened?: () => void;
 };
 
 type RecipeWithIngredients = Recipe & {
@@ -29,7 +31,12 @@ type RecipeFolder = {
   created_by: string;
 };
 
-export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
+export function RecipeList({
+  onCreateNew,
+  onEdit,
+  recipeToOpenId,
+  onRecipeOpened,
+}: RecipeListProps) {
   const { user } = useAuth();
 
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
@@ -75,6 +82,16 @@ export function RecipeList({ onCreateNew, onEdit }: RecipeListProps) {
     void loadFolders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!recipeToOpenId) return;
+
+    const recipeExists = recipes.some((recipe) => recipe.id === recipeToOpenId);
+    if (!recipeExists) return;
+
+    setViewingRecipe(recipeToOpenId);
+    onRecipeOpened?.();
+  }, [recipeToOpenId, recipes, onRecipeOpened]);
 
   async function loadRecipes() {
     if (!user) {

@@ -30,6 +30,8 @@ type Props = {
   groupName?: string;
   onBack?: () => void;
   onEdit?: (recipeId: string) => void;
+  initialRecipeId?: string | null;
+  onInitialRecipeOpened?: () => void;
 };
 
 type GroupFolder = {
@@ -59,6 +61,8 @@ export function SharedRecipeGroupDesktop({
   groupName = "Groupe",
   onBack,
   onEdit,
+  initialRecipeId = null,
+  onInitialRecipeOpened,
 }: Props) {
   const { user } = useAuth();
 
@@ -100,6 +104,23 @@ export function SharedRecipeGroupDesktop({
   }, [groupId, user?.id]);
 
   useEffect(() => {
+    if (!initialRecipeId || recipes.length === 0) return;
+
+    const exists = recipes.some((recipe) => String(recipe.id) === String(initialRecipeId));
+    if (!exists) return;
+
+    setSelectedFolder(null);
+    setShowFavoritesOnly(false);
+    setSearchTerm("");
+    setCategoryFilter("Toutes");
+    setMoveFolderOpen(false);
+    setMoveRecipe(null);
+    setViewingRecipeId(initialRecipeId);
+    onInitialRecipeOpened?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRecipeId, recipes]);
+
+  useEffect(() => {
     function onDocDown(e: MouseEvent) {
       if (!folderMenuOpenId) return;
       const target = e.target as Node;
@@ -113,10 +134,18 @@ export function SharedRecipeGroupDesktop({
 
   useEffect(() => {
     const shouldLock = moveFolderOpen;
-    const prev = document.documentElement.style.overflow;
-    if (shouldLock) document.documentElement.style.overflow = "hidden";
+
+    if (shouldLock) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+
     return () => {
-      document.documentElement.style.overflow = prev;
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
     };
   }, [moveFolderOpen]);
 

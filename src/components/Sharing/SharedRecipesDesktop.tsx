@@ -2,16 +2,29 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Share2, Folder } from "lucide-react";
 import { ui } from "../../styles/ui";
-import { SharedRecipeGroup } from "./SharedRecipeGroup";
+import { SharedRecipeGroupDesktop } from "./SharedRecipeGroupDesktop";
 
 type GroupMini = { id: string; name: string };
+
+type SharedRecipeToOpen = {
+  recipeId: string;
+  groupId: string;
+} | null;
+
+type SharedRecipesDesktopProps = {
+  recipeToOpen?: SharedRecipeToOpen;
+  onRecipeOpened?: () => void;
+};
 
 type MembershipRow = {
   work_group_id: string;
   work_groups: GroupMini | null;
 };
 
-export function SharedRecipesDesktop() {
+export function SharedRecipesDesktop({
+  recipeToOpen = null,
+  onRecipeOpened,
+}: SharedRecipesDesktopProps) {
   const [loading, setLoading] = useState(true);
 
   const [userGroups, setUserGroups] = useState<GroupMini[]>([]);
@@ -21,6 +34,16 @@ export function SharedRecipesDesktop() {
     void loadGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!recipeToOpen?.groupId) return;
+    setSelectedGroupId(recipeToOpen.groupId);
+  }, [recipeToOpen?.groupId]);
+
+  useEffect(() => {
+    if (!recipeToOpen?.groupId) return;
+    setSelectedGroupId(recipeToOpen.groupId);
+  }, [recipeToOpen?.groupId]);
 
   async function loadGroups() {
     setLoading(true);
@@ -55,8 +78,9 @@ export function SharedRecipesDesktop() {
 
       setUserGroups(groups);
 
-      // UX: si 1 seul groupe -> auto-entrer
-      if (groups.length === 1) setSelectedGroupId(groups[0].id);
+      // UX: si 1 seul groupe -> auto-entrer, sauf quand on arrive depuis l’accueil pour ouvrir une recette précise
+      if (recipeToOpen?.groupId) setSelectedGroupId(recipeToOpen.groupId);
+      else if (groups.length === 1) setSelectedGroupId(groups[0].id);
       else setSelectedGroupId(null);
     } catch (err: any) {
       console.error("[SharedRecipes] Error loading groups:", err);
@@ -78,10 +102,15 @@ export function SharedRecipesDesktop() {
   // ✅ Vue “dans un groupe”
   if (!loading && selectedGroupId) {
     return (
-      <SharedRecipeGroup
+      <SharedRecipeGroupDesktop
         groupId={selectedGroupId}
         groupName={selectedGroup?.name ?? "Groupe"}
-        onBack={() => setSelectedGroupId(null)}
+        initialRecipeId={recipeToOpen?.groupId === selectedGroupId ? recipeToOpen.recipeId : null}
+        onInitialRecipeOpened={onRecipeOpened}
+        onBack={() => {
+          setSelectedGroupId(null);
+          onRecipeOpened?.();
+        }}
       />
     );
   }

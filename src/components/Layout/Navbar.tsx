@@ -412,7 +412,7 @@ const openSubscriptionSettings = () => {
           {/* LOGO — centré mobile, gauche desktop */}
           <div className="shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
             <button
-              onClick={() => handleViewChange("recipes")}
+              onClick={() => handleViewChange("accueil")}
               aria-label="Retour à l'accueil"
               className="flex items-center focus:outline-none"
               type="button"
