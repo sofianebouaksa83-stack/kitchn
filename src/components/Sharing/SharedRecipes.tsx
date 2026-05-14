@@ -1,15 +1,29 @@
 import { SharedRecipesDesktop } from "./SharedRecipesDesktop";
 import { SharedRecipesMobile } from "./SharedRecipesMobile";
 
-export function SharedRecipes() {
+type SharedRecipesProps = {
+  recipeToOpen?: {
+    recipeId: string;
+    groupId: string;
+  } | null;
+  onRecipeOpened?: () => void;
+};
+
+export function SharedRecipes({ recipeToOpen, onRecipeOpened }: SharedRecipesProps) {
   return (
     <>
       <div className="lg:hidden">
-        <SharedRecipesMobile />
+        <SharedRecipesMobile
+          recipeToOpen={recipeToOpen}
+          onRecipeOpened={onRecipeOpened}
+        />
       </div>
 
       <div className="hidden lg:block">
-        <SharedRecipesDesktop />
+        <SharedRecipesDesktop
+          recipeToOpen={recipeToOpen}
+          onRecipeOpened={onRecipeOpened}
+        />
       </div>
     </>
   );

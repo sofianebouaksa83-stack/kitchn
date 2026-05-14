@@ -11,6 +11,14 @@ type MembershipRow = {
   work_groups: GroupMini | null;
 };
 
+type SharedRecipesDesktopProps = {
+  recipeToOpen?: {
+    recipeId: string;
+    groupId: string;
+  } | null;
+  onRecipeOpened?: () => void;
+};
+
 function getPendingSharedOpen() {
   return {
     groupId:
@@ -20,7 +28,10 @@ function getPendingSharedOpen() {
   };
 }
 
-export function SharedRecipesDesktop() {
+export function SharedRecipesDesktop({
+  recipeToOpen,
+  onRecipeOpened,
+}: SharedRecipesDesktopProps) {
   const [loading, setLoading] = useState(true);
 
   const [userGroups, setUserGroups] = useState<GroupMini[]>([]);
@@ -31,6 +42,13 @@ export function SharedRecipesDesktop() {
     void loadGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!recipeToOpen) return;
+
+    setSelectedGroupId(recipeToOpen.groupId);
+    setRecipeToOpenId(recipeToOpen.recipeId);
+  }, [recipeToOpen]);
 
   async function loadGroups() {
     setLoading(true);
@@ -65,7 +83,10 @@ export function SharedRecipesDesktop() {
 
       setUserGroups(groups);
 
-      const pending = getPendingSharedOpen();
+      const pending = recipeToOpen
+        ? { groupId: recipeToOpen.groupId, recipeId: recipeToOpen.recipeId }
+        : getPendingSharedOpen();
+
       if (pending.groupId) {
         setSelectedGroupId(pending.groupId);
         setRecipeToOpenId(pending.recipeId);
@@ -105,6 +126,7 @@ export function SharedRecipesDesktop() {
           sessionStorage.removeItem("selectedSharedRecipeId");
           sessionStorage.removeItem("selectedWorkGroupId");
           sessionStorage.removeItem("selectedSharedGroupId");
+          onRecipeOpened?.();
         }}
         onBack={() => {
           setSelectedGroupId(null);

@@ -5,6 +5,14 @@ import { SharedRecipeGroupMobile } from "./SharedRecipeGroupMobile";
 
 type GroupMini = { id: string; name: string };
 
+type SharedRecipesMobileProps = {
+  recipeToOpen?: {
+    recipeId: string;
+    groupId: string;
+  } | null;
+  onRecipeOpened?: () => void;
+};
+
 function getPendingSharedOpen() {
   return {
     groupId:
@@ -14,7 +22,10 @@ function getPendingSharedOpen() {
   };
 }
 
-export function SharedRecipesMobile() {
+export function SharedRecipesMobile({
+  recipeToOpen,
+  onRecipeOpened,
+}: SharedRecipesMobileProps) {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<GroupMini[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -22,7 +33,15 @@ export function SharedRecipesMobile() {
 
   useEffect(() => {
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!recipeToOpen) return;
+
+    setSelectedGroupId(recipeToOpen.groupId);
+    setRecipeToOpenId(recipeToOpen.recipeId);
+  }, [recipeToOpen]);
 
   async function load() {
     setLoading(true);
@@ -46,7 +65,10 @@ export function SharedRecipesMobile() {
 
     setGroups(list);
 
-    const pending = getPendingSharedOpen();
+    const pending = recipeToOpen
+      ? { groupId: recipeToOpen.groupId, recipeId: recipeToOpen.recipeId }
+      : getPendingSharedOpen();
+
     if (pending.groupId) {
       setSelectedGroupId(pending.groupId);
       setRecipeToOpenId(pending.recipeId);
@@ -75,6 +97,7 @@ export function SharedRecipesMobile() {
           sessionStorage.removeItem("selectedSharedRecipeId");
           sessionStorage.removeItem("selectedWorkGroupId");
           sessionStorage.removeItem("selectedSharedGroupId");
+          onRecipeOpened?.();
         }}
         onBack={() => {
           setSelectedGroupId(null);
