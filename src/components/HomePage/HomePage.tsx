@@ -6,9 +6,11 @@ import {
   ArrowRight,
   ChefHat,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useSubscription } from "../../hooks/useSubscription";
+import { ui } from "../../styles/ui";
 
 const FREE_IMPORT_LIMIT = 30;
 
@@ -61,6 +63,12 @@ function uniqById(items: RecipeItem[]) {
   return Array.from(map.values());
 }
 
+function unlockPageScroll() {
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
+  document.body.style.touchAction = "";
+}
+
 export default function HomePage({
   navigateTo,
   openRecipe,
@@ -81,6 +89,17 @@ export default function HomePage({
   const [importCount, setImportCount] = useState(0);
   const [latestRecipes, setLatestRecipes] = useState<RecipeItem[]>([]);
   const [latestSharedRecipes, setLatestSharedRecipes] = useState<SharedRecipeItem[]>([]);
+
+  useEffect(() => {
+    unlockPageScroll();
+
+    const onPageShow = () => unlockPageScroll();
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
 
   useEffect(() => {
     void loadHomeData();
@@ -272,12 +291,16 @@ export default function HomePage({
   }
 
   function handleOpenRecipe(recipeId: string) {
+    sessionStorage.setItem("selectedRecipeId", recipeId);
+    window.dispatchEvent(
+      new CustomEvent("kitchn:open-recipe", { detail: { recipeId } })
+    );
+
     if (openRecipe) {
       openRecipe(recipeId);
       return;
     }
 
-    sessionStorage.setItem("selectedRecipeId", recipeId);
     navigateTo("/recipes");
   }
 
@@ -285,6 +308,11 @@ export default function HomePage({
     sessionStorage.setItem("selectedSharedRecipeId", recipeId);
     sessionStorage.setItem("selectedWorkGroupId", groupId);
     sessionStorage.setItem("selectedSharedGroupId", groupId);
+    window.dispatchEvent(
+      new CustomEvent("kitchn:open-shared-recipe", {
+        detail: { recipeId, groupId },
+      })
+    );
 
     if (openSharedRecipe) {
       openSharedRecipe(recipeId, groupId);
@@ -306,26 +334,41 @@ export default function HomePage({
     ? "Imports IA faits"
     : "Imports IA restants";
 
-  return (
-    <div className="w-full max-w-full overflow-x-hidden px-4 py-6 pb-28 text-white">
-      <div className="mx-auto w-full max-w-6xl space-y-8">
-        <div className="min-w-0">
-          <h1 className="mt-2 max-w-full break-words text-3xl font-bold leading-tight sm:text-4xl">
+   return (
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 text-white">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>          
+          <h1 className="mt-2 text-3xl font-bold">
             Bonjour <span className="text-[#D4AF37]">{firstName}</span>
-          </h1>
+          </h1>         
         </div>
 
-        <section className="min-w-0">
-          <h2 className="mb-4 text-lg font-semibold">Résumé</h2>
+        <button
+          type="button"
+          onClick={() => navigateTo("/recipes/new")}
+          className={ui.btnPrimary} >
+          <Plus className="h-4 w-4" />
+          Nouvelle recette
+        </button>
+      </div>
 
-          <div className="grid w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
-            <StatCard icon={<BookOpen />} value={recipesCount} label="Recettes" />
-            <StatCard icon={<Users />} value={sharedCount} label="Recettes partagées" />
-            <StatCard icon={<Sparkles />} value={importValue} label={importLabel} />
-          </div>
-        </section>
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Résumé</h2>          
+        </div>
 
-        <div className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard icon={<BookOpen />} value={recipesCount} label="Recettes" />
+          <StatCard icon={<Users />} value={sharedCount} label="Recettes partagées" />
+          <StatCard
+            icon={<Sparkles />}
+            value={subscriptionLoading ? "..." : importValue}
+            label={importLabel}
+          />
+        </div>
+      </section>
+
+      <div className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
           <Panel title="Dernières recettes ajoutées" onClick={() => navigateTo("/recipes")}>
             {loading ? (
               <LoadingLine />
@@ -365,21 +408,20 @@ export default function HomePage({
           </Panel>
         </div>
 
-        <div className="w-full min-w-0 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#D4AF37]/15 text-[#D4AF37]">
-              <ChefHat className="h-7 w-7" />
-            </div>
+      <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#D4AF37]/15 text-[#D4AF37]">
+            <ChefHat className="h-7 w-7" />
+          </div>
 
-            <div className="min-w-0">
-              <p className="text-sm text-[#D4AF37]">Conseil du jour</p>
-              <h3 className="mt-1 break-words text-lg font-semibold sm:text-xl">
-                Pense à centraliser tes anciennes recettes.
-              </h3>
-              <p className="mt-1 text-sm text-white/55">
-                L’import IA peut t’aider à tout regrouper au même endroit.
-              </p>
-            </div>
+          <div>
+            <p className="text-sm text-[#D4AF37]">Conseil du jour</p>
+            <h3 className="mt-1 text-xl font-semibold">
+              Pense à centraliser tes anciennes recettes.
+            </h3>
+            <p className="mt-1 text-sm text-white/55">
+              L’import IA peut t’aider à tout regrouper au même endroit.
+            </p>
           </div>
         </div>
       </div>

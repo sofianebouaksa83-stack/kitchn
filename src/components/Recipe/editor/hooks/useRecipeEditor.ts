@@ -38,7 +38,7 @@ export type RecipeImageForm = {
   isNew: boolean;
 };
 
-export const UNITS = ["g", "kg", "L", "mL", "cl", "unité", "pincée", "càs", "càc", "bouquet"];
+export const UNITS = ["g", "kg", "L", "mL", "cl", "pincée", "%", "pièce"];
 export const CATEGORIES = ["Entrée", "Plat", "Dessert", "Sauce", "Pâtisserie", "Autre"];
 
 const RECIPE_IMAGE_BUCKET = "recipe-images";

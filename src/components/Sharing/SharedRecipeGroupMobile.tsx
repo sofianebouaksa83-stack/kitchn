@@ -35,8 +35,6 @@ type Props = {
   groupName?: string;
   onBack?: () => void;
   onEdit?: (recipeId: string) => void;
-  initialRecipeId?: string | null;
-  onInitialRecipeOpened?: () => void;
 };
 
 type GroupFolder = {
@@ -89,7 +87,7 @@ function CategoryChips({
                 "h-10 px-4 rounded-full text-sm font-medium whitespace-nowrap ring-1 transition",
                 active
                   ? "bg-amber-400/20 ring-amber-300/30 text-amber-100"
-                  : "bg-white/[0.05] ring-white/10 text-slate-200 hover:bg-white/[0.07]"
+                  : "bg-white/[0.04] ring-amber-400/15 text-slate-200 hover:bg-white/[0.07]"
               )}
             >
               {cat}
@@ -118,7 +116,7 @@ function SheetAction({
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-3 px-4 py-3 rounded-2xl",
-        "bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left",
+        "bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.05] transition text-left",
         tone === "danger" && "hover:bg-red-500/10 ring-red-500/20"
       )}
     >
@@ -127,7 +125,7 @@ function SheetAction({
           "h-10 w-10 rounded-2xl inline-flex items-center justify-center",
           tone === "danger"
             ? "bg-red-500/10 ring-1 ring-red-500/20 text-red-200"
-            : "bg-white/[0.04] ring-1 ring-white/10 text-slate-200"
+            : "bg-white/[0.04] ring-1 ring-amber-400/15 text-slate-200"
         )}
       >
         {icon}
@@ -149,8 +147,6 @@ export function SharedRecipeGroupMobile({
   groupName = "Groupe",
   onBack,
   onEdit,
-  initialRecipeId,
-  onInitialRecipeOpened,
 }: Props) {
   const { user } = useAuth();
 
@@ -194,6 +190,39 @@ export function SharedRecipeGroupMobile({
 
   const [memberRole, setMemberRole] = useState<string | null>(null);
 
+  useEffect(() => {
+    const openPendingSharedRecipe = (event?: Event) => {
+      const detail = (event as
+        | CustomEvent<{ recipeId?: string; groupId?: string }>
+        | undefined)?.detail;
+
+      const pendingRecipeId =
+        detail?.recipeId || sessionStorage.getItem("selectedSharedRecipeId");
+      const pendingGroupId =
+        detail?.groupId ||
+        sessionStorage.getItem("selectedSharedGroupId") ||
+        sessionStorage.getItem("selectedWorkGroupId");
+
+      if (!pendingRecipeId) return;
+      if (pendingGroupId && pendingGroupId !== groupId) return;
+
+      sessionStorage.removeItem("selectedSharedRecipeId");
+      sessionStorage.removeItem("selectedSharedGroupId");
+      sessionStorage.removeItem("selectedWorkGroupId");
+      setOpenedRecipeId(pendingRecipeId);
+    };
+
+    openPendingSharedRecipe();
+    window.addEventListener("kitchn:open-shared-recipe", openPendingSharedRecipe);
+
+    return () => {
+      window.removeEventListener(
+        "kitchn:open-shared-recipe",
+        openPendingSharedRecipe
+      );
+    };
+  }, [groupId]);
+
   const canShare = memberRole === "admin" || memberRole === "second";
   const canEdit = memberRole === "admin" || memberRole === "second";
   const canRemoveFromGroup = memberRole === "admin" || memberRole === "second";
@@ -203,13 +232,6 @@ export function SharedRecipeGroupMobile({
     void loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, user?.id]);
-
-  useEffect(() => {
-    if (!initialRecipeId) return;
-    setOpenedRecipeId(initialRecipeId);
-    onInitialRecipeOpened?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialRecipeId]);
 
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
@@ -225,10 +247,22 @@ export function SharedRecipeGroupMobile({
 
   useEffect(() => {
     const shouldLock = sidebarOpen || recipeSheetOpen || sheetOpen || moveFolderOpen;
-    const prev = document.documentElement.style.overflow;
-    if (shouldLock) document.documentElement.style.overflow = "hidden";
+
+    if (!shouldLock) {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+      return;
+    }
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
     return () => {
-      document.documentElement.style.overflow = prev;
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
     };
   }, [sidebarOpen, recipeSheetOpen, sheetOpen, moveFolderOpen]);
 
@@ -581,7 +615,7 @@ export function SharedRecipeGroupMobile({
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="h-12 w-12 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+            className="h-12 w-12 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
             aria-label="Ouvrir les filtres"
             title="Filtres"
           >
@@ -596,7 +630,7 @@ export function SharedRecipeGroupMobile({
               setSelectedFolder(null);
               setShowFavoritesOnly(false);
             }}
-            className="mt-4 inline-flex h-10 items-center gap-2 rounded-2xl bg-white/[0.05] px-4 text-sm font-semibold text-slate-100 ring-1 ring-white/10 transition active:scale-[0.98] hover:bg-white/[0.08]"
+            className="mt-4 inline-flex h-10 items-center gap-2 rounded-2xl bg-white/[0.04] px-4 text-sm font-semibold text-slate-100 ring-1 ring-amber-400/15 transition active:scale-[0.98] hover:bg-amber-400/10"
           >
             <ArrowLeft className="h-4 w-4" />
             Toutes les recettes
@@ -609,7 +643,7 @@ export function SharedRecipeGroupMobile({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Rechercher par nom…"
-            className="w-full h-12 pl-12 pr-4 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
+            className="w-full h-12 pl-12 pr-4 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 border border-amber-300/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
           />
         </div>
 
@@ -625,7 +659,7 @@ export function SharedRecipeGroupMobile({
           {loading ? (
             <div className="text-slate-300/80 text-center py-10">Chargement…</div>
           ) : filteredRecipes.length === 0 ? (
-            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-8 text-center">
+            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-amber-400/15 p-8 text-center">
               <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
               <p className="text-slate-200 text-lg font-semibold">
                 {recipesCount === 0
@@ -665,13 +699,13 @@ export function SharedRecipeGroupMobile({
 
                         <div className="mt-1 text-xs text-white/50 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="inline-flex items-center gap-1">
-                            <Tag className="w-3.5 h-3.5 text-white/40" />
+                            <Tag className="w-3.5 h-3.5 text-amber-100/45" />
                             {r.category || "Autre"}
                           </span>
                         </div>
 
                         {searchTerm.trim() && folderName && (
-                          <div className="mt-1 text-[11px] text-white/40">
+                          <div className="mt-1 text-[11px] text-amber-100/45">
                             Dossier : {folderName}
                           </div>
                         )}
@@ -683,7 +717,7 @@ export function SharedRecipeGroupMobile({
                           e.stopPropagation();
                           setSheetRecipe(r);
                         }}
-                        className="h-9 w-9 rounded-full bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition inline-flex items-center justify-center text-white/60 hover:text-white"
+                        className="h-9 w-9 rounded-full bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.07] transition inline-flex items-center justify-center text-white/60 hover:text-white"
                         aria-label="Actions"
                       >
                         <MoreVertical className="w-5 h-5" />
@@ -699,7 +733,7 @@ export function SharedRecipeGroupMobile({
                             setActiveRecipeId(r.id);
                             setShowGroupsModal(true);
                           }}
-                          className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
+                          className="h-10 w-10 rounded-full hover:bg-white/[0.05] transition inline-flex items-center justify-center hover:text-white"
                           title="Partager"
                         >
                           <Share2 className="w-5 h-5" />
@@ -716,7 +750,7 @@ export function SharedRecipeGroupMobile({
                           "h-10 w-10 rounded-full transition inline-flex items-center justify-center",
                           fav
                             ? "text-amber-300 hover:bg-amber-400/10"
-                            : "hover:bg-white/[0.06] hover:text-white"
+                            : "hover:bg-white/[0.05] hover:text-white"
                         )}
                         title="Favori"
                       >
@@ -729,7 +763,7 @@ export function SharedRecipeGroupMobile({
                           e.stopPropagation();
                           setOpenedRecipeId(r.id);
                         }}
-                        className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
+                        className="h-10 w-10 rounded-full hover:bg-white/[0.05] transition inline-flex items-center justify-center hover:text-white"
                         title="Voir"
                       >
                         <Eye className="w-5 h-5" />
@@ -742,7 +776,7 @@ export function SharedRecipeGroupMobile({
                             e.stopPropagation();
                             handleEdit(r.id);
                           }}
-                          className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center hover:text-white"
+                          className="h-10 w-10 rounded-full hover:bg-white/[0.05] transition inline-flex items-center justify-center hover:text-white"
                           title="Modifier"
                         >
                           <Pencil className="w-5 h-5" />
@@ -785,7 +819,7 @@ export function SharedRecipeGroupMobile({
         {recipeSheetOpen && openedRecipeId && (
           <div className="fixed inset-0 z-[140] lg:hidden">
             <motion.div
-              className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -793,7 +827,7 @@ export function SharedRecipeGroupMobile({
             />
 
             <motion.div
-              className="absolute inset-x-0 bottom-0 max-h-[94dvh] overflow-hidden rounded-t-[32px] bg-[#071127] ring-1 ring-white/10 shadow-[0_-24px_90px_rgba(0,0,0,0.70)]"
+              className="absolute inset-x-0 bottom-0 max-h-[94dvh] overflow-hidden rounded-t-[32px] border-t border-amber-300/10 bg-gradient-to-b from-[#0E1736] via-[#0B1538] to-[#070D22] ring-1 ring-amber-400/15 shadow-[0_-24px_90px_rgba(0,0,0,0.70)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -810,10 +844,10 @@ export function SharedRecipeGroupMobile({
               }}
             >
               <div
-                className="sticky top-0 z-20 bg-[#071127]/95 px-4 pt-3 pb-3 backdrop-blur-xl border-b border-white/10"
+                className="sticky top-0 z-20 bg-[#0E1736]/95 px-4 pt-3 pb-3 backdrop-blur-xl border-b border-amber-300/10"
                 onPointerDown={(e) => recipeDragControls.start(e)}
               >
-                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/25" />
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-amber-300/40" />
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -828,7 +862,7 @@ export function SharedRecipeGroupMobile({
                   <button
                     type="button"
                     onClick={closeRecipeSheet}
-                    className="h-10 w-10 shrink-0 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 hover:bg-white/[0.10] transition inline-flex items-center justify-center"
+                    className="h-10 w-10 shrink-0 rounded-2xl bg-white/[0.05] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
                     aria-label="Fermer la recette"
                   >
                     <X className="w-5 h-5 text-slate-100" />
@@ -855,9 +889,9 @@ export function SharedRecipeGroupMobile({
 
       {sheetOpen && sheetRecipe && (
         <div className="fixed inset-0 z-[140]">
-          <div className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]" onClick={closeSheet} />
+          <div className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]" onClick={closeSheet} />
           <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
-            <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
+            <div className="mx-auto max-w-[520px] rounded-[28px] border border-amber-300/10 bg-gradient-to-b from-[#0E1736] to-[#0B1020] ring-1 ring-amber-400/15 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0">
                   <div className="text-slate-100 font-semibold truncate">
@@ -870,7 +904,7 @@ export function SharedRecipeGroupMobile({
                 <button
                   type="button"
                   onClick={closeSheet}
-                  className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                  className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
                   aria-label="Fermer"
                 >
                   <X className="w-5 h-5 text-slate-100" />
@@ -966,14 +1000,14 @@ export function SharedRecipeGroupMobile({
       {moveFolderOpen && moveRecipe && (
         <div className="fixed inset-0 z-[150]">
           <div
-            className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]"
             onClick={() => {
               setMoveFolderOpen(false);
               setMoveRecipe(null);
             }}
           />
           <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
-            <div className="mx-auto max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
+            <div className="mx-auto max-w-[520px] rounded-[28px] border border-amber-300/10 bg-gradient-to-b from-[#0E1736] to-[#0B1020] ring-1 ring-amber-400/15 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="min-w-0">
                   <div className="text-slate-100 font-semibold truncate">
@@ -989,7 +1023,7 @@ export function SharedRecipeGroupMobile({
                     setMoveFolderOpen(false);
                     setMoveRecipe(null);
                   }}
-                  className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                  className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
                   aria-label="Fermer"
                 >
                   <X className="w-5 h-5 text-slate-100" />
@@ -1000,9 +1034,9 @@ export function SharedRecipeGroupMobile({
                 <button
                   type="button"
                   onClick={() => void handleSelectMoveFolder(null)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.05] transition text-left"
                 >
-                  <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                  <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-amber-400/15 text-slate-200">
                     <Folder className="w-5 h-5" />
                   </span>
                   <span className="flex-1 text-sm font-medium text-slate-100">
@@ -1021,9 +1055,9 @@ export function SharedRecipeGroupMobile({
                       key={folder.id}
                       type="button"
                       onClick={() => void handleSelectMoveFolder(folder.id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.06] transition text-left"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.05] transition text-left"
                     >
-                      <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-white/10 text-slate-200">
+                      <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-amber-400/15 text-slate-200">
                         <Folder className="w-5 h-5" />
                       </span>
                       <span className="flex-1">
@@ -1049,7 +1083,7 @@ export function SharedRecipeGroupMobile({
         {sidebarOpen && (
           <div className="fixed inset-0 z-[120] lg:hidden">
             <motion.div
-              className="absolute inset-0 bg-[#020617]/40 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1057,7 +1091,7 @@ export function SharedRecipeGroupMobile({
             />
 
             <motion.div
-              className="absolute bottom-0 left-0 right-0 max-h-[84dvh] overflow-hidden rounded-t-[32px] bg-[#0B1538] ring-1 ring-white/10 shadow-[0_-24px_90px_rgba(0,0,0,0.60)]"
+              className="absolute bottom-0 left-0 right-0 max-h-[84dvh] overflow-hidden rounded-t-[32px] border-t border-amber-300/10 bg-gradient-to-b from-[#0E1736] via-[#0B1538] to-[#070D22] ring-1 ring-amber-400/15 shadow-[0_-24px_90px_rgba(0,0,0,0.60)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -1075,16 +1109,16 @@ export function SharedRecipeGroupMobile({
               onClick={(e) => e.stopPropagation()}
             >
               <div
-                className="sticky top-0 z-20 border-b border-white/10 bg-[#0B1538]/95 px-4 pt-3 pb-4 backdrop-blur-xl"
+                className="sticky top-0 z-20 border-b border-amber-300/10 bg-[#0E1736]/95 px-4 pt-3 pb-4 backdrop-blur-xl"
                 onPointerDown={(e) => foldersDragControls.start(e)}
               >
-                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/25" />
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-amber-300/40" />
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-slate-100 font-semibold">Dossiers</div>
                   <button
                     type="button"
-                    className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
+                    className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
                     onClick={() => setSidebarOpen(false)}
                     aria-label="Fermer"
                   >
@@ -1103,10 +1137,10 @@ export function SharedRecipeGroupMobile({
                       setSidebarOpen(false);
                     }}
                     className={cn(
-                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-white/10 transition text-slate-100",
+                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-amber-400/15 transition text-slate-100",
                       !selectedFolder && !showFavoritesOnly
-                        ? "bg-white/10"
-                        : "bg-white/[0.05] hover:bg-white/[0.08]"
+                        ? "bg-amber-400/15"
+                        : "bg-white/[0.04] hover:bg-amber-400/10"
                     )}
                   >
                     Toutes les recettes
@@ -1120,17 +1154,17 @@ export function SharedRecipeGroupMobile({
                       setSidebarOpen(false);
                     }}
                     className={cn(
-                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-white/10 transition text-slate-100 inline-flex items-center gap-2",
+                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-amber-400/15 transition text-slate-100 inline-flex items-center gap-2",
                       showFavoritesOnly
-                        ? "bg-white/10"
-                        : "bg-white/[0.05] hover:bg-white/[0.08]"
+                        ? "bg-amber-400/15"
+                        : "bg-white/[0.04] hover:bg-amber-400/10"
                     )}
                   >
                     <Heart className="w-4 h-4" />
                     Mes favoris
                   </button>
 
-                  <div className="mt-3 border-t border-white/10 pt-3 space-y-2">
+                  <div className="mt-3 border-t border-amber-300/10 pt-3 space-y-2">
                     {folders.map((folder) => (
                       <div key={folder.id} className="relative">
                         <div
@@ -1156,14 +1190,14 @@ export function SharedRecipeGroupMobile({
                           className={cn(
                             "w-full px-3 py-2.5 rounded-2xl flex items-center gap-2 transition-all duration-200 cursor-pointer",
                             selectedFolder === folder.id
-                              ? "bg-white/10 text-slate-100 ring-1 ring-white/10"
-                              : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
+                              ? "bg-amber-400/15 text-slate-100 ring-1 ring-amber-400/15"
+                              : "text-slate-300 hover:bg-amber-400/10 hover:text-slate-100"
                           )}
                         >
                           <Folder className="w-4 h-4" />
                           <span className="flex-1 truncate">{folder.name}</span>
 
-                          <span className="text-[11px] text-white/40">
+                          <span className="text-[11px] text-amber-100/45">
                             ({folderCounts.get(folder.id) ?? 0})
                           </span>
 
@@ -1177,7 +1211,7 @@ export function SharedRecipeGroupMobile({
                                   prev === folder.id ? null : folder.id
                                 );
                               }}
-                              className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-slate-200"
+                              className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/15 transition text-slate-200"
                               aria-label="Options dossier"
                             >
                               <MoreVertical className="w-5 h-5" />
@@ -1188,12 +1222,12 @@ export function SharedRecipeGroupMobile({
                         {canManageFolders && folderMenuOpenId === folder.id && (
                           <div
                             ref={folderMenuRef}
-                            className="absolute right-2 top-[52px] z-[130] w-48 rounded-2xl bg-[#0B1020] ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] overflow-hidden"
+                            className="absolute right-2 top-[52px] z-[130] w-48 rounded-2xl border border-amber-300/10 bg-[#0B1020] ring-1 ring-amber-400/15 shadow-[0_18px_60px_rgba(0,0,0,0.55)] overflow-hidden"
                           >
                             <button
                               type="button"
                               onClick={() => void handleRenameFolder(folder.id)}
-                              className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-white/5 transition"
+                              className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-amber-400/10 transition"
                             >
                               Renommer
                             </button>
@@ -1220,7 +1254,7 @@ export function SharedRecipeGroupMobile({
                             onChange={(e) => setNewFolderName(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && void handleCreateFolder()}
                             placeholder="Nom du dossier"
-                            className="w-full h-11 px-4 rounded-2xl bg-white/5 ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
+                            className="w-full h-11 px-4 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 border border-amber-300/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
                             autoFocus
                           />
                           <button
