@@ -770,7 +770,7 @@ export function RecipeListMobile(props: Props) {
             />
 
             <motion.div
-              className="absolute inset-x-0 bottom-0 max-h-[94dvh] overflow-hidden rounded-t-[32px] border-t border-amber-300/10 bg-gradient-to-b from-[#0E1736] via-[#0B1538] to-[#070D22] ring-1 ring-amber-400/15 shadow-[0_-24px_90px_rgba(0,0,0,0.70)]"
+              className="absolute inset-x-0 bottom-0 max-h-[96dvh] overflow-hidden rounded-t-[32px] border-t border-amber-300/10 bg-gradient-to-b from-[#0E1736] via-[#0B1538] to-[#070D22] ring-1 ring-amber-400/15 shadow-[0_-24px_90px_rgba(0,0,0,0.70)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -795,7 +795,7 @@ export function RecipeListMobile(props: Props) {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-[11px] uppercase tracking-[0.16em] text-amber-200/70">
-                      Recette
+                      Fiche rapide
                     </div>
                     <div className="truncate text-base font-semibold text-white">
                       {safeTitle(filteredRecipes.find((r) => r.id === openedRecipeId))}
@@ -813,7 +813,7 @@ export function RecipeListMobile(props: Props) {
                 </div>
               </div>
 
-              <div className="max-h-[calc(94dvh-78px)] overflow-y-auto overscroll-contain">
+              <div className="max-h-[calc(96dvh-78px)] overflow-y-auto overscroll-contain">
                 <RecipeDisplayMobile
                   recipeId={openedRecipeId}
                   onBack={closeRecipeSheet}

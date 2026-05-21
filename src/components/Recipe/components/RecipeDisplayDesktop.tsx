@@ -404,8 +404,8 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
             </button>
           </div>
 
-          {onEdit && recipe ? (
-            <div className="shrink-0">
+          {recipe && onEdit ? (
+            <div className="shrink-0 flex items-center gap-2">
               <button onClick={() => onEdit(recipe.id)} className={ui.btnPrimary} type="button">
                 Modifier
               </button>
@@ -484,7 +484,7 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
             </div>
 
             <div>
-              <div className="text-xs text-slate-300/60 mb-2">Ingrédient de référence</div>
+              <div className="text-xs text-slate-300/60 mb-2">Ingrédient</div>
 
               <Select
                 value={crossRefIngredientId || CROSS_MANUAL_VALUE}
@@ -499,7 +499,7 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
                     value={CROSS_MANUAL_VALUE}
                     className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
                   >
-                    Manuel (pas d’ingrédient)
+                    Choisir un ingrédient
                   </SelectItem>
 
                   {crossSelectableIngredients.map((opt) => (
@@ -562,16 +562,7 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
               </div>
             </div>
 
-            <div className="space-y-2">
-              {crossRatio ? (
-                <button
-                  onClick={() => setCrossHave("")}
-                  className="w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/[0.06] transition"
-                  type="button"
-                >
-                  Désactiver le produit en croix
-                </button>
-              ) : null}
+            <div className="space-y-2">             
 
               <button
                 onClick={() => {
@@ -586,15 +577,7 @@ export default function RecipeDisplayDesktop({ recipeId, onBack, onEdit }: Props
                 Reset
               </button>
             </div>
-
-            {recipe.allergens ? (
-              <div className="pt-2">
-                <div className="text-sm text-slate-100 font-semibold mb-2">Allergènes</div>
-                <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
-                  {recipe.allergens}
-                </div>
-              </div>
-            ) : null}
+           
           </div>
 
           {/* ✅ Col droite : accordion sections + notes */}

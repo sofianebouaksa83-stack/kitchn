@@ -567,8 +567,7 @@ export function TeamManagement() {
                             {g.name}
                           </option>
                         ))}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-300/70 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </select>                      
                     </div>
                   )}
 
