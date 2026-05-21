@@ -4,13 +4,13 @@ import {
   Users,
   Sparkles,
   ArrowRight,
-  ChefHat,
   Loader2,
   Plus,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
+import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
 
 const FREE_IMPORT_LIMIT = 30;
 
@@ -57,9 +57,11 @@ function getRecipeSubtitle(recipe?: RecipeItem | null) {
 
 function uniqById(items: RecipeItem[]) {
   const map = new Map<string, RecipeItem>();
+
   for (const item of items) {
     if (item?.id && !map.has(item.id)) map.set(item.id, item);
   }
+
   return Array.from(map.values());
 }
 
@@ -88,7 +90,9 @@ export default function HomePage({
   const [sharedCount, setSharedCount] = useState(0);
   const [importCount, setImportCount] = useState(0);
   const [latestRecipes, setLatestRecipes] = useState<RecipeItem[]>([]);
-  const [latestSharedRecipes, setLatestSharedRecipes] = useState<SharedRecipeItem[]>([]);
+  const [latestSharedRecipes, setLatestSharedRecipes] = useState<
+    SharedRecipeItem[]
+  >([]);
 
   useEffect(() => {
     unlockPageScroll();
@@ -206,12 +210,17 @@ export default function HomePage({
     const results = await Promise.all(
       queries.map(async (query) => {
         const { data, error } = await query;
+
         if (error) {
-          console.warn("[HomePage] latest recipes query ignored:", error.message);
+          console.warn(
+            "[HomePage] latest recipes query ignored:",
+            error.message,
+          );
           return [] as RecipeItem[];
         }
+
         return (data || []) as RecipeItem[];
-      })
+      }),
     );
 
     return uniqById(results.flat())
@@ -229,10 +238,12 @@ export default function HomePage({
 
     for (const query of queries) {
       const { data, error } = await query;
+
       if (error) {
         console.warn("[HomePage] recipes count query ignored:", error.message);
         continue;
       }
+
       (data || []).forEach((item: any) => item?.id && ids.add(item.id));
     }
 
@@ -254,30 +265,44 @@ export default function HomePage({
 
     if (!sharedRows || sharedRows.length === 0) return [];
 
-    const recipeIds = sharedRows.map((row: any) => row.recipe_id).filter(Boolean);
-    const relatedGroupIds = sharedRows.map((row: any) => row.group_id).filter(Boolean);
+    const recipeIds = sharedRows
+      .map((row: any) => row.recipe_id)
+      .filter(Boolean);
+    const relatedGroupIds = sharedRows
+      .map((row: any) => row.group_id)
+      .filter(Boolean);
 
     const [recipesRes, groupsRes] = await Promise.all([
       recipeIds.length > 0
         ? supabase.from("recipes").select("*").in("id", recipeIds)
         : Promise.resolve({ data: [] as any[], error: null } as any),
       relatedGroupIds.length > 0
-        ? supabase.from("work_groups").select("id, name").in("id", relatedGroupIds)
+        ? supabase
+            .from("work_groups")
+            .select("id, name")
+            .in("id", relatedGroupIds)
         : Promise.resolve({ data: [] as any[], error: null } as any),
     ]);
 
     if (recipesRes.error) {
-      console.warn("[HomePage] shared recipe details ignored:", recipesRes.error.message);
+      console.warn(
+        "[HomePage] shared recipe details ignored:",
+        recipesRes.error.message,
+      );
     }
+
     if (groupsRes.error) {
-      console.warn("[HomePage] shared group details ignored:", groupsRes.error.message);
+      console.warn(
+        "[HomePage] shared group details ignored:",
+        groupsRes.error.message,
+      );
     }
 
     const recipesById = new Map(
-      (recipesRes.data || []).map((recipe: any) => [recipe.id, recipe])
+      (recipesRes.data || []).map((recipe: any) => [recipe.id, recipe]),
     );
     const groupsById = new Map(
-      (groupsRes.data || []).map((group: any) => [group.id, group.name])
+      (groupsRes.data || []).map((group: any) => [group.id, group.name]),
     );
 
     return sharedRows.map((row: any) => ({
@@ -293,7 +318,7 @@ export default function HomePage({
   function handleOpenRecipe(recipeId: string) {
     sessionStorage.setItem("selectedRecipeId", recipeId);
     window.dispatchEvent(
-      new CustomEvent("kitchn:open-recipe", { detail: { recipeId } })
+      new CustomEvent("kitchn:open-recipe", { detail: { recipeId } }),
     );
 
     if (openRecipe) {
@@ -311,7 +336,7 @@ export default function HomePage({
     window.dispatchEvent(
       new CustomEvent("kitchn:open-shared-recipe", {
         detail: { recipeId, groupId },
-      })
+      }),
     );
 
     if (openSharedRecipe) {
@@ -331,22 +356,23 @@ export default function HomePage({
   const importLabel = subscriptionLoading
     ? "Imports IA"
     : isPremium
-    ? "Imports IA faits"
-    : "Imports IA restants";
+      ? "Imports IA faits"
+      : "Imports IA restants";
 
-   return (
+  return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 text-white">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>          
+        <div>
           <h1 className="mt-2 text-3xl font-bold">
             Bonjour <span className="text-[#D4AF37]">{firstName}</span>
-          </h1>         
+          </h1>
         </div>
 
         <button
           type="button"
           onClick={() => navigateTo("/recipes/new")}
-          className={ui.btnPrimary} >
+          className={ui.btnPrimary}
+        >
           <Plus className="h-4 w-4" />
           Nouvelle recette
         </button>
@@ -354,12 +380,16 @@ export default function HomePage({
 
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Résumé</h2>          
+          <h2 className="text-lg font-semibold">Résumé</h2>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <StatCard icon={<BookOpen />} value={recipesCount} label="Recettes" />
-          <StatCard icon={<Users />} value={sharedCount} label="Recettes partagées" />
+          <StatCard
+            icon={<Users />}
+            value={sharedCount}
+            label="Recettes partagées"
+          />
           <StatCard
             icon={<Sparkles />}
             value={subscriptionLoading ? "..." : importValue}
@@ -369,62 +399,54 @@ export default function HomePage({
       </section>
 
       <div className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
-          <Panel title="Dernières recettes ajoutées" onClick={() => navigateTo("/recipes")}>
-            {loading ? (
-              <LoadingLine />
-            ) : latestRecipes.length === 0 ? (
-              <EmptyLine text="Aucune recette récente pour le moment." />
-            ) : (
-              <div className="space-y-3">
-                {latestRecipes.map((recipe) => (
-                  <ListItem
-                    key={recipe.id}
-                    title={getRecipeTitle(recipe)}
-                    subtitle={getRecipeSubtitle(recipe)}
-                    onClick={() => handleOpenRecipe(recipe.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </Panel>
+        <Panel
+          title="Dernières recettes ajoutées"
+          onClick={() => navigateTo("/recipes")}
+        >
+          {loading ? (
+            <LoadingLine />
+          ) : latestRecipes.length === 0 ? (
+            <EmptyLine text="Aucune recette récente pour le moment." />
+          ) : (
+            <div className="space-y-3">
+              {latestRecipes.map((recipe) => (
+                <ListItem
+                  key={recipe.id}
+                  title={getRecipeTitle(recipe)}
+                  subtitle={getRecipeSubtitle(recipe)}
+                  onClick={() => handleOpenRecipe(recipe.id)}
+                />
+              ))}
+            </div>
+          )}
+        </Panel>
 
-          <Panel title="Dernières recettes partagées" onClick={() => navigateTo("/shared")}>
-            {loading ? (
-              <LoadingLine />
-            ) : latestSharedRecipes.length === 0 ? (
-              <EmptyLine text="Aucune recette partagée pour le moment." />
-            ) : (
-              <div className="space-y-3">
-                {latestSharedRecipes.map((item) => (
-                  <ListItem
-                    key={item.id}
-                    title={getRecipeTitle(item.recipe)}
-                    subtitle={item.group_name || "Groupe partagé"}
-                    onClick={() => handleOpenSharedRecipe(item.recipe_id, item.group_id)}
-                  />
-                ))}
-              </div>
-            )}
-          </Panel>
-        </div>
-
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#D4AF37]/15 text-[#D4AF37]">
-            <ChefHat className="h-7 w-7" />
-          </div>
-
-          <div>
-            <p className="text-sm text-[#D4AF37]">Conseil du jour</p>
-            <h3 className="mt-1 text-xl font-semibold">
-              Pense à centraliser tes anciennes recettes.
-            </h3>
-            <p className="mt-1 text-sm text-white/55">
-              L’import IA peut t’aider à tout regrouper au même endroit.
-            </p>
-          </div>
-        </div>
+        <Panel
+          title="Dernières recettes partagées"
+          onClick={() => navigateTo("/shared")}
+        >
+          {loading ? (
+            <LoadingLine />
+          ) : latestSharedRecipes.length === 0 ? (
+            <EmptyLine text="Aucune recette partagée pour le moment." />
+          ) : (
+            <div className="space-y-3">
+              {latestSharedRecipes.map((item) => (
+                <ListItem
+                  key={item.id}
+                  title={getRecipeTitle(item.recipe)}
+                  subtitle={item.group_name || "Groupe partagé"}
+                  onClick={() =>
+                    handleOpenSharedRecipe(item.recipe_id, item.group_id)
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </Panel>
       </div>
+
+      <RecipeImportAIWidget onOpenFull={() => navigateTo("/import")} />
     </div>
   );
 }
@@ -439,14 +461,17 @@ function StatCard({
   label: string;
 }) {
   return (
-    <div className="w-full min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-      <div className="flex min-w-0 items-center gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#D4AF37]/15 text-[#D4AF37]">
+    <div className="w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 sm:rounded-3xl sm:p-5">
+      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] sm:h-11 sm:w-11">
           {icon}
         </div>
+
         <div className="min-w-0">
-          <p className="text-3xl font-bold">{value}</p>
-          <p className="truncate text-sm text-white/55">{label}</p>
+          <p className="text-xl font-bold leading-none sm:text-3xl">{value}</p>
+          <p className="mt-1 text-[11px] leading-tight text-white/55 sm:text-sm">
+            {label}
+          </p>
         </div>
       </div>
     </div>
@@ -497,7 +522,9 @@ function ListItem({
       className="flex w-full min-w-0 items-center justify-between rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-left transition hover:bg-white/[0.06]"
     >
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 break-words font-medium text-white">{title}</p>
+        <p className="line-clamp-2 break-words font-medium text-white">
+          {title}
+        </p>
         <p className="mt-1 truncate text-sm text-white/45">{subtitle}</p>
       </div>
 
