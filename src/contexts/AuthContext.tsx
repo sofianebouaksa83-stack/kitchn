@@ -1,6 +1,32 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
-import { User, AuthError } from "@supabase/supabase-js"
-import { supabase, Profile } from "../lib/supabase"
+import { AuthError } from "@supabase/supabase-js"
+import type { User, Session, AuthChangeEvent } from "@supabase/supabase-js"
+import { supabase } from "../lib/supabase"
+import type { Profile } from "../lib/supabase"
+
+const PROFILE_FIELDS = `
+  id,
+  email,
+  full_name,
+  job_title,
+  establishment,
+  restaurant_id,
+  restaurant_role,
+  plan,
+  created_at,
+  updated_at
+`
+
+async function fetchProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PROFILE_FIELDS)
+    .eq("id", userId)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data as Profile | null) ?? null
+}
 
 type AuthContextType = {
   user: User | null
@@ -30,65 +56,111 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    initializeAuth()
+    let active = true
+    let hydrationVersion = 0
+    let hydratingUserId: string | null = null
+    let hydratedUserId: string | null = null
+
+    const clearSession = () => {
+      hydrationVersion += 1
+      hydratingUserId = null
+      hydratedUserId = null
+
+      if (!active) return
+
+      setUser(null)
+      setProfile(null)
+      setLoading(false)
+    }
+
+    const hydrateSession = async (session: Session) => {
+      const nextUser = session.user
+
+      if (
+        nextUser.id === hydratingUserId ||
+        nextUser.id === hydratedUserId
+      ) {
+        if (active) setUser(nextUser)
+        return
+      }
+
+      const version = ++hydrationVersion
+      hydratingUserId = nextUser.id
+
+      if (active) {
+        setLoading(true)
+        setUser(nextUser)
+      }
+
+      try {
+        const nextProfile = await fetchProfile(nextUser.id)
+
+        if (!active || version !== hydrationVersion) return
+
+        setProfile(nextProfile)
+        hydratedUserId = nextUser.id
+      } catch (error) {
+        if (!active || version !== hydrationVersion) return
+
+        console.error("Error loading profile:", error)
+        setProfile(null)
+        hydratedUserId = nextUser.id
+      } finally {
+        if (active && version === hydrationVersion) {
+          hydratingUserId = null
+          setLoading(false)
+        }
+      }
+    }
+
+    const handleAuthChange = (
+      event: AuthChangeEvent,
+      session: Session | null
+    ) => {
+      if (event === "SIGNED_OUT") {
+        clearSession()
+        return
+      }
+
+      if (!session?.user) {
+        if (event === "INITIAL_SESSION") clearSession()
+        return
+      }
+
+      if (event === "TOKEN_REFRESHED") {
+        if (active) setUser(session.user)
+        return
+      }
+
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "PASSWORD_RECOVERY"
+      ) {
+        void hydrateSession(session)
+        return
+      }
+
+      if (active) setUser(session.user)
+    }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange(handleAuthChange)
 
-      if (session?.user) {
-        loadProfile(session.user.id)
-      } else {
-        setProfile(null)
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  async function initializeAuth() {
-    const { data } = await supabase.auth.getSession()
-
-    const session = data.session
-
-    setUser(session?.user ?? null)
-
-    if (session?.user) {
-      await loadProfile(session.user.id)
-    } else {
-      setLoading(false)
+    return () => {
+      active = false
+      hydrationVersion += 1
+      subscription.unsubscribe()
     }
-  }
+  }, [])
 
   async function loadProfile(userId: string) {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(`
-          id,
-          email,
-          full_name,
-          job_title,
-          establishment,
-          restaurant_id,
-          restaurant_role,
-          plan,
-          created_at,
-          updated_at
-        `)
-        .eq("id", userId)
-        .maybeSingle()
-
-      if (error) throw error
-
-      setProfile(data ?? null)
+      setProfile(await fetchProfile(userId))
     } catch (error) {
       console.error("Error loading profile:", error)
       setProfile(null)
-    } finally {
-      setLoading(false)
     }
   }
 

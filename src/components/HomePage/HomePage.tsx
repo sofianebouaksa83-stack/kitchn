@@ -11,6 +11,7 @@ import { supabase } from "../../lib/supabase";
 import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
+import { KitchNLoader } from "../Loading/KitchNLoader";
 
 const FREE_IMPORT_LIMIT = 30;
 
@@ -544,7 +545,7 @@ function EmptyLine({ text }: { text: string }) {
 function LoadingLine() {
   return (
     <div className="flex items-center gap-2 text-sm text-white/50">
-      <Loader2 className="h-4 w-4 animate-spin" />
+      <KitchNLoader className="kitchn-loader--mini" />
       Chargement...
     </div>
   );

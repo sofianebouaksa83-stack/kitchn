@@ -13,6 +13,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
+import { KitchNLoader } from "../Loading/KitchNLoader";
 
 type Group = {
   id: string;
@@ -548,7 +549,7 @@ export function TeamManagement() {
 
                   {loadingGroups ? (
                     <div className="inline-flex items-center gap-2 text-xs text-slate-300/70">
-                      <Loader className="w-4 h-4 animate-spin" />
+                      <KitchNLoader className="kitchn-loader--mini" />
                       Chargement…
                     </div>
                   ) : groups.length === 0 ? (
@@ -575,7 +576,7 @@ export function TeamManagement() {
                     <div className="text-xs text-slate-400">
                       {loadingPlan ? (
                         <span className="inline-flex items-center gap-2 text-slate-300/70">
-                          <Loader className="w-3.5 h-3.5 animate-spin" />
+                          <KitchNLoader className="kitchn-loader--mini" />
                           Vérification de l’abonnement…
                         </span>
                       ) : isPremium ? (
@@ -637,7 +638,7 @@ export function TeamManagement() {
             <>
               {loading ? (
                 <div className="flex justify-center py-24">
-                  <Loader className="w-8 h-8 animate-spin text-amber-400" />
+                  <KitchNLoader className="kitchn-loader--compact" />
                 </div>
               ) : (
                 <>

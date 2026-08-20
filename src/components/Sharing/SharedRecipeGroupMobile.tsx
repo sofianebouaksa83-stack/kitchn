@@ -29,6 +29,7 @@ import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
 import { RecipeDisplay } from "../Recipe/components/RecipeDisplay";
 import RecipeDisplayMobile from "../Recipe/components/RecipeDisplayMobile";
+import { KitchNLoader } from "../Loading/KitchNLoader";
 
 type Props = {
   groupId: string;
@@ -657,7 +658,7 @@ export function SharedRecipeGroupMobile({
 
         <div className="mt-6">
           {loading ? (
-            <div className="text-slate-300/80 text-center py-10">Chargement…</div>
+            <KitchNLoader className="kitchn-loader--compact" />
           ) : filteredRecipes.length === 0 ? (
             <div className="rounded-3xl bg-white/[0.04] ring-1 ring-amber-400/15 p-8 text-center">
               <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />

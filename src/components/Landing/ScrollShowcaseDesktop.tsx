@@ -412,36 +412,36 @@ export function ScrollShowcase() {
     () => [
       {
         key: "recipes",
-        title: "Organise toutes tes recettes",
-        body: "Classe tes recettes par dossiers, retrouve-les instantanément et garde ta cuisine organisée.",
-        bullets: ["Dossiers & favoris", "Recherche immédiate", "Actions simples"],
+        title: "Retrouve une recette en quelques secondes",
+        body: "Toutes tes recettes restent propres, rangées et prêtes pour le service, même quand la carte change.",
+        bullets: ["Recherche rapide", "Dossiers & favoris", "Vue recette lisible"],
         align: "left",
         demo: <RecipeStepDemoInteractive />,
         bg: "radial-gradient(1200px 600px at 20% 30%, rgba(251,191,36,0.14), transparent 60%), radial-gradient(900px 500px at 80% 20%, rgba(59,130,246,0.18), transparent 55%)",
       },
       {
         key: "groups",
-        title: "Travaille avec ta brigade",
-        body: "Invite ton équipe et partage uniquement les recettes nécessaires.",
-        bullets: ["Groupes par poste", "Membres invités", "Partage contrôlé"],
+        title: "Partage le bon contenu à la bonne équipe",
+        body: "Crée des groupes par restaurant ou par poste, puis donne accès uniquement aux recettes utiles.",
+        bullets: ["Invitations par mail", "Rôles de brigade", "Groupes sécurisés"],
         align: "right",
         demo: <WorkGroupsDemoPanel />,
         bg: "radial-gradient(1100px 600px at 75% 35%, rgba(34,197,94,0.16), transparent 60%), radial-gradient(900px 520px at 25% 20%, rgba(59,130,246,0.16), transparent 60%)",
       },
       {
         key: "import",
-        title: "Import intelligent",
-        body: "Dépose un fichier. Kitch’n le transforme en recette structurée.",
-        bullets: ["PDF / Word / Texte", "Sections automatiques", "File d’attente"],
+        title: "Transforme tes fichiers en fiches propres",
+        body: "Copie un texte ou dépose un PDF/Word : l’import IA remet la recette au format Kitch’n.",
+        bullets: ["PDF / Word / texte", "Sections automatiques", "Recette prête à corriger"],
         align: "left",
         demo: <RecipeImportAIDemoPanel />,
         bg: "radial-gradient(1100px 650px at 20% 35%, rgba(168,85,247,0.18), transparent 60%), radial-gradient(900px 520px at 80% 20%, rgba(59,130,246,0.14), transparent 60%)",
       },
       {
         key: "share",
-        title: "Partage sécurisé",
-        body: "Tu vois les recettes seulement via tes groupes de travail.",
-        bullets: ["Dossiers par groupe", "Recettes visibles", "Lecture rapide"],
+        title: "Travaille sans mélanger les recettes",
+        body: "Les recettes partagées restent rangées par groupe, avec une lecture rapide sur mobile ou desktop.",
+        bullets: ["Dossiers partagés", "Accès contrôlé", "Lecture claire"],
         align: "right",
         demo: <SharedRecipesDemoPanel />,
         bg: "radial-gradient(1100px 650px at 75% 35%, rgba(56,189,248,0.18), transparent 60%), radial-gradient(900px 520px at 25% 25%, rgba(251,191,36,0.10), transparent 60%)",
@@ -593,58 +593,122 @@ export function ScrollShowcase() {
     show: { opacity: 1, y: 0, filter: "blur(0px)" },
   };
 
+  const activeIndex = Math.max(
+    0,
+    steps.findIndex((s) => s.key === active)
+  );
+
+  const stepLabels: Record<StepKey, string> = {
+    recipes: "Recettes",
+    groups: "Équipe",
+    import: "Import IA",
+    share: "Partage",
+  };
+
+  const highlights = [
+    { value: "4", label: "vues clés" },
+    { value: "UI", label: "comme l’app" },
+    { value: "Pro", label: "pensé brigade" },
+  ];
+
+  const scrollToStep = (idx: number) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const stepCount = steps.length;
+    const maxY = scroller.scrollHeight - scroller.clientHeight;
+    const speed = 1.45;
+
+    const targetBoosted = stepCount <= 1 ? 0 : idx / (stepCount - 1);
+    const targetProgress = idx >= stepCount - 1 ? 1 : targetBoosted / speed;
+
+    scroller.scrollTo({
+      top: maxY * targetProgress,
+      behavior: "smooth",
+    });
+  };
+
   return (
-    <section className="mt-14 sm:mt-20">
+    <section id="decouvre-kitch-n" className="relative mt-14 sm:mt-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <div className={cn(ui.badge, "inline-flex")}>Découvre Kitch’n</div>
-            <h2 className="mt-4 text-2xl sm:text-3xl font-semibold text-slate-100">
-              Une expérience claire, étape par étape
-            </h2>
-            <p className="mt-2 text-slate-300/80">
-              Scroll pour voir chaque page, exactement comme dans le site.
-            </p>
-          </div>
+        <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.035] p-5 sm:p-7 lg:p-8 shadow-[0_30px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div aria-hidden className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-amber-400/10 blur-3xl" />
+          <div aria-hidden className="absolute -right-24 top-8 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-          <div className="hidden lg:flex items-center gap-2">
-            {steps.map((s, idx) => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => {
-                  const scroller = scrollerRef.current;
-                  if (!scroller) return;
+          <div className="relative z-10 grid gap-7 lg:grid-cols-[1fr_420px] lg:items-end">
+            <div>
+              <div className={cn(ui.badge, "inline-flex")}>Découvre Kitch’n</div>
 
-                  const stepCount = steps.length;
-                  const maxY = scroller.scrollHeight - scroller.clientHeight;
-                  const speed = 1.45;
+              <h2 className="mt-4 max-w-2xl text-2xl sm:text-4xl font-semibold leading-tight text-slate-100">
+                De l’import à la recette partagée, tout devient fluide
+              </h2>
 
-                  const targetBoosted =
-                    stepCount <= 1 ? 0 : idx / (stepCount - 1);
+              <p className="mt-3 max-w-2xl text-sm sm:text-base text-slate-300/80 leading-relaxed">
+                Une démo guidée pour montrer concrètement comment Kitch’n aide une brigade à créer, ranger, retrouver et partager ses recettes sans perdre de temps.
+              </p>
 
-                  const targetProgress =
-                    idx >= stepCount - 1 ? 1 : targetBoosted / speed;
+              <div className="mt-5 grid grid-cols-3 gap-2 max-w-xl">
+                {highlights.map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3"
+                  >
+                    <div className="text-lg sm:text-xl font-semibold text-amber-200">
+                      {item.value}
+                    </div>
+                    <div className="mt-0.5 text-[11px] sm:text-xs text-slate-400">
+                      {item.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                  scroller.scrollTo({
-                    top: maxY * targetProgress,
-                    behavior: "smooth",
-                  });
-                }}
-                className={cn(
-                  "h-2 rounded-full transition-all cursor-pointer",
-                  active === s.key
-                    ? "w-10 bg-amber-400/80"
-                    : "w-8 bg-white/10 hover:bg-white/25"
-                )}
-                title={s.title}
-                aria-label={`Aller à l’étape ${idx + 1}`}
-              />
-            ))}
+            <div className="hidden lg:grid grid-cols-2 gap-2">
+              {steps.map((s, idx) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => scrollToStep(idx)}
+                  className={cn(
+                    "group rounded-2xl border px-3 py-3 text-left transition-all cursor-pointer",
+                    active === s.key
+                      ? "border-amber-300/40 bg-amber-300/10 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
+                      : "border-white/10 bg-white/[0.035] hover:border-white/20 hover:bg-white/[0.06]"
+                  )}
+                  title={s.title}
+                  aria-label={`Aller à l’étape ${idx + 1}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-xl text-xs font-semibold",
+                        active === s.key
+                          ? "bg-amber-300 text-slate-950"
+                          : "bg-white/10 text-slate-300 group-hover:bg-white/15"
+                      )}
+                    >
+                      {idx + 1}
+                    </span>
+                    <span className="text-sm font-medium text-slate-100">
+                      {stepLabels[s.key]}
+                    </span>
+                  </div>
+                  <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-400">
+                    {s.title}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="relative mt-10 overflow-hidden rounded-[34px] ring-1 ring-white/10 bg-white/[0.04] backdrop-blur-sm">
+        <div className="relative mt-8 overflow-hidden rounded-[34px] ring-1 ring-white/10 bg-white/[0.04] backdrop-blur-sm">
+          <div
+            aria-hidden
+            className="absolute left-0 top-0 z-30 h-1 bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-200 transition-all duration-300"
+            style={{ width: `${((activeIndex + 1) / steps.length) * 100}%` }}
+          />
           <motion.div
             aria-hidden
             className="absolute inset-0"
@@ -706,11 +770,12 @@ export function ScrollShowcase() {
                               "max-w-xl"
                             )}
                           >
-                            <div className="text-xs tracking-widest uppercase text-slate-400">
-                              Étape {idx + 1} / {steps.length}
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                              Étape {idx + 1} · {stepLabels[s.key]}
                             </div>
 
-                            <div className="mt-3 text-3xl sm:text-4xl font-semibold text-slate-100 leading-tight">
+                            <div className="mt-4 text-3xl sm:text-4xl font-semibold text-slate-100 leading-tight">
                               {s.title}
                             </div>
 
@@ -730,8 +795,9 @@ export function ScrollShowcase() {
                               ))}
                             </ul>
 
-                            <div className="mt-8 text-sm text-slate-400">
-                              {isActive ? "➡️ Scroll pour l’étape suivante" : " "}
+                            <div className="mt-8 inline-flex items-center gap-2 rounded-full bg-white/[0.04] px-4 py-2 text-sm text-slate-400 ring-1 ring-white/10">
+                              <span className="text-amber-300">{isActive ? "Actif" : "Démo"}</span>
+                              <span>Scroll ou clique sur une étape</span>
                             </div>
                           </motion.div>
 
@@ -752,12 +818,14 @@ export function ScrollShowcase() {
                                 "rounded-[34px] overflow-hidden",
                                 "shadow-[0_28px_120px_rgba(0,0,0,0.55)]",
                                 "ring-1 ring-white/10",
-                                "bg-white/[0.02] backdrop-blur-sm",
+                                "bg-[#071126]/55 backdrop-blur-sm",
                                 "p-3 sm:p-4",
                                 "w-full max-w-[560px] mx-auto"
                               )}
                             >
-                              <div className="h-[420px] sm:h-[540px] lg:h-[365px] overflow-hidden">
+                              
+
+                              <div className="h-[420px] sm:h-[540px] lg:h-[365px] overflow-hidden rounded-[24px] ring-1 ring-white/10">
                                 <div className="min-w-[1100px]">
                                   <AutoFitDemo
                                     baseWidth={950}

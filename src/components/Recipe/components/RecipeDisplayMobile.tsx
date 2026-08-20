@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "../../../styles/ui/select";
 
+import { KitchNLoader } from "../../Loading/KitchNLoader";
 type Props = {
   recipeId: string;
   onBack: () => void;
@@ -508,7 +509,7 @@ export default function RecipeDisplayMobile({
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <div className="text-slate-300/80">Chargement…</div>
+          <KitchNLoader className="kitchn-loader--compact" />
         </div>
       ) : error ? (
         <div className="rounded-3xl bg-red-500/10 ring-1 ring-red-500/20 p-6 flex gap-3">

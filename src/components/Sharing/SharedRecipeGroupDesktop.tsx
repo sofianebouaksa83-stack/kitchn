@@ -24,7 +24,7 @@ import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
 import { RecipeDisplay } from "../Recipe/components/RecipeDisplay";
 import { PageShell } from "../Layout/PageShell";
-
+import { KitchNLoader } from "../Loading/KitchNLoader";
 type Props = {
   groupId: string;
   groupName?: string;
@@ -689,7 +689,7 @@ export function SharedRecipeGroupDesktop({
 
             {loading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="text-slate-300">Chargement…</div>
+                <KitchNLoader className="kitchn-loader--compact" />
               </div>
             ) : filteredRecipes.length === 0 ? (
               <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">

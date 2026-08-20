@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Folder } from "lucide-react";
 import { SharedRecipeGroupMobile } from "./SharedRecipeGroupMobile";
+import { KitchNLoader } from "../Loading/KitchNLoader";
 
 type GroupMini = { id: string; name: string };
 
@@ -83,7 +84,7 @@ export function SharedRecipesMobile({
   );
 
   if (loading) {
-    return <div className="px-4 py-10 text-center text-slate-300">Chargement…</div>;
+    return <KitchNLoader className="kitchn-loader--compact" />;
   }
 
   if (selectedGroupId) {

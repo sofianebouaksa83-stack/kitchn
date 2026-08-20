@@ -1,0 +1,152 @@
+.kitchn-loader {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  width: 100%;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(232, 188, 89, 0.1), transparent 34%),
+    linear-gradient(145deg, #070b16 0%, #0b1020 52%, #101a31 100%);
+}
+
+.kitchn-loader::before,
+
+.kitchn-loader::before {
+  inset: 0;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(circle at center, black, transparent 68%);
+  mask-image: radial-gradient(circle at center, black, transparent 68%);
+}
+
+.kitchn-loader__ambient {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: min(74vw, 34rem);
+  height: min(40vw, 17rem);
+  border-radius: 50%;
+  background: rgba(225, 174, 54, 0.11);
+  filter: blur(64px);
+  transform: translate(-50%, -50%);
+  animation: kitchn-ambient-breathe 4.8s ease-in-out infinite;
+}
+
+.kitchn-loader__reveal {
+  width: clamp(9rem, 20vw, 12rem);
+  animation: kitchn-logo-reveal 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.kitchn-loader__breath {
+  animation: kitchn-logo-fade 2.8s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.kitchn-loader__logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  filter: drop-shadow(0 16px 36px rgba(0, 0, 0, 0.34));
+}
+
+.kitchn-loader.kitchn-loader--mini {
+  display: inline-grid;
+  min-height: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  overflow: visible;
+  background: none;
+}
+
+.kitchn-loader--mini::before,
+.kitchn-loader--mini::after,
+.kitchn-loader--mini .kitchn-loader__ambient {
+  display: none;
+}
+
+.kitchn-loader--mini .kitchn-loader__reveal {
+  width: 1.5rem;
+}
+
+.kitchn-loader.kitchn-loader--compact {
+  min-height: 12rem;
+  width: 100%;
+  background: none;
+}
+
+.kitchn-loader--compact::before,
+.kitchn-loader--compact::after,
+.kitchn-loader--compact .kitchn-loader__ambient {
+  display: none;
+}
+
+.kitchn-loader--compact .kitchn-loader__reveal {
+  width: 3.5rem;
+}
+
+@keyframes kitchn-logo-reveal {
+  from {
+    opacity: 0;
+    filter: blur(7px);
+    transform: translateY(10px) scale(0.965);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes kitchn-logo-breathe {
+  0%,
+  100% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.018);
+  }
+}
+
+@keyframes kitchn-ambient-breathe {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+@keyframes kitchn-logo-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kitchn-loader__ambient,
+  .kitchn-loader__reveal,
+  .kitchn-loader__breath {
+    animation: none;
+  }
+}

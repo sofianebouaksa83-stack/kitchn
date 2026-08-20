@@ -16,6 +16,7 @@ import { GroupsGrid } from "./workgroups/ui/GroupsGrid";
 import { CreateGroupModal } from "./workgroups/ui/CreateGroupModal";
 import { ManageGroupModal } from "./workgroups/ui/ManageGroupModal";
 
+import { KitchNLoader } from "../Loading/KitchNLoader";
 
 type View = "subscription" | "settings";
 
@@ -264,7 +265,7 @@ export function WorkGroups({ onViewChange }: WorkGroupsProps) {
                 <Plus className="w-5 h-5" /> Créer un groupe
               </button>
             ) : (
-              <div className="text-slate-300/70 text-sm">Chargement…</div>
+              <KitchNLoader className="kitchn-loader--compact" />
             )}
           </div>
         </div>

@@ -32,6 +32,7 @@ import SettingsPage from "./components/Settings/SettingsPage";
 import { ui } from "./styles/ui";
 import "./index.css";
 import AddToHomePopup from "./components/AddToHomePopup";
+import { KitchNLoader } from "./components/Loading/KitchNLoader";
 
 type View =
   | "accueil"
@@ -193,7 +194,7 @@ function getCurrentRouteFromUrl() {
 }
 
 function MainApp() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
   const [, setAuthMode] = useState<"login" | "register">("login");
   const [currentView, setCurrentView] = useState<View>("accueil");
@@ -280,14 +281,6 @@ function MainApp() {
     },
     [navigateTo]
   );
-
-  if (loading) {
-    return (
-      <div className={`${ui.dashboardBg} flex items-center justify-center`}>
-        <div className="text-slate-200 text-xl animate-pulse">Chargement…</div>
-      </div>
-    );
-  }
 
   const cleanRoute = cleanPath(routePath);
 
@@ -493,11 +486,25 @@ function MainApp() {
   );
 }
 
+function AppContent() {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return <KitchNLoader />;
+  }
+
+  return (
+    <>
+      <MainApp />
+      <AddToHomePopup />
+    </>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
-      <MainApp />
-      <AddToHomePopup />
+      <AppContent />
     </AuthProvider>
   );
 }

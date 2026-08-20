@@ -10,6 +10,7 @@ import { RecipeListMobile } from "./RecipeListMobile";
 import { RecipeListDesktop } from "./RecipeListDesktop";
 
 import { ui } from "../../../styles/ui";
+import { KitchNLoader } from "../../Loading/KitchNLoader";
 
 type RecipeListProps = {
   onCreateNew: () => void;
@@ -461,7 +462,7 @@ export function RecipeList({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-slate-300">Chargement des recettes...</div>
+        <KitchNLoader className="kitchn-loader--compact" />
       </div>
     );
   }

@@ -459,9 +459,9 @@ export function ScrollShowcaseMobile() {
     () => [
      {
   key: "recipes",
-  title: "Tes recettes, toujours propres",
-  body: "Une liste claire, rapide à filtrer, pensée pour le service.",
-  bullets: ["Dossiers & favoris", "Recherche immédiate", "Actions simples"],
+  title: "Retrouve une recette en quelques secondes",
+  body: "Une liste claire, rapide à filtrer, pensée pour le service et les changements de carte.",
+  bullets: ["Recherche rapide", "Dossiers & favoris", "Vue recette lisible"],
   demo: <RecipeStepDemoInteractiveMobile />,
   bg: "radial-gradient(900px 520px at 20% 20%, rgba(251,191,36,0.16), transparent 60%), radial-gradient(900px 520px at 80% 10%, rgba(59,130,246,0.16), transparent 60%)",
   demoBaseWidth: 390,
@@ -472,9 +472,9 @@ export function ScrollShowcaseMobile() {
 },
       {
         key: "groups",
-        title: "Travaille en équipe",
-        body: "Crée des groupes et partage uniquement ce qui doit l’être.",
-        bullets: ["Groupes par poste", "Membres invités", "Partage contrôlé"],
+        title: "Partage le bon contenu à la bonne équipe",
+        body: "Crée des groupes par restaurant ou par poste, puis donne accès uniquement aux recettes utiles.",
+        bullets: ["Invitations par mail", "Rôles de brigade", "Groupes sécurisés"],
         demo: <WorkGroupsDemoPanel />,
         bg: "radial-gradient(900px 520px at 75% 25%, rgba(34,197,94,0.16), transparent 60%), radial-gradient(900px 520px at 20% 10%, rgba(59,130,246,0.14), transparent 60%)",
         demoBaseWidth: 430,
@@ -485,9 +485,9 @@ export function ScrollShowcaseMobile() {
       },
       {
         key: "import",
-        title: "Import intelligent",
-        body: "Dépose un fichier. Kitch’n le transforme en recette structurée.",
-        bullets: ["PDF / Word / Texte", "Sections automatiques", "File d’attente"],
+        title: "Transforme tes fichiers en fiches propres",
+        body: "Copie un texte ou dépose un PDF/Word : l’import IA remet la recette au format Kitch’n.",
+        bullets: ["PDF / Word / texte", "Sections automatiques", "Recette prête à corriger"],
         demo: <RecipeImportAIDemoPanel />,
         bg: "radial-gradient(900px 520px at 20% 25%, rgba(168,85,247,0.18), transparent 60%), radial-gradient(900px 520px at 80% 10%, rgba(59,130,246,0.14), transparent 60%)",
         demoBaseWidth: 430,
@@ -498,9 +498,9 @@ export function ScrollShowcaseMobile() {
       },
       {
         key: "share",
-        title: "Partager sans confusion",
-        body: "Tu vois les recettes seulement via tes groupes de travail.",
-        bullets: ["Dossiers par groupe", "Recettes visibles", "Lecture rapide"],
+        title: "Travaille sans mélanger les recettes",
+        body: "Les recettes partagées restent rangées par groupe, avec une lecture rapide sur mobile ou desktop.",
+        bullets: ["Dossiers partagés", "Accès contrôlé", "Lecture claire"],
         demo: <SharedRecipesDemoPanel />,
         bg: "radial-gradient(900px 520px at 75% 25%, rgba(56,189,248,0.18), transparent 60%), radial-gradient(900px 520px at 25% 15%, rgba(251,191,36,0.10), transparent 60%)",
         demoBaseWidth: 430,
@@ -518,20 +518,48 @@ export function ScrollShowcaseMobile() {
     show: { opacity: 1, y: 0 },
   };
 
+  const stepLabels: Record<StepKey, string> = {
+    recipes: "Recettes",
+    groups: "Équipe",
+    import: "Import IA",
+    share: "Partage",
+  };
+
+  const highlights = [
+    "Démo réelle",
+    "Pensé service",
+    "Mobile first",
+    "Brigade prête",
+  ];
+
   return (
-    <section className="mt-14 sm:mt-20">
+    <section id="decouvre-kitch-n" className="relative mt-14 sm:mt-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex items-end justify-between gap-6">
-          <div>
+        <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.035] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div aria-hidden className="absolute -left-20 -top-20 h-52 w-52 rounded-full bg-amber-400/10 blur-3xl" />
+          <div aria-hidden className="absolute -right-20 top-8 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
+
+          <div className="relative z-10">
             <div className={cn(ui.badge, "inline-flex")}>Découvre Kitch’n</div>
 
-            <h2 className="mt-4 text-2xl sm:text-3xl font-semibold text-slate-100">
-              Une expérience claire, étape par étape
+            <h2 className="mt-4 text-2xl sm:text-3xl font-semibold leading-tight text-slate-100">
+              De l’import à la recette partagée, tout devient fluide
             </h2>
 
-            <p className="mt-2 text-slate-300/80">
-              Fais défiler pour voir chaque page, exactement comme dans le site.
+            <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-300/80">
+              Fais défiler la démo pour voir comment Kitch’n aide une brigade à créer, ranger, retrouver et partager ses recettes.
             </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              {highlights.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-slate-200"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -541,11 +569,17 @@ export function ScrollShowcaseMobile() {
               key={s.key}
               direction="none"
 className={cn(
-  "mt-6 rounded-[26px] overflow-hidden relative",
-  "bg-white/[0.03]",
-  "shadow-[0_30px_120px_rgba(0,0,0,0.7)]",
+  "mt-6 rounded-[28px] overflow-hidden relative",
+  "bg-white/[0.035]",
+  "shadow-[0_26px_100px_rgba(0,0,0,0.55)]",
   "ring-1 ring-white/10"
 )}            >
+              <div
+                aria-hidden
+                className="absolute left-0 top-0 z-20 h-1 bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-200"
+                style={{ width: `${((idx + 1) / steps.length) * 100}%` }}
+              />
+
               <div
                 aria-hidden
                 className="absolute inset-0"
@@ -564,11 +598,12 @@ className={cn(
                     ease: "easeOut",
                   }}
                 >
-                  <div className="text-xs tracking-widest uppercase text-slate-400">
-                    Étape {idx + 1} / {steps.length}
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                    Étape {idx + 1} · {stepLabels[s.key]}
                   </div>
 
-                  <div className="mt-2 text-2xl sm:text-3xl font-semibold text-slate-100 leading-tight">
+                  <div className="mt-3 text-2xl sm:text-3xl font-semibold text-slate-100 leading-tight">
                     {s.title}
                   </div>
 
@@ -576,11 +611,11 @@ className={cn(
                     {s.body}
                   </div>
 
-                  <ul className="mt-5 space-y-2">
+                  <ul className="mt-5 grid gap-2">
                     {s.bullets.map((b) => (
                       <li
                         key={b}
-                        className="flex items-center gap-3 text-slate-200/90"
+                        className="flex items-center gap-3 rounded-2xl bg-white/[0.035] px-3 py-2 text-sm text-slate-200/90 ring-1 ring-white/10"
                       >
                         <span className="h-2 w-2 rounded-full bg-amber-400/70" />
                         <span>{b}</span>
@@ -602,6 +637,14 @@ className={cn(
                   className="mt-6 relative"
                 >
                   <div className="absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.10),transparent_65%)] blur-2xl" />
+
+                  <div className="mb-3 flex items-center justify-between px-1 text-xs text-slate-400">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-amber-300/80" />
+                      Démo mobile
+                    </span>
+                    <span>{idx + 1}/{steps.length}</span>
+                  </div>
 
                   <MobilePhoneFrame>
                     <div className="relative h-full w-full">

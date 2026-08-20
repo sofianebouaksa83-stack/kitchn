@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { Share2, Folder } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { SharedRecipeGroupDesktop } from "./SharedRecipeGroupDesktop";
-
+import { KitchNLoader } from "../Loading/KitchNLoader";
 type GroupMini = { id: string; name: string };
 
 type MembershipRow = {
@@ -161,7 +161,7 @@ export function SharedRecipesDesktop({
           {/* Loading */}
           {loading && (
             <div className="mt-8 flex items-center justify-center h-64">
-              <div className="text-slate-300/80">Chargement…</div>
+              <KitchNLoader className="kitchn-loader--compact" />
             </div>
           )}
 
