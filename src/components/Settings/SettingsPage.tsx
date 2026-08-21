@@ -33,6 +33,7 @@ import { cn } from "../../features/settings/utils/cn";
 
 import { NotificationsSettings } from "../../features/settings/components/NotificationsSettings";
 import { SecuritySettings } from "../../features/settings/components/SecuritySettings";
+import { AccountSettings } from "../../features/settings/components/AccountSettings";
 
 type ProfileRow = {
   id: string;
@@ -1080,21 +1081,21 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
             )}
 
             {tab === "security" && (
-  <SecuritySettings
-    loading={loading}
-    pwShow={pwShow}
-    setPwShow={setPwShow}
-    pw1={pw1}
-    setPw1={setPw1}
-    pw2={pw2}
-    setPw2={setPw2}
-    pwStrength={pwStrength}
-    pwMatch={pwMatch}
-    canChangePassword={canChangePassword}
-    pwSaving={pwSaving}
-    onChangePassword={onChangePassword}
-  />
-)}
+              <SecuritySettings
+                loading={loading}
+                pwShow={pwShow}
+                setPwShow={setPwShow}
+                pw1={pw1}
+                setPw1={setPw1}
+                pw2={pw2}
+                setPw2={setPw2}
+                pwStrength={pwStrength}
+                pwMatch={pwMatch}
+                canChangePassword={canChangePassword}
+                pwSaving={pwSaving}
+                onChangePassword={onChangePassword}
+              />
+            )}
 
             {tab === "subscription" && (
               <Section>
@@ -1109,16 +1110,10 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
 
 
             {tab === "account" && (
-              <Section title="Compte" icon={<Trash2 className="h-4 w-4" />} loading={loading}>
-                <button
-                  type="button"
-                  onClick={onDeleteAccount}
-                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 transition text-red-100"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Supprimer mon compte
-                </button>
-              </Section>
+              <AccountSettings
+                loading={loading}
+                onDeleteAccount={onDeleteAccount}
+              />
             )}
           </div>
         </div>
