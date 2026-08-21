@@ -38,83 +38,16 @@ import AddToHomePopup from "./components/AddToHomePopup";
 import { KitchNLoader } from "./components/Loading/KitchNLoader";
 
 import { VIEW_PATHS, viewFromRoute, type View } from "./app/routes";
+import {
+  cleanPath,
+  normalizeRouteForUrl,
+  getRouteQuery,
+  isStaticPath,
+  isInvitationPath,
+  extractInvitationToken,
+  getCurrentRouteFromUrl,
+} from "./app/navigation";
 
-
-function cleanPath(route: string) {
-  const path = (route || "/").split("?")[0] || "/";
-  return path.length > 1 ? path.replace(/\/+$/, "") : path;
-}
-
-function normalizeRouteForUrl(route: string) {
-  const withSlash = route.startsWith("/") ? route : `/${route}`;
-  const queryIndex = withSlash.indexOf("?");
-
-  const path = queryIndex >= 0 ? withSlash.slice(0, queryIndex) : withSlash;
-  const query = queryIndex >= 0 ? withSlash.slice(queryIndex) : "";
-
-  return `${cleanPath(path)}${query}`;
-}
-
-function getRouteQuery(route: string) {
-  const queryIndex = route.indexOf("?");
-  const q = queryIndex >= 0 ? route.slice(queryIndex + 1) : "";
-  return new URLSearchParams(q);
-}
-
-function isStaticPath(route: string) {
-  const path = cleanPath(route);
-
-  return (
-    path === "/privacy" ||
-    path === "/terms" ||
-    path === "/legal" ||
-    path === "/assistance" ||
-    path === "/auth/callback"
-  );
-}
-
-function isInvitationPath(route: string) {
-  const path = cleanPath(route);
-  return path.startsWith("/invitation/") || path.startsWith("/invite/");
-}
-
-function extractInvitationToken(route: string) {
-  const path = cleanPath(route);
-
-  if (!isInvitationPath(path)) return null;
-
-  const token = path.startsWith("/invite/")
-    ? path.replace("/invite/", "").trim()
-    : path.replace("/invitation/", "").trim();
-
-  return token.length > 0 ? token : null;
-}
-
-
-function getCurrentRouteFromUrl() {
-  const rawHash = window.location.hash.slice(1);
-
-  // Supabase reset password peut mettre les infos dans le hash
-  if (rawHash.includes("type=recovery")) {
-    return "/reset-password";
-  }
-
-  // Ancien routing en #/... => conversion automatique en vraie URL
-  if (rawHash.startsWith("/")) {
-    const target = normalizeRouteForUrl(rawHash || "/");
-    const current = `${window.location.pathname || "/"}${
-      window.location.search || ""
-    }`;
-
-    if (current !== target || window.location.hash) {
-      window.history.replaceState({}, "", target);
-    }
-
-    return target;
-  }
-
-  return `${window.location.pathname || "/"}${window.location.search || ""}`;
-}
 
 function MainApp() {
   const { user } = useAuth();
