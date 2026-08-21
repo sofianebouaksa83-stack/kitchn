@@ -37,34 +37,8 @@ import "./index.css";
 import AddToHomePopup from "./components/AddToHomePopup";
 import { KitchNLoader } from "./components/Loading/KitchNLoader";
 
-type View =
-  | "accueil"
-  | "recipes"
-  | "editor"
-  | "groups"
-  | "shared"
-  | "import-ai"
-  | "team"
-  | "subscription"
-  | "subscription-checkout"
-  | "subscription-success"
-  | "subscription-cancel"
-  | "settings";
+import { VIEW_PATHS, viewFromRoute, type View } from "./app/routes";
 
-const VIEW_PATHS: Record<View, string> = {
-  accueil: "/accueil",
-  recipes: "/recipes",
-  editor: "/recipes/edit",
-  groups: "/groups",
-  shared: "/shared",
-  "import-ai": "/import-ai",
-  team: "/team",
-  subscription: "/subscription",
-  "subscription-checkout": "/subscription/checkout",
-  "subscription-success": "/subscription/success",
-  "subscription-cancel": "/subscription/cancel",
-  settings: "/settings",
-};
 
 function cleanPath(route: string) {
   const path = (route || "/").split("?")[0] || "/";
@@ -116,60 +90,6 @@ function extractInvitationToken(route: string) {
   return token.length > 0 ? token : null;
 }
 
-function viewFromRoute(route: string): View | null {
-  const path = cleanPath(route);
-
-  switch (path) {
-    case "/":
-    case "/accueil":
-    case "/home":
-      return "accueil";
-
-    case "/recipes":
-      return "recipes";
-
-    case "/recipes/new":
-    case "/recipes/edit":
-      return "editor";
-
-    case "/groups":
-    case "/work_groups":
-    case "/work-groups":
-      return "groups";
-
-    case "/shared":
-    case "/shared-recipes":
-      return "shared";
-
-    case "/import-ai":
-    case "/import":
-      return "import-ai";
-
-    case "/team":
-      return "team";
-
-    case "/subscription":
-      return "subscription";
-
-    case "/subscription/checkout":
-    case "/subscription-checkout":
-      return "subscription-checkout";
-
-    case "/subscription/success":
-    case "/subscription-success":
-      return "subscription-success";
-
-    case "/subscription/cancel":
-    case "/subscription-cancel":
-      return "subscription-cancel";
-
-    case "/settings":
-      return "settings";
-
-    default:
-      return null;
-  }
-}
 
 function getCurrentRouteFromUrl() {
   const rawHash = window.location.hash.slice(1);
