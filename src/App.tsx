@@ -7,7 +7,16 @@ import { LoginForm } from "./components/Auth/LoginForm";
 import { RegisterForm } from "./components/Auth/RegisterForm";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 import { AuthCallback } from "./components/Auth/AuthCallback";
-import HomePage from "./components/HomePage/HomePage";
+
+import HomePage from "./pages/HomePage";
+import RecipesPage from "./pages/RecipesPage";
+import RecipeEditorPage from "./pages/RecipeEditorPage";
+import GroupsPage from "./pages/GroupsPage";
+import SharedRecipesPage from "./pages/SharedRecipesPage";
+import ImportPage from "./pages/ImportPage";
+import TeamPage from "./pages/TeamPage";
+import SettingsPage from "./pages/SettingsPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
 
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
@@ -16,18 +25,12 @@ import InvitationPage from "./pages/InvitationPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 
 import { Navbar } from "./components/Layout/";
-import { RecipeList, RecipeEditorWithSections } from "./components/Recipe";
 
-import { SharedRecipes } from "./components/Sharing/";
-import { WorkGroups } from "./components/Groups/";
-import { RecipeImportAI } from "./components/Import/";
-import { TeamManagement } from "./components/Team/TeamManagement";
-import { SubscriptionManagement } from "./components/Subscription/SubscriptionManagement";
 import { SubscriptionSuccess } from "./components/Subscription/SubscriptionSuccess";
 import { SubscriptionCancel } from "./components/Subscription/SubscriptionCancel";
 import { SubscriptionCheckoutPage } from "./components/Subscription/SubscriptionCheckoutPage";
 
-import SettingsPage from "./components/Settings/SettingsPage";
+
 
 import { ui } from "./styles/ui";
 import "./index.css";
@@ -430,7 +433,7 @@ function MainApp() {
         )}
 
         {currentView === "recipes" && (
-          <RecipeList
+          <RecipesPage
             onCreateNew={handleCreateNew}
             onEdit={handleEdit}
             recipeToOpenId={recipeToOpenId}
@@ -439,7 +442,7 @@ function MainApp() {
         )}
 
         {currentView === "editor" && (
-          <RecipeEditorWithSections
+          <RecipesEditorPage
             recipeId={editingRecipeId}
             onBack={handleBackFromEditor}
             onSave={handleSaveComplete}
@@ -452,21 +455,21 @@ function MainApp() {
         )}
 
         {currentView === "shared" && (
-          <SharedRecipes
+          <SharedRecipesPage
             recipeToOpen={sharedRecipeToOpen}
             onRecipeOpened={() => setSharedRecipeToOpen(null)}
           />
         )}
 
         {currentView === "groups" && (
-          <WorkGroups onViewChange={handleViewChange} />
+          <GroupsPage onViewChange={handleViewChange} />
         )}
 
-        {currentView === "import-ai" && <RecipeImportAI />}
+        {currentView === "import-ai" && <ImportPage />}
 
-        {currentView === "team" && <TeamManagement />}
+        {currentView === "team" && <TeamPage />}
 
-        {currentView === "subscription" && <SubscriptionManagement />}
+        {currentView === "subscription" && <SubscriptionPage />}
 
         {currentView === "subscription-checkout" && (
           <SubscriptionCheckoutPage
