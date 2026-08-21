@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { SubscriptionManagement } from "../Subscription/SubscriptionManagement";
+
 import { Section } from "../../features/settings/components/Section";
 import { Field } from "../../features/settings/components/Field";
 import { Toggle } from "../../features/settings/components/Toggle";
