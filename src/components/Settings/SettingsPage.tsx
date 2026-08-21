@@ -25,6 +25,10 @@ import {
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { SubscriptionManagement } from "../Subscription/SubscriptionManagement";
+import { Section } from "../../features/settings/components/Section";
+import { Field } from "../../features/settings/components/Field";
+import { Toggle } from "../../features/settings/components/Toggle";
+import { cn } from "../../features/settings/utils/cn";
 
 type ProfileRow = {
   id: string;
@@ -1206,83 +1210,6 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Section({
-  title,
-  icon,
-  loading,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  loading?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-white/80">{icon}</span>
-          <h2 className="text-base font-semibold">{title}</h2>
-        </div>
-        {loading ? <Loader2 className="h-4 w-4 animate-spin text-white/60" /> : null}
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  error,
-  className,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={className}>
-      <div className="flex items-end justify-between gap-3">
-        <div className="text-sm font-medium">{label}</div>
-        {hint ? <div className="text-xs text-white/50">{hint}</div> : null}
-      </div>
-      <div className="mt-2">{children}</div>
-      {error ? <div className="mt-1 text-xs text-red-200">{error}</div> : null}
-    </div>
-  );
-}
-
-function Toggle({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-      <div className="text-sm text-white/85">{label}</div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={cn(
-          "h-7 w-12 rounded-full p-1 transition ring-1 ring-white/10",
-          checked ? "bg-amber-400/80" : "bg-white/10"
-        )}
-        aria-pressed={checked}
-      >
-        <div className={cn("h-5 w-5 rounded-full bg-white transition", checked ? "translate-x-5" : "translate-x-0")} />
-      </button>
     </div>
   );
 }
