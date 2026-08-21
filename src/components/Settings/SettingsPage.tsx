@@ -24,7 +24,7 @@ import {
   Crown,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
-import { SubscriptionManagement } from "../Subscription/SubscriptionManagement";
+
 
 import { Section } from "../../features/settings/components/Section";
 import { Field } from "../../features/settings/components/Field";
@@ -34,6 +34,7 @@ import { cn } from "../../features/settings/utils/cn";
 import { NotificationsSettings } from "../../features/settings/components/NotificationsSettings";
 import { SecuritySettings } from "../../features/settings/components/SecuritySettings";
 import { AccountSettings } from "../../features/settings/components/AccountSettings";
+import { SubscriptionSettings } from "../../features/settings/components/SubscriptionSettings";
 
 type ProfileRow = {
   id: string;
@@ -1098,17 +1099,11 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
             )}
 
             {tab === "subscription" && (
-              <Section>
-                <SubscriptionManagement
-                  embedded
-                  onOpenCheckout={() => onViewChange?.("subscription-checkout")}
-                />
-              </Section>
+              <SubscriptionSettings
+                onOpenCheckout={() => onViewChange?.("subscription-checkout")}
+              />
             )}
-                        
-
-
-
+                     
             {tab === "account" && (
               <AccountSettings
                 loading={loading}
