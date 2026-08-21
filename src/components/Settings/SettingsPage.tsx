@@ -31,6 +31,7 @@ import { Field } from "../../features/settings/components/Field";
 import { Toggle } from "../../features/settings/components/Toggle";
 import { cn } from "../../features/settings/utils/cn";
 
+import { NotificationsSettings } from "../../features/settings/components/NotificationsSettings";
 type ProfileRow = {
   id: string;
   full_name: string | null;
@@ -84,10 +85,6 @@ type View =
 type SettingsPageProps = {
   onViewChange?: (view: View) => void;
 };
-
-function cn(...classes: Array<string | undefined | false | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 function isValidUsername(v: string) {
   if (!v) return true;
@@ -979,13 +976,15 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
             )}
 
             {tab === "notifications" && (
-              <Section title="Notifications" icon={<Bell className="h-4 w-4" />} loading={loading}>
-                <Toggle label="Email (activité & partages)" checked={notifEmail} onChange={setNotifEmail} />
-                <div className="h-2" />
-                <Toggle label="Push (mobile) — plus tard" checked={notifPush} onChange={setNotifPush} />
-                <div className="h-2" />
-                <Toggle label="Emails marketing" checked={marketingEmail} onChange={setMarketingEmail} />
-              </Section>
+              <NotificationsSettings
+                loading={loading}
+                notifEmail={notifEmail}
+                setNotifEmail={setNotifEmail}
+                notifPush={notifPush}
+                setNotifPush={setNotifPush}
+                marketingEmail={marketingEmail}
+                setMarketingEmail={setMarketingEmail}
+              />
             )}
 
             {tab === "invitations" && (
