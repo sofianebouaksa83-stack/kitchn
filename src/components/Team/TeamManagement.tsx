@@ -3,9 +3,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
   Users,
-  Mail,
   Trash2,
-  CheckCircle,
   AlertCircle,
   Loader,
   Plus,
@@ -17,6 +15,8 @@ import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { Group, GroupRole, TeamMember, Invitation, InviteStatus,} from "../../features/team/types/team.types";
 
 import { cn, isEmail, roleLabel, normalizeRole,} from "../../features/team/utils/teamHelpers";
+
+import { TeamInvitationsSection } from "../../features/team/components/TeamInvitationsSection";
 
 export function TeamManagement() {
   const { user, profile } = useAuth();
@@ -589,110 +589,22 @@ export function TeamManagement() {
                 </div>
               ) : (
                 <>
-                  {showInviteForm && (
-                    <div className="mt-6 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-                      {!loadingPlan && !isPremium && currentCount >= 10 ? (
-                        <div className="rounded-2xl bg-red-500/10 ring-1 ring-red-500/20 p-4 flex gap-3">
-                          <AlertCircle className="text-red-300" />
-                          <p className="text-red-200 text-sm">
-                            Limite Free atteinte : 10 membres (invitations incluses).
-                          </p>
-                        </div>
-                      ) : (
-                        <form onSubmit={handleSendInvitation} className="space-y-4">
-                          <input
-                            type="email"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            placeholder="email@exemple.com"
-                            className={ui.input}
-                            required
-                          />
-
-                          <select
-                            value={inviteRole}
-                            onChange={(e) => setInviteRole(e.target.value as GroupRole)}
-                            className={ui.input}
-                          >
-                            {isOwner && <option value="admin">Second</option>}
-                            <option value="chef_de_partie">Chef de partie (lecture seule)</option>
-                            <option value="commis">Commis (lecture seule)</option>
-                          </select>
-
-                          <button
-                            type="submit"
-                            disabled={inviteStatus === "sending" || loadingPlan}
-                            className={ui.btnPrimary}
-                          >
-                            <Mail className="w-4 h-4" />
-                            {inviteStatus === "sending"
-                              ? "Envoi…"
-                              : loadingPlan
-                              ? "Vérification…"
-                              : "Envoyer l’invitation"}
-                          </button>
-
-                          {!loadingPlan && !isPremium && (
-                            <p className="text-xs text-slate-400">
-                              Free : 10 membres max (membres + invitations en attente). Actuellement :{" "}
-                              {currentCount}/10.
-                            </p>
-                          )}
-
-                          {!loadingPlan && isPremium && (
-                            <p className="text-xs text-emerald-300/90">
-                              Premium actif : membres et invitations illimités.
-                            </p>
-                          )}
-                        </form>
-                      )}
-                    </div>
-                  )}
-
-                  {inviteStatus === "success" && (
-                    <div className="mt-6 rounded-3xl bg-emerald-500/10 ring-1 ring-emerald-400/20 p-4 flex gap-3">
-                      <CheckCircle className="text-emerald-300" />
-                      <p className="text-emerald-200">{inviteMessage}</p>
-                    </div>
-                  )}
-
-                  {inviteStatus === "error" && (
-                    <div className="mt-6 rounded-3xl bg-red-500/10 ring-1 ring-red-500/20 p-4 flex gap-3">
-                      <AlertCircle className="text-red-300" />
-                      <p className="text-red-200">{inviteMessage}</p>
-                    </div>
-                  )}
-
-                  {invitations.length > 0 && (
-                    <div className="mt-8">
-                      <h2 className="text-base font-semibold text-slate-100 mb-4">
-                        Invitations en attente
-                      </h2>
-                      <div className="space-y-3">
-                        {invitations.map((inv) => (
-                          <div
-                            key={inv.id}
-                            className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4 flex justify-between items-center"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-slate-100 truncate">{inv.email}</p>
-                              <p className="text-xs text-slate-300/70">
-                                Envoyée le {new Date(inv.created_at).toLocaleDateString("fr-FR")}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteInvitation(inv.id)}
-                              className="text-red-300 hover:text-red-200"
-                              type="button"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
+                 <TeamInvitationsSection
+                    showInviteForm={showInviteForm}
+                    loadingPlan={loadingPlan}
+                    isPremium={isPremium}
+                    currentCount={currentCount}
+                    isOwner={isOwner}
+                    inviteEmail={inviteEmail}
+                    onInviteEmailChange={setInviteEmail}
+                    inviteRole={inviteRole}
+                    onInviteRoleChange={setInviteRole}
+                    inviteStatus={inviteStatus}
+                    inviteMessage={inviteMessage}
+                    invitations={invitations}
+                    onSubmit={handleSendInvitation}
+                    onDeleteInvitation={handleDeleteInvitation}
+                  />
                   <div className="mt-8">
                     <h2 className="text-base font-semibold text-slate-100 mb-4">Membres</h2>
                     <div className="space-y-3">
