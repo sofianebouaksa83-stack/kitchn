@@ -14,62 +14,9 @@ import {
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { KitchNLoader } from "../Loading/KitchNLoader";
+import type { Group, GroupRole, TeamMember, Invitation, InviteStatus,} from "../../features/team/types/team.types";
 
-type Group = {
-  id: string;
-  name: string;
-  created_at?: string;
-  created_by?: string;
-};
-
-type GroupRole = "admin" | "chef_de_partie" | "commis";
-
-type TeamMember = {
-  id: string;
-  email: string;
-  full_name: string;
-  job_title: string;
-  role: GroupRole;
-};
-
-type Invitation = {
-  id: string;
-  email: string;
-  role: GroupRole;
-  token: string;
-  created_at: string;
-  accepted_at: string | null;
-  expires_at: string | null;
-  work_group_id?: string | null;
-};
-
-function cn(...classes: Array<string | undefined | null | false>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function isEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
-function roleLabel(role: GroupRole) {
-  switch (role) {
-    case "admin":
-      return "Second";
-    case "chef_de_partie":
-      return "Chef de partie";
-    case "commis":
-      return "Commis";
-    default:
-      return "—";
-  }
-}
-
-function normalizeRole(value: unknown): GroupRole {
-  if (value === "admin" || value === "chef_de_partie" || value === "commis") {
-    return value;
-  }
-  return "commis";
-}
+import { cn, isEmail, roleLabel, normalizeRole,} from "../../features/team/utils/teamHelpers";
 
 export function TeamManagement() {
   const { user, profile } = useAuth();
@@ -87,9 +34,9 @@ export function TeamManagement() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<GroupRole>("commis");
 
-  const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "success" | "error">(
-    "idle"
-  );
+  const [inviteStatus, setInviteStatus] =
+  useState<InviteStatus>("idle");
+
   const [inviteMessage, setInviteMessage] = useState("");
 
   const [canAccess, setCanAccess] = useState(false);
