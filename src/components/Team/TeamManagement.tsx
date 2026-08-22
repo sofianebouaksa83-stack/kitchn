@@ -1,24 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
-import {
-  Users,
-  Loader,
-  Plus,
-  X,
-  ChevronDown,
-} from "lucide-react";
 import { ui } from "../../styles/ui";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { Group, GroupRole, TeamMember, Invitation, InviteStatus,} from "../../features/team/types/team.types";
-
 import { isEmail, normalizeRole,} from "../../features/team/utils/teamHelpers";
-
 import { TeamInvitationsSection } from "../../features/team/components/TeamInvitationsSection";
-
 import { TeamMembersSection } from "../../features/team/components/TeamMembersSection";
 import { TeamHeader } from "../../features/team/components/TeamHeader"; 
-
+import { TeamAccessDenied } from "../../features/team/components/TeamAccessDenied";
 
 export function TeamManagement() {
   const { user, profile } = useAuth();
@@ -501,17 +491,13 @@ const [, setActiveRestaurantId] = useState<string | null>(null);
             }
           />
 
-          {groups.length > 0 && !loading && !canAccess && (
-            <div className="mt-8 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
-              <AlertCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-slate-100 mb-2">Accès refusé</h2>
-              <p className="text-sm text-slate-300/70">
-                Seuls le <span className="text-slate-200">Chef</span> (créateur du groupe) ou le{" "}
-                <span className="text-slate-200">Second</span> peuvent gérer l’équipe de{" "}
-                <span className="text-slate-200">{activeGroup?.name ?? "ce groupe"}</span>.
-              </p>
-            </div>
-          )}
+          {groups.length > 0 &&
+            !loading &&
+            !canAccess && (
+              <TeamAccessDenied
+                groupName={activeGroup?.name}
+              />
+            )}
 
           {groups.length > 0 && canAccess && (
             <>
