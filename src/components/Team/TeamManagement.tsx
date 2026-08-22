@@ -10,19 +10,17 @@ import { TeamMembersSection } from "../../features/team/components/TeamMembersSe
 import { TeamHeader } from "../../features/team/components/TeamHeader"; 
 import { TeamAccessDenied } from "../../features/team/components/TeamAccessDenied";
 import { useTeamPlan } from "../../features/team/hooks/useTeamPlan";
+import { useTeamGroups } from "../../features/team/hooks/useTeamGroups";
 
 export function TeamManagement() {
   const { user, profile } = useAuth();
   const { loadingPlan, isPremium, refreshPremiumStatus,} = useTeamPlan({ userId: user?.id, profile,});
-
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [activeGroupId, setActiveGroupId] = useState<string>("");
-
+  const { groups, activeGroupId, setActiveGroupId, loadingGroups,} = useTeamGroups({ userId: user?.id,});
+  
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingGroups, setLoadingGroups] = useState(true);
-  
+    
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<GroupRole>("commis");
@@ -36,21 +34,7 @@ export function TeamManagement() {
   const [myRole, setMyRole] = useState<GroupRole | null>(null);
   const [, setActiveRestaurantId] = useState<string | null>(null);
   
-  const GROUP_MEMBERS_TO_WORK_GROUPS_FK = "group_members_work_group_id_fkey";
-
-  
-  useEffect(() => {
-    if (!user?.id) {
-      setGroups([]);
-      setActiveGroupId("");
-      setLoadingGroups(false);
-      return;
-    }
-
-    void loadGroups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
+    
   useEffect(() => {
     if (!activeGroupId) {
       setTeamMembers([]);
@@ -106,52 +90,7 @@ export function TeamManagement() {
     return Math.max(0, (maxMembers as number) - currentCount);
   }, [maxMembers, currentCount]);
 
-  async function loadGroups() {
-    if (!user?.id) return;
-
-    setLoadingGroups(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("group_members")
-        .select(
-          `
-          work_group_id,
-          role,
-          work_groups!${GROUP_MEMBERS_TO_WORK_GROUPS_FK} (
-            id,
-            name,
-            created_at,
-            created_by
-          )
-        `
-        )
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      const nextGroups: Group[] = (data ?? [])
-        .map((m: any) => {
-          const wg = m.work_groups;
-          return Array.isArray(wg) ? wg[0] : wg;
-        })
-        .filter(Boolean);
-
-      const unique = Array.from(new Map(nextGroups.map((g) => [g.id, g])).values());
-      unique.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-      setGroups(unique);
-      setActiveGroupId((prev) => prev || unique[0]?.id || "");
-    } catch (e) {
-      console.error("[TeamManagement] loadGroups error:", e);
-      setGroups([]);
-      setActiveGroupId("");
-    } finally {
-      setLoadingGroups(false);
-    }
-  }
-
-  async function loadTeamData(workGroupId: string) {
+    async function loadTeamData(workGroupId: string) {
     if (!user?.id) return;
 
     setLoading(true);
