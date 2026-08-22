@@ -3,7 +3,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
   Users,
-  Trash2,
   AlertCircle,
   Loader,
   Plus,
@@ -14,10 +13,11 @@ import { ui } from "../../styles/ui";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { Group, GroupRole, TeamMember, Invitation, InviteStatus,} from "../../features/team/types/team.types";
 
-import { cn, isEmail, roleLabel, normalizeRole,} from "../../features/team/utils/teamHelpers";
+import { cn, isEmail, normalizeRole,} from "../../features/team/utils/teamHelpers";
 
 import { TeamInvitationsSection } from "../../features/team/components/TeamInvitationsSection";
 
+import { TeamMembersSection } from "../../features/team/components/TeamMembersSection";
 export function TeamManagement() {
   const { user, profile } = useAuth();
 
@@ -605,60 +605,15 @@ export function TeamManagement() {
                     onSubmit={handleSendInvitation}
                     onDeleteInvitation={handleDeleteInvitation}
                   />
-                  <div className="mt-8">
-                    <h2 className="text-base font-semibold text-slate-100 mb-4">Membres</h2>
-                    <div className="space-y-3">
-                      {teamMembers.map((m) => {
-                        const isMe = m.id === user?.id;
-                        const isOwnerMember = Boolean(groupOwnerId && m.id === groupOwnerId);
-                        const rightLabel = isMe ? "Vous" : isOwnerMember ? "Chef" : roleLabel(m.role);
-                        const canEditThisMember = canAccess && !isMe && !isOwnerMember;
-
-                        return (
-                          <div
-                            key={m.id}
-                            className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4 flex justify-between items-center gap-4"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-slate-100 font-medium truncate">{m.full_name}</p>
-                              <p className="text-sm text-slate-300/70 truncate">
-                                {m.job_title} • {m.email}
-                              </p>
-                            </div>
-
-                            {canEditThisMember ? (
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={m.role}
-                                  onChange={(e) => handleChangeRole(m.id, e.target.value as GroupRole)}
-                                  className={cn(ui.input, "max-w-[220px]")}
-                                >
-                                  {roleOptionsForManager.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </option>
-                                  ))}
-                                </select>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveMember(m.id)}
-                                  className="p-2 rounded-xl text-red-300 hover:text-red-200 hover:bg-red-500/10 ring-1 ring-transparent hover:ring-red-500/20"
-                                  title="Supprimer le membre"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-slate-300/70 whitespace-nowrap">
-                                {rightLabel}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <TeamMembersSection
+                    members={teamMembers}
+                    currentUserId={user?.id}
+                    groupOwnerId={groupOwnerId}
+                    canAccess={canAccess}
+                    roleOptions={roleOptionsForManager}
+                    onChangeRole={handleChangeRole}
+                    onRemoveMember={handleRemoveMember}
+                  />
                 </>
               )}
             </>
