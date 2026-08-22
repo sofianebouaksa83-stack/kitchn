@@ -3,7 +3,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
   Users,
-  AlertCircle,
   Loader,
   Plus,
   X,
@@ -13,11 +12,14 @@ import { ui } from "../../styles/ui";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { Group, GroupRole, TeamMember, Invitation, InviteStatus,} from "../../features/team/types/team.types";
 
-import { cn, isEmail, normalizeRole,} from "../../features/team/utils/teamHelpers";
+import { isEmail, normalizeRole,} from "../../features/team/utils/teamHelpers";
 
 import { TeamInvitationsSection } from "../../features/team/components/TeamInvitationsSection";
 
 import { TeamMembersSection } from "../../features/team/components/TeamMembersSection";
+import { TeamHeader } from "../../features/team/components/TeamHeader"; 
+
+
 export function TeamManagement() {
   const { user, profile } = useAuth();
 
@@ -42,8 +44,7 @@ export function TeamManagement() {
   const [canAccess, setCanAccess] = useState(false);
   const [groupOwnerId, setGroupOwnerId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<GroupRole | null>(null);
-  const [activeRestaurantId, setActiveRestaurantId] = useState<string | null>(null);
-
+const [, setActiveRestaurantId] = useState<string | null>(null);
   const [freshPlan, setFreshPlan] = useState<string | null>(null);
   const GROUP_MEMBERS_TO_WORK_GROUPS_FK = "group_members_work_group_id_fkey";
 
@@ -479,95 +480,26 @@ export function TeamManagement() {
     <div className={ui.dashboardBg}>
       <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center">
-                <Users className="w-5 h-5 text-amber-200" />
-              </div>
-
-              <div className="min-w-0">
-                <h1 className="text-lg sm:text-xl font-semibold text-slate-100">Équipe</h1>
-                <p className="text-sm text-slate-300/70 mt-1">
-                  Gestion des membres, invitations et rôles (par groupe)
-                </p>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <div className="text-xs text-slate-400">Groupe :</div>
-
-                  {loadingGroups ? (
-                    <div className="inline-flex items-center gap-2 text-xs text-slate-300/70">
-                      <KitchNLoader className="kitchn-loader--mini" />
-                      Chargement…
-                    </div>
-                  ) : groups.length === 0 ? (
-                    <div className="text-xs text-red-200">
-                      Aucun groupe. Crée un groupe pour inviter ton équipe.
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <select
-                        value={activeGroupId}
-                        onChange={(e) => setActiveGroupId(e.target.value)}
-                        className={cn(ui.input, "pr-10 py-2 text-sm")}
-                      >
-                        {groups.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.name}
-                          </option>
-                        ))}
-                      </select>                      
-                    </div>
-                  )}
-
-                  {groups.length > 0 && (
-                    <div className="text-xs text-slate-400">
-                      {loadingPlan ? (
-                        <span className="inline-flex items-center gap-2 text-slate-300/70">
-                          <KitchNLoader className="kitchn-loader--mini" />
-                          Vérification de l’abonnement…
-                        </span>
-                      ) : isPremium ? (
-                        <span className="text-emerald-300">Premium — membres illimités</span>
-                      ) : (
-                        <span>
-                          Free — {remainingSlots} place{remainingSlots > 1 ? "s" : ""} restante
-                          {remainingSlots > 1 ? "s" : ""} (max 10)
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {groups.length > 0 && (
-                  <p className="text-xs text-slate-400 mt-2">
-                    {loading
-                      ? "Chargement…"
-                      : `${teamMembers.length} membre${teamMembers.length > 1 ? "s" : ""} — ${
-                          invitations.length
-                        } invitation${invitations.length > 1 ? "s" : ""} en attente`}
-                    {activeGroup?.name ? ` — ${activeGroup.name}` : ""}
-                    {activeRestaurantId ? "" : ""}
-                    {canAccess ? (
-                      <span className="ml-2 text-emerald-300/90">
-                        (Gestion : {isOwner ? "Chef" : isSecond ? "Second" : "—"})
-                      </span>
-                    ) : null}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {groups.length > 0 && canAccess && (
-              <button
-                onClick={() => setShowInviteForm((v) => !v)}
-                className={`${ui.btnPrimary} px-5 py-2.5 rounded-2xl`}
-                type="button"
-              >
-                {showInviteForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-                {showInviteForm ? "Annuler" : "Inviter"}
-              </button>
-            )}
-          </div>
+          <TeamHeader
+            groups={groups}
+            loadingGroups={loadingGroups}
+            activeGroupId={activeGroupId}
+            onActiveGroupChange={setActiveGroupId}
+            loadingPlan={loadingPlan}
+            isPremium={isPremium}
+            remainingSlots={remainingSlots}
+            loading={loading}
+            membersCount={teamMembers.length}
+            invitationsCount={invitations.length}
+            activeGroupName={activeGroup?.name}
+            canAccess={canAccess}
+            isOwner={isOwner}
+            isSecond={isSecond}
+            showInviteForm={showInviteForm}
+            onToggleInviteForm={() =>
+              setShowInviteForm((visible) => !visible)
+            }
+          />
 
           {groups.length > 0 && !loading && !canAccess && (
             <div className="mt-8 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
