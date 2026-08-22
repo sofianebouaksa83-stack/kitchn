@@ -1,55 +1,31 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { ui } from "../../styles/ui";
 import { KitchNLoader } from "../Loading/KitchNLoader";
-import type { Group, GroupRole, TeamMember, Invitation, InviteStatus,} from "../../features/team/types/team.types";
-import { isEmail, normalizeRole,} from "../../features/team/utils/teamHelpers";
+import type { GroupRole, InviteStatus,} from "../../features/team/types/team.types";
+import { isEmail, } from "../../features/team/utils/teamHelpers";
 import { TeamInvitationsSection } from "../../features/team/components/TeamInvitationsSection";
 import { TeamMembersSection } from "../../features/team/components/TeamMembersSection";
 import { TeamHeader } from "../../features/team/components/TeamHeader"; 
 import { TeamAccessDenied } from "../../features/team/components/TeamAccessDenied";
 import { useTeamPlan } from "../../features/team/hooks/useTeamPlan";
 import { useTeamGroups } from "../../features/team/hooks/useTeamGroups";
+import { useTeamData } from "../../features/team/hooks/useTeamData";
 
 export function TeamManagement() {
   const { user, profile } = useAuth();
   const { loadingPlan, isPremium, refreshPremiumStatus,} = useTeamPlan({ userId: user?.id, profile,});
   const { groups, activeGroupId, setActiveGroupId, loadingGroups,} = useTeamGroups({ userId: user?.id,});
-  
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(true);
-    
+  const { teamMembers, invitations, loading, canAccess, groupOwnerId, myRole, loadTeamData,} = useTeamData({ userId: user?.id, activeGroupId,});
+      
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<GroupRole>("commis");
 
   const [inviteStatus, setInviteStatus] = useState<InviteStatus>("idle");
 
-  const [inviteMessage, setInviteMessage] = useState("");
-
-  const [canAccess, setCanAccess] = useState(false);
-  const [groupOwnerId, setGroupOwnerId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<GroupRole | null>(null);
-  const [, setActiveRestaurantId] = useState<string | null>(null);
-  
-    
-  useEffect(() => {
-    if (!activeGroupId) {
-      setTeamMembers([]);
-      setInvitations([]);
-      setCanAccess(false);
-      setGroupOwnerId(null);
-      setMyRole(null);
-      setLoading(false);
-      return;
-    }
-
-    void loadTeamData(activeGroupId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroupId]);
-
+  const [inviteMessage, setInviteMessage] = useState("");  
   
   const maxMembers = isPremium ? Infinity : 10;
 
@@ -89,97 +65,7 @@ export function TeamManagement() {
     if (!Number.isFinite(maxMembers)) return Infinity;
     return Math.max(0, (maxMembers as number) - currentCount);
   }, [maxMembers, currentCount]);
-
-    async function loadTeamData(workGroupId: string) {
-    if (!user?.id) return;
-
-    setLoading(true);
-
-    try {
-      const { data: group, error: groupErr } = await supabase
-        .from("work_groups")
-        .select("id, created_by, name, restaurant_id")
-        .eq("id", workGroupId)
-        .maybeSingle();
-
-      if (groupErr) throw groupErr;
-
-      setGroupOwnerId(group?.created_by ?? null);
-      setActiveRestaurantId(group?.restaurant_id ?? null);
-
-      const isOwnerNow = (group?.created_by ?? null) === user.id;
-
-      const { data: myMembership, error: memErr } = await supabase
-        .from("group_members")
-        .select("role")
-        .eq("work_group_id", workGroupId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (memErr) throw memErr;
-
-      const my = normalizeRole(myMembership?.role);
-      setMyRole(myMembership ? my : null);
-
-      const isSecondNow = myMembership?.role === "admin";
-      setCanAccess(Boolean(isOwnerNow || isSecondNow));
-
-      const { data: gm, error: gmErr } = await supabase
-        .from("group_members")
-        .select(
-          `
-          user_id,
-          role,
-          profiles!group_members_user_id_fkey (
-            id, email, full_name, job_title
-          )
-        `
-        )
-        .eq("work_group_id", workGroupId);
-
-      if (gmErr) throw gmErr;
-
-      const members: TeamMember[] = (gm ?? [])
-        .map((row: any) => ({
-          id: row.user_id,
-          email: row.profiles?.email ?? "",
-          full_name: row.profiles?.full_name ?? "Sans nom",
-          job_title: row.profiles?.job_title ?? "",
-          role: normalizeRole(row.role),
-        }))
-        .sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
-
-      setTeamMembers(members);
-
-      const { data: invites, error: invErr } = await supabase
-        .from("invitations")
-        .select("*")
-        .eq("work_group_id", workGroupId)
-        .is("accepted_at", null);
-
-      if (invErr) {
-        console.warn(
-          "[TeamManagement] Invitations query failed. Vérifie invitations.work_group_id.",
-          invErr
-        );
-        setInvitations([]);
-      } else {
-        setInvitations((invites ?? []) as Invitation[]);
-      }
-    } catch (err) {
-      console.error("[TeamManagement] loadTeamData error:", err);
-      setTeamMembers([]);
-      setInvitations([]);
-      setCanAccess(false);
-      setGroupOwnerId(null);
-      setMyRole(null);
-      setActiveRestaurantId(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-
+  
   async function handleSendInvitation(e: React.FormEvent) {
     e.preventDefault();
 
