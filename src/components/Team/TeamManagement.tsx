@@ -9,9 +9,11 @@ import { TeamInvitationsSection } from "../../features/team/components/TeamInvit
 import { TeamMembersSection } from "../../features/team/components/TeamMembersSection";
 import { TeamHeader } from "../../features/team/components/TeamHeader"; 
 import { TeamAccessDenied } from "../../features/team/components/TeamAccessDenied";
+import { useTeamPlan } from "../../features/team/hooks/useTeamPlan";
 
 export function TeamManagement() {
   const { user, profile } = useAuth();
+  const { loadingPlan, isPremium, refreshPremiumStatus,} = useTeamPlan({ userId: user?.id, profile,});
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [activeGroupId, setActiveGroupId] = useState<string>("");
@@ -20,77 +22,23 @@ export function TeamManagement() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingGroups, setLoadingGroups] = useState(true);
-  const [loadingPlan, setLoadingPlan] = useState(true);
-
+  
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<GroupRole>("commis");
 
-  const [inviteStatus, setInviteStatus] =
-  useState<InviteStatus>("idle");
+  const [inviteStatus, setInviteStatus] = useState<InviteStatus>("idle");
 
   const [inviteMessage, setInviteMessage] = useState("");
 
   const [canAccess, setCanAccess] = useState(false);
   const [groupOwnerId, setGroupOwnerId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<GroupRole | null>(null);
-const [, setActiveRestaurantId] = useState<string | null>(null);
-  const [freshPlan, setFreshPlan] = useState<string | null>(null);
+  const [, setActiveRestaurantId] = useState<string | null>(null);
+  
   const GROUP_MEMBERS_TO_WORK_GROUPS_FK = "group_members_work_group_id_fkey";
 
-  useEffect(() => {
-    if (!user?.id) {
-      setFreshPlan(null);
-      setLoadingPlan(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadPlan() {
-      setLoadingPlan(true);
-
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("plan, subscription_status, is_premium")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (error) throw error;
-        if (cancelled) return;
-
-        if (data?.plan) {
-          setFreshPlan(String(data.plan));
-        } else if (data?.is_premium === true || data?.subscription_status === "active") {
-          setFreshPlan("premium");
-        } else {
-          setFreshPlan("free");
-        }
-      } catch (err) {
-        console.error("[TeamManagement] loadPlan error:", err);
-        if (!cancelled) {
-          const fallbackPlan =
-            profile?.plan === "premium" ||
-            (profile as any)?.is_premium === true ||
-            (profile as any)?.subscription_status === "active"
-              ? "premium"
-              : "free";
-
-          setFreshPlan(fallbackPlan);
-        }
-      } finally {
-        if (!cancelled) setLoadingPlan(false);
-      }
-    }
-
-    void loadPlan();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, profile]);
-
+  
   useEffect(() => {
     if (!user?.id) {
       setGroups([]);
@@ -118,16 +66,7 @@ const [, setActiveRestaurantId] = useState<string | null>(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId]);
 
-  const isPremium = useMemo(() => {
-    if (freshPlan) return freshPlan === "premium";
-
-    return (
-      profile?.plan === "premium" ||
-      (profile as any)?.is_premium === true ||
-      (profile as any)?.subscription_status === "active"
-    );
-  }, [freshPlan, profile]);
-
+  
   const maxMembers = isPremium ? Infinity : 10;
 
   const activeGroup = useMemo(
@@ -301,29 +240,6 @@ const [, setActiveRestaurantId] = useState<string | null>(null);
     }
   }
 
-  async function refreshPremiumStatus() {
-    if (!user?.id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("plan, subscription_status, is_premium")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data?.plan) {
-        setFreshPlan(String(data.plan));
-      } else if (data?.is_premium === true || data?.subscription_status === "active") {
-        setFreshPlan("premium");
-      } else {
-        setFreshPlan("free");
-      }
-    } catch (err) {
-      console.error("[TeamManagement] refreshPremiumStatus error:", err);
-    }
-  }
 
   async function handleSendInvitation(e: React.FormEvent) {
     e.preventDefault();
@@ -523,7 +439,7 @@ const [, setActiveRestaurantId] = useState<string | null>(null);
                     onSubmit={handleSendInvitation}
                     onDeleteInvitation={handleDeleteInvitation}
                   />
-                  <TeamMembersSection
+                <TeamMembersSection
                     members={teamMembers}
                     currentUserId={user?.id}
                     groupOwnerId={groupOwnerId}
