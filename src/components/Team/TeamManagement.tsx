@@ -4,7 +4,6 @@ import { supabase } from "../../lib/supabase";
 import { ui } from "../../styles/ui";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { GroupRole, InviteStatus,} from "../../features/team/types/team.types";
-import { isEmail, } from "../../features/team/utils/teamHelpers";
 import { TeamInvitationsSection } from "../../features/team/components/TeamInvitationsSection";
 import { TeamMembersSection } from "../../features/team/components/TeamMembersSection";
 import { TeamHeader } from "../../features/team/components/TeamHeader"; 
@@ -12,8 +11,10 @@ import { TeamAccessDenied } from "../../features/team/components/TeamAccessDenie
 import { useTeamPlan } from "../../features/team/hooks/useTeamPlan";
 import { useTeamGroups } from "../../features/team/hooks/useTeamGroups";
 import { useTeamData } from "../../features/team/hooks/useTeamData";
+import { useTeamMemberActions } from "../../features/team/hooks/useTeamMemberActions";
 
 export function TeamManagement() {
+
   const { user, profile } = useAuth();
   const { loadingPlan, isPremium, refreshPremiumStatus,} = useTeamPlan({ userId: user?.id, profile,});
   const { groups, activeGroupId, setActiveGroupId, loadingGroups,} = useTeamGroups({ userId: user?.id,});
@@ -40,6 +41,8 @@ export function TeamManagement() {
   }, [groupOwnerId, user?.id]);
 
   const isSecond = useMemo(() => myRole === "admin", [myRole]);
+
+  const { handleChangeRole, handleRemoveMember,} = useTeamMemberActions({ userId: user?.id, activeGroupId, canAccess, groupOwnerId, isOwner, isSecond, loadTeamData,});
 
   const roleOptionsForManager = useMemo(() => {
     if (isOwner) {
@@ -140,57 +143,7 @@ export function TeamManagement() {
     }
   }
 
-  async function handleChangeRole(memberId: string, nextRole: GroupRole) {
-    if (!activeGroupId || !user?.id || !canAccess) return;
-
-    if (groupOwnerId && memberId === groupOwnerId) return;
-    if (!isOwner && isSecond && nextRole === "admin") return;
-
-    const { data: updated, error } = await supabase
-      .from("group_members")
-      .update({ role: nextRole })
-      .eq("work_group_id", activeGroupId)
-      .eq("user_id", memberId)
-      .select("work_group_id, user_id, role");
-
-    if (error) {
-      console.error("UPDATE ERROR", error);
-      alert("UPDATE ERROR: " + error.message);
-      return;
-    }
-
-    if (!updated || updated.length === 0) {
-      alert("UPDATE: 0 ligne modifiée (WHERE ne match pas)");
-      return;
-    }
-
-    await loadTeamData(activeGroupId);
-  }
-
-  async function handleRemoveMember(memberId: string) {
-    if (!activeGroupId || !user?.id || !canAccess) return;
-
-    if (groupOwnerId && memberId === groupOwnerId) return;
-    if (memberId === user.id) return;
-
-    const ok = confirm("Supprimer ce membre du groupe ?");
-    if (!ok) return;
-
-    const { error } = await supabase
-      .from("group_members")
-      .delete()
-      .eq("work_group_id", activeGroupId)
-      .eq("user_id", memberId);
-
-    if (error) {
-      console.error("DELETE ERROR", error);
-      alert("DELETE ERROR: " + error.message);
-      return;
-    }
-
-    await loadTeamData(activeGroupId);
-  }
-
+  
   async function handleDeleteInvitation(id: string) {
     if (!confirm("Supprimer cette invitation ?")) return;
 
