@@ -22,7 +22,6 @@ export function useTeamData({
   const [canAccess, setCanAccess] = useState(false);
   const [groupOwnerId, setGroupOwnerId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<GroupRole | null>(null);
-  const [, setActiveRestaurantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeGroupId) {
@@ -54,8 +53,7 @@ export function useTeamData({
       if (groupErr) throw groupErr;
 
       setGroupOwnerId(group?.created_by ?? null);
-      setActiveRestaurantId(group?.restaurant_id ?? null);
-
+      
       const isOwnerNow = (group?.created_by ?? null) === userId;
 
       const { data: myMembership, error: memErr } = await supabase
@@ -123,8 +121,7 @@ export function useTeamData({
       setInvitations([]);
       setCanAccess(false);
       setGroupOwnerId(null);
-      setMyRole(null);
-      setActiveRestaurantId(null);
+      setMyRole(null);      
     } finally {
       setLoading(false);
     }
