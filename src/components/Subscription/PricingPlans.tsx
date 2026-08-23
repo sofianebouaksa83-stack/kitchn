@@ -26,40 +26,11 @@ export function PricingPlans({
     return isPremium ? "premium" : "free";
   }, [currentPlanId, isPremium, subLoading]);
 
-  async function handleUpgrade() {
-    setError(null);
-    onOpenCheckout?.();
-  }
+ function handleUpgrade() {
+  setError(null);
+  onOpenCheckout?.();
+}
 
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "create-checkout-session",
-        {
-          body: {
-            planId: "premium",
-          },
-        }
-      );
-
-      if (error) {
-        const details = await (error as { context?: { text?: () => Promise<string> } }).context
-          ?.text?.()
-          .catch(() => null);
-        throw new Error(details || error.message || "Erreur checkout");
-      }
-
-      if (!data?.url) {
-        throw new Error("URL de paiement introuvable");
-      }
-
-      onOpenCheckout?.();
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Impossible de passer au Premium";
-      setError(message);
-    } finally {
-      setLoadingCheckout(false);
-    }
-  }
 
   async function handleManage() {
     setError(null);
@@ -229,15 +200,8 @@ export function PricingPlans({
                     disabled={false}
                     className={`${ui.btnPrimary} w-full`}
                     type="button"
-                  >
-                    {loadingCheckout ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Redirection…
-                      </span>
-                    ) : (
-                      "Passer au Premium"
-                    )}
+                  >                    
+                      "Passer au Premium"                    
                   </button>
                 )}
 
