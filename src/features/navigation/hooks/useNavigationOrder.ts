@@ -25,19 +25,18 @@ export function useNavigationOrder({
     useState<string | null>(null);
 
   useEffect(() => {
-    const currentUserId = userId;
+  if (!userId) {
+    setMenuItems(baseItems);
+    return;
+  }
 
-    if (!currentUserId) {
-        setMenuItems(baseItems);
-        return;
-    }
+  const currentUserId: string = userId;
+  let cancelled = false;
 
-    let cancelled = false;
-
-    async function loadOrder() {
-      try {
-        const savedKeys =
-          await loadNavOrder(currentUserId);
+  async function loadOrder() {
+    try {
+      const savedKeys =
+        await loadNavOrder(currentUserId);
 
         const ordered = applySavedNavOrder(
           baseItems,
