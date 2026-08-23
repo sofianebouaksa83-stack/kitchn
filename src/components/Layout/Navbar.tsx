@@ -17,8 +17,7 @@ import {
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
-import type { NavItem, } from "../../features/navigation/types/navigation.types";
-import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
+import type { NavItem } from "../../features/navigation/types/navigation.types";import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
 import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfile";
 
 type NavbarProps = {
@@ -29,6 +28,14 @@ type NavbarProps = {
 
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const { user, signOut } = useAuth();
+  const {
+  displayName,
+  avatarUrl,
+  avatarFallback,
+} = useNavbarProfile({
+  userId: user?.id,
+  email: user?.email,
+});
 
   const handleViewChange = (view: View) => onViewChange(view);
 
@@ -186,28 +193,7 @@ const openSubscriptionSettings = () => {
   const sectionTitle =
     "px-4 pt-3 pb-1 text-[11px] tracking-wide uppercase text-white/40";
 
-  const displayName =
-    navProfile?.full_name || navProfile?.username || user?.email || "Compte";
-
-  const avatarUrl = useMemo(() => {
-    const raw = navProfile?.avatar_url?.trim();
-    if (!raw) return null;
-
-    const token = navProfile?.updated_at || "1";
-    if (isHttpUrl(raw)) return withCacheBuster(raw, token);
-
-    const publicUrl = supabase.storage
-      .from("avatars")
-      .getPublicUrl(raw).data.publicUrl;
-    return withCacheBuster(publicUrl, token);
-  }, [navProfile?.avatar_url, navProfile?.updated_at]);
-
-  const avatarFallback = (
-    navProfile?.full_name?.trim()?.[0] ||
-    navProfile?.username?.trim()?.[0] ||
-    user?.email?.trim()?.[0] ||
-    "?"
-  ) as string;
+  
 
   const Avatar = ({ size = "h-8 w-8" }: { size?: string }) => (
     <div
