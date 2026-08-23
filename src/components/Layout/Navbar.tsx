@@ -116,6 +116,23 @@ const openSubscriptionSettings = () => {
                 avatarUrl={avatarUrl}
                 fallback={avatarFallback}
               />
+              <div className="min-w-0 text-left">
+                <div className="flex items-center gap-2 text-sm font-medium text-white truncate max-w-[220px]">
+                  {displayName}
+
+                  {isPremium && (
+                    <img
+                      src="/toque-premium.png"
+                      alt="Premium"
+                      className="w-4 h-4 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]"
+                    />
+                  )}
+                </div>
+
+                <div className="text-xs text-white/60 truncate max-w-[220px]">
+                  {user?.email}
+                </div>
+              </div>
 
                 {/* ✅ badge discret sur le bouton */}
                 {invCount > 0 && (
