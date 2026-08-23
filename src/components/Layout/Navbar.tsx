@@ -31,7 +31,7 @@ type NavbarProps = {
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const { user, signOut } = useAuth();
   const { displayName, avatarUrl, avatarFallback,} = useNavbarProfile({ userId: user?.id, email: user?.email,});
-
+  const invCount = usePendingInvitationsCount({ userId: user?.id,});
   const handleViewChange = (view: View) => onViewChange(view);
 
   const navPill = (active: boolean) =>
