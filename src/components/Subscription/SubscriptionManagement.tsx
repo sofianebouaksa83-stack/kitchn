@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Loader2, CreditCard, Calendar, AlertCircle, Crown } from "lucide-react";
 import { ui } from "../../styles/ui";
-import type { Plan, Subscription,} from "../../features/subscription/types/subscription.types";
-import { formatSubscriptionDate, getSubscriptionStatusInfo, resolveSubscriptionPlanId,} from "../../features/subscription/utils/subscriptionHelpers";
+import { formatSubscriptionDate, getSubscriptionStatusInfo, } from "../../features/subscription/utils/subscriptionHelpers";
+import { useSubscriptionData } from "../../features/subscription/hooks/useSubscriptionData";
 
+const { subscription, plan, loading, error, setError,} = useSubscriptionData();
 
 type SubscriptionManagementProps = {
   embedded?: boolean;
@@ -15,11 +16,7 @@ export function SubscriptionManagement({
   embedded = false,
   onOpenCheckout,
 }: SubscriptionManagementProps) {
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [loading, setLoading] = useState(true);
   const [managingSubscription, setManagingSubscription] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadSubscription();
