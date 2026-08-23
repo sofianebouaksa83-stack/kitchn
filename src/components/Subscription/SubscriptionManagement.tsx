@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Loader2, CreditCard, Calendar, AlertCircle, Crown } from "lucide-react";
-import { PricingPlans } from "./PricingPlans";
 import { ui } from "../../styles/ui";
 import type { Plan, Subscription,} from "../../features/subscription/types/subscription.types";
 import { formatSubscriptionDate, getSubscriptionStatusInfo, resolveSubscriptionPlanId,} from "../../features/subscription/utils/subscriptionHelpers";
@@ -50,6 +49,11 @@ export function SubscriptionManagement({
         .maybeSingle();
 
       if (subError) throw subError;
+
+      const normalizedPlanId =
+        resolveSubscriptionPlanId(subData);
+
+      setSubscription(subData ?? null);
 
       const { data: planData, error: planError } = await supabase
         .from("subscription_plans")
