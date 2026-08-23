@@ -20,6 +20,7 @@ import type { View } from "../../app/routes";
 import type { NavItem, NavbarProfile,} from "../../features/navigation/types/navigation.types";
 import { loadNavOrder, saveNavOrder,} from "../../features/navigation/services/navOrderService";
 import { applySavedNavOrder, isHttpUrl, withCacheBuster,} from "../../features/navigation/utils/navigationHelpers";
+import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
 
 type NavbarProps = {
   currentView: View;
@@ -80,10 +81,9 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     []
   );
 
+  const { menuItems, dragKey, onDragStartItem, onDragOverItem, onDropItem, onDragEndItem,} = useNavigationOrder({  userId: user?.id, baseItems,});
   
-  const [menuItems, setMenuItems] = useState<NavItem[]>(baseItems);
-  const [dragKey, setDragKey] = useState<string | null>(null);
-
+ 
   // Desktop dropdown
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
@@ -166,34 +166,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     };
   }, [user?.id]);
 
-  // Charge l'ordre depuis Supabase (drag/drop desktop)
-  useEffect(() => {
-    if (!user?.id) {
-      setMenuItems(baseItems);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const savedKeys = await loadNavOrder(user.id);
-        const ordered = applySavedNavOrder( baseItems, savedKeys);
-
-        if (!cancelled) {
-        setMenuItems(ordered);
-        }
-
-       } catch {
-        if (!cancelled) setMenuItems(baseItems);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    }, [user?.id, baseItems]);
-
+  
   // ESC ferme tout + clic dehors ferme dropdown desktop
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -219,50 +192,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     };
   }, [accountMenuOpen]);
 
-  const onDragStartItem = (key: string) => (e: React.DragEvent) => {
-    setDragKey(key);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", key);
-  };
-
-  const onDragOverItem = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
-
-  const onDropItem = (overKey: string) => async (e: React.DragEvent) => {
-    e.preventDefault();
-    const fromKey = dragKey || e.dataTransfer.getData("text/plain");
-    if (!fromKey || fromKey === overKey) return;
-
-    let nextKeys: string[] = [];
-
-    setMenuItems((prev) => {
-      const fromIndex = prev.findIndex((i) => i.key === fromKey);
-      const toIndex = prev.findIndex((i) => i.key === overKey);
-      if (fromIndex < 0 || toIndex < 0) return prev;
-
-      const next = [...prev];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-
-      nextKeys = next.map((i) => i.key);
-      return next;
-    });
-
-    setDragKey(null);
-
-    if (user?.id && nextKeys.length) {
-      try {
-        await saveNavOrder(user.id, nextKeys);
-      } catch {
-        // ignore
-      }
-    }
-  };
-
-  const onDragEndItem = () => setDragKey(null);
-
+ 
   const openSettings = () => {
     setAccountMenuOpen(false);
     setMobileSheetOpen(false);
