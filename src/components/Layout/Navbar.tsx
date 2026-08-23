@@ -1,10 +1,6 @@
 import { useAuth } from "../../contexts/AuthContext";
 import {
   LogOut,
-  Users,
-  Share2,
-  Sparkles,
-  BookOpen,
   CreditCard,
   Users2,
   Settings,
@@ -21,6 +17,7 @@ import { NavbarAvatar } from "../../features/navigation/components/NavbarAvatar"
 import { InvitationBadge } from "../../features/navigation/components/InvitationBadge";
 import { useNavbarMenus } from "../../features/navigation/hooks/useNavbarMenus";
 import { DesktopNavigation } from "../../features/navigation/components/DesktopNavigation";
+import { MobileNavigation } from "../../features/navigation/components/MobileNavigation";
 
 type NavbarProps = {
   currentView: View;
@@ -33,17 +30,6 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const { displayName, avatarUrl, avatarFallback,} = useNavbarProfile({ userId: user?.id, email: user?.email,});
   const invCount = usePendingInvitationsCount({ userId: user?.id,});
   const handleViewChange = (view: View) => onViewChange(view);
-
-
-  const mobileIconBtn = (active: boolean) =>
-    [
-      "h-12 w-12 rounded-2xl inline-flex items-center justify-center transition",
-      "ring-1 ring-white/10",
-      active
-        ? "bg-amber-500/15 text-amber-200 ring-amber-400/25"
-        : "bg-white/[0.04] text-slate-200/90 hover:bg-white/[0.07]",
-    ].join(" ");
-
 
   const { accountMenuOpen, setAccountMenuOpen, mobileSheetOpen, setMobileSheetOpen, menuRef,} = useNavbarMenus();
  
@@ -285,75 +271,14 @@ const openSubscriptionSettings = () => {
       </nav>
 
       {/* BOTTOM NAV (MOBILE) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-slate-950/55 backdrop-blur-xl">
-        <div className="mx-auto max-w-3xl px-3 py-2">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => handleViewChange("recipes")}
-              className={mobileIconBtn(currentView === "recipes")}
-              aria-label="Mes recettes"
-              title="Mes recettes"
-              type="button"
-            >
-              <BookOpen className="w-6 h-6" />
-            </button>
-
-            <button
-              onClick={() => handleViewChange("shared")}
-              className={mobileIconBtn(currentView === "shared")}
-              aria-label="Partagées"
-              title="Partagées"
-              type="button"
-            >
-              <Share2 className="w-6 h-6" />
-            </button>
-
-            <button
-              onClick={() => handleViewChange("groups")}
-              className={mobileIconBtn(currentView === "groups")}
-              aria-label="Groupes"
-              title="Groupes"
-              type="button"
-            >
-              <Users className="w-6 h-6" />
-            </button>
-
-            <button
-              onClick={() => handleViewChange("import-ai")}
-              className={mobileIconBtn(currentView === "import-ai")}
-              aria-label="Importer"
-              title="Importer"
-              type="button"
-            >
-              <Sparkles className="w-6 h-6" />
-            </button>
-
-            <button
-              onClick={() => setMobileSheetOpen(true)}
-              className={[
-                "h-12 w-12 rounded-2xl inline-flex items-center justify-center transition",
-                "ring-1 ring-white/10",
-                "bg-white/[0.04] text-slate-200/90 hover:bg-white/[0.07]",
-                "relative",
-              ].join(" ")}
-              aria-label="Compte"
-              title="Compte"
-              type="button"
-            >
-              <NavbarAvatar
-                avatarUrl={avatarUrl}
-                fallback={avatarFallback}
-                size="h-9 w-9"
-              />
-              {invCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-[11px] font-bold">
-                  {invCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+        <MobileNavigation
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          avatarUrl={avatarUrl}
+          avatarFallback={avatarFallback}
+          invitationCount={invCount}
+          onOpenAccount={() => setMobileSheetOpen(true)}
+        />
 
       {/* MOBILE ACCOUNT SHEET (bottom) */}
       {mobileSheetOpen && (
