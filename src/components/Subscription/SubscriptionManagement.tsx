@@ -4,9 +4,8 @@ import { Loader2, CreditCard, Calendar, AlertCircle, Crown } from "lucide-react"
 import { PricingPlans } from "./PricingPlans";
 import { ui } from "../../styles/ui";
 import type { Plan, Subscription,} from "../../features/subscription/types/subscription.types";
+import { formatSubscriptionDate, getSubscriptionStatusInfo, resolveSubscriptionPlanId,} from "../../features/subscription/utils/subscriptionHelpers";
 
-
-const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 type SubscriptionManagementProps = {
   embedded?: boolean;
@@ -51,13 +50,6 @@ export function SubscriptionManagement({
         .maybeSingle();
 
       if (subError) throw subError;
-
-      const normalizedPlanId =
-        subData && ACTIVE_STATUSES.has(subData.status) && subData.plan_id === "premium"
-          ? "premium"
-          : "free";
-
-      setSubscription(subData ?? null);
 
       const { data: planData, error: planError } = await supabase
         .from("subscription_plans")
@@ -104,52 +96,8 @@ export function SubscriptionManagement({
     }
   }
 
-  function formatDate(dateString: string | null) {
-    if (!dateString) return "—";
-    return new Date(dateString).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }
-
-  function getStatusBadge(status?: string) {
-    const statusMap: Record<string, { label: string; className: string }> = {
-      active: {
-        label: "Actif",
-        className: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/25",
-      },
-      past_due: {
-        label: "Paiement à vérifier",
-        className: "bg-red-500/15 text-red-300 ring-1 ring-red-400/25",
-      },
-      canceled: {
-        label: "Annulé",
-        className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10",
-      },
-      trialing: {
-        label: "Essai",
-        className: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/25",
-      },
-      inactive: {
-        label: "Free",
-        className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10",
-      },
-    };
-
-    const resolved = statusMap[status ?? "inactive"] ?? {
-      label: status ?? "Inconnu",
-      className: "bg-slate-500/15 text-slate-300 ring-1 ring-white/10",
-    };
-
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${resolved.className}`}>
-        {resolved.label}
-      </span>
-    );
-  }
-
   const isPremium = plan?.id === "premium";
+  const statusInfo = getSubscriptionStatusInfo( subscription?.status );
 
   if (loading) {
     return (
@@ -341,7 +289,13 @@ if (!isPremium) {
                 <h2 className="text-2xl font-bold text-slate-100">{plan.name}</h2>
                 <p className="text-slate-300 mt-1">{(plan.price_monthly / 100).toFixed(2)}€ / mois</p>
               </div>
-              <div>{getStatusBadge(subscription?.status)}</div>
+              <div>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${statusInfo.className}`}
+                >
+                  {statusInfo.label}
+                </span>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -350,7 +304,7 @@ if (!isPremium) {
                   <Calendar className="w-5 h-5 text-slate-300 mt-1" />
                   <div>
                     <p className="text-sm text-slate-400">Prochain renouvellement</p>
-                    <p className="font-semibold text-slate-100">{formatDate(subscription?.current_period_end ?? null)}</p>
+                    <p className="font-semibold text-slate-100">{formatSubscriptionDate(subscription?.current_period_end ?? null)}</p>
                   </div>
                 </div>
               </div>
