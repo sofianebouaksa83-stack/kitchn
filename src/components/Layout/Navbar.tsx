@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   LogOut,
@@ -22,7 +22,7 @@ import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfi
 import { usePendingInvitationsCount } from "../../features/navigation/hooks/usePendingInvitationsCount";
 import { NavbarAvatar } from "../../features/navigation/components/NavbarAvatar";
 import { InvitationBadge } from "../../features/navigation/components/InvitationBadge";
-
+import { useNavbarMenus } from "../../features/navigation/hooks/useNavbarMenus";
 
 type NavbarProps = {
   currentView: View;
@@ -85,46 +85,12 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
   );
 
   const { menuItems, dragKey, onDragStartItem, onDragOverItem, onDropItem, onDragEndItem,} = useNavigationOrder({  userId: user?.id, baseItems,});
-  
+  const { accountMenuOpen, setAccountMenuOpen, mobileSheetOpen, setMobileSheetOpen, menuRef,} = useNavbarMenus();
  
-  // Desktop dropdown
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-
-  // Mobile bottom sheet
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
   // ✅ Profile local pour navbar (fiable)
   const { isPremium } = useSubscription(user?.id ?? null);
 
-  
-  // ESC ferme tout + clic dehors ferme dropdown desktop
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setAccountMenuOpen(false);
-        setMobileSheetOpen(false);
-      }
-    };
 
-    const onMouseDown = (e: MouseEvent) => {
-      if (!accountMenuOpen) return;
-      const target = e.target as Node;
-      if (menuRef.current && !menuRef.current.contains(target)) {
-        setAccountMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("mousedown", onMouseDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("mousedown", onMouseDown);
-    };
-  }, [accountMenuOpen]);
-
- 
   const openSettings = () => {
     setAccountMenuOpen(false);
     setMobileSheetOpen(false);
