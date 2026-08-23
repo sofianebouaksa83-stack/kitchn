@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
 import {
   LogOut,
   Users,
@@ -19,6 +18,9 @@ import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
 import type { NavItem } from "../../features/navigation/types/navigation.types";import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
 import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfile";
+import { usePendingInvitationsCount } from "../../features/navigation/hooks/usePendingInvitationsCount";
+
+
 
 type NavbarProps = {
   currentView: View;
@@ -28,14 +30,7 @@ type NavbarProps = {
 
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const { user, signOut } = useAuth();
-  const {
-  displayName,
-  avatarUrl,
-  avatarFallback,
-} = useNavbarProfile({
-  userId: user?.id,
-  email: user?.email,
-});
+  const { displayName, avatarUrl, avatarFallback,} = useNavbarProfile({ userId: user?.id, email: user?.email,});
 
   const handleViewChange = (view: View) => onViewChange(view);
 
@@ -100,35 +95,6 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
 
   // ✅ Profile local pour navbar (fiable)
   const { isPremium } = useSubscription(user?.id ?? null);
-
-  // ✅ Invitations count
-  const [invCount, setInvCount] = useState<number>(0);
-
-
-  // ✅ Load invitations count (poll doux)
-  useEffect(() => {
-    if (!user?.id) {
-      setInvCount(0);
-      return;
-    }
-
-    let alive = true;
-
-    async function load() {
-      const { data, error } = await supabase.rpc(
-        "get_my_pending_invitations_count"
-      );
-      if (!alive) return;
-      if (!error && typeof data === "number") setInvCount(data);
-    }
-
-    load();
-    const t = setInterval(load, 20000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
-  }, [user?.id]);
 
   
   // ESC ferme tout + clic dehors ferme dropdown desktop
