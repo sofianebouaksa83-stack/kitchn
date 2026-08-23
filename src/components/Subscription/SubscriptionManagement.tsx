@@ -1,10 +1,8 @@
-import { useState } from "react";
-import { supabase } from "../../lib/supabase";
 import { Loader2, CreditCard, Calendar, AlertCircle, Crown } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { formatSubscriptionDate, getSubscriptionStatusInfo, } from "../../features/subscription/utils/subscriptionHelpers";
 import { useSubscriptionData } from "../../features/subscription/hooks/useSubscriptionData";
-
+import { useSubscriptionPortal } from "../../features/subscription/hooks/useSubscriptionPortal";
 
 type SubscriptionManagementProps = {
   embedded?: boolean;
@@ -15,36 +13,9 @@ export function SubscriptionManagement({
   embedded = false,
   onOpenCheckout,
 }: SubscriptionManagementProps) {
-  const [managingSubscription, setManagingSubscription] = useState(false);
+
   const { subscription, plan, loading, error, setError,} = useSubscriptionData();
-
-  async function handleManageSubscription() {
-    setManagingSubscription(true);
-    setError(null);
-
-    try {
-      const { data, error: invokeError } = await supabase.functions.invoke("manage-subscription");
-
-      if (invokeError) {
-        const details = await (invokeError as { context?: { text?: () => Promise<string> } }).context
-          ?.text?.()
-          .catch(() => null);
-        throw new Error(details || invokeError.message || "Impossible d’ouvrir le portail Stripe");
-      }
-
-      if (!data?.url) {
-        throw new Error("URL du portail introuvable");
-      }
-
-      window.location.href = data.url;
-    } catch (err) {
-      console.error("Error managing subscription:", err);
-      setError(err instanceof Error ? err.message : "Erreur lors de l’ouverture du portail de gestion");
-    } finally {
-      setManagingSubscription(false);
-    }
-  }
-
+  const { managingSubscription, handleManageSubscription,} = useSubscriptionPortal({ onErrorChange: setError,});
   const isPremium = plan?.id === "premium";
   const statusInfo = getSubscriptionStatusInfo( subscription?.status );
 
