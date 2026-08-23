@@ -19,20 +19,13 @@ import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
 import type { NavItem, NavbarProfile,} from "../../features/navigation/types/navigation.types";
 import { loadNavOrder, saveNavOrder,} from "../../features/navigation/services/navOrderService";
+import { applySavedNavOrder, isHttpUrl, withCacheBuster,} from "../../features/navigation/utils/navigationHelpers";
+
 type NavbarProps = {
   currentView: View;
   onViewChange: (view: View) => void;
 };
 
-
-function isHttpUrl(v: string) {
-  return /^https?:\/\//i.test(v);
-}
-
-function withCacheBuster(url: string, token: string) {
-  const join = url.includes("?") ? "&" : "?";
-  return `${url}${join}v=${encodeURIComponent(token)}`;
-}
 
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const { user, signOut } = useAuth();
@@ -87,8 +80,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     []
   );
 
-  const baseKeys = useMemo(() => baseItems.map((i) => i.key), [baseItems]);
-
+  
   const [menuItems, setMenuItems] = useState<NavItem[]>(baseItems);
   const [dragKey, setDragKey] = useState<string | null>(null);
 
@@ -187,17 +179,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
       try {
         const savedKeys = await loadNavOrder(user.id);
 
-        const filtered = savedKeys.filter((k) => baseKeys.includes(k));
-        const missing = baseKeys.filter((k) => !filtered.includes(k));
-        const finalKeys = [...filtered, ...missing];
-
-        const byKey = new Map(baseItems.map((i) => [i.key, i] as const));
-        const ordered = finalKeys
-          .map((k) => byKey.get(k))
-          .filter(Boolean) as NavItem[];
-
-        if (!cancelled) setMenuItems(ordered.length ? ordered : baseItems);
-      } catch {
+       } catch {
         if (!cancelled) setMenuItems(baseItems);
       }
     })();
@@ -205,7 +187,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, baseItems, baseKeys.join("|")]);
+    }, [user?.id, baseItems]);
 
   // ESC ferme tout + clic dehors ferme dropdown desktop
   useEffect(() => {
