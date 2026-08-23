@@ -3,32 +3,8 @@ import { supabase } from "../../lib/supabase";
 import { Loader2, CreditCard, Calendar, AlertCircle, Crown } from "lucide-react";
 import { PricingPlans } from "./PricingPlans";
 import { ui } from "../../styles/ui";
+import type { Plan, Subscription,} from "../../features/subscription/types/subscription.types";
 
-type Subscription = {
-  id: string;
-  user_id: string;
-  plan_id: string;
-  status: string;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
-  current_period_start: string | null;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean;
-};
-
-type PlanFeatures = {
-  premium?: boolean;
-  import_ai?: boolean;
-  creation_recettes?: boolean;
-};
-
-type Plan = {
-  id: string;
-  name: string;
-  price_monthly: number;
-  max_users: number;
-  features: PlanFeatures;
-};
 
 const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
 
