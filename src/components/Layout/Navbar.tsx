@@ -52,9 +52,6 @@ const openSubscriptionSettings = () => {
   }, 50);
 };
 
- 
-
-
   return (
     <>
       {/* TOP NAV */}
