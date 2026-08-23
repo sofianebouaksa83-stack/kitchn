@@ -230,9 +230,9 @@ const openSubscriptionSettings = () => {
                 aria-label="Compte"
               >
              <NavbarAvatar
-  avatarUrl={avatarUrl}
-  fallback={avatarFallback}
-/>
+                avatarUrl={avatarUrl}
+                fallback={avatarFallback}
+              />
 
                 {/* ✅ badge discret sur le bouton */}
                 {invCount > 0 && (
