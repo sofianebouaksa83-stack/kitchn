@@ -330,7 +330,7 @@ if (!isPremium) {
                 <div>
                   <p className="font-semibold text-amber-200">Abonnement en cours d’annulation</p>
                   <p className="text-sm text-amber-200/80 mt-1">
-                    Votre abonnement restera actif jusqu’au {formatDate(subscription.current_period_end)}.
+                    Votre abonnement restera actif jusqu’au {formatSubscriptionDate(subscription.current_period_end)}.
                   </p>
                 </div>
               </div>
