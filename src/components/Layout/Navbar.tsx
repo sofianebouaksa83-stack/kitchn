@@ -16,10 +16,12 @@ import {
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
-import type { NavItem } from "../../features/navigation/types/navigation.types";import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
+import type { NavItem } from "../../features/navigation/types/navigation.types";
+import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
 import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfile";
 import { usePendingInvitationsCount } from "../../features/navigation/hooks/usePendingInvitationsCount";
-
+import { NavbarAvatar } from "../../features/navigation/components/NavbarAvatar";
+import { InvitationBadge } from "../../features/navigation/components/InvitationBadge";
 
 
 type NavbarProps = {
@@ -161,31 +163,7 @@ const openSubscriptionSettings = () => {
 
   
 
-  const Avatar = ({ size = "h-8 w-8" }: { size?: string }) => (
-    <div
-      className={[
-        size,
-        "rounded-full overflow-hidden bg-white/10",
-        "ring-1 ring-white/10",
-        "flex items-center justify-center shrink-0",
-      ].join(" ")}
-    >
-      {avatarUrl ? (
-        <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
-      ) : (
-        <span className="text-xs font-semibold text-white/70">
-          {avatarFallback.toUpperCase()}
-        </span>
-      )}
-    </div>
-  );
 
-  const Badge = ({ n }: { n: number }) =>
-    n > 0 ? (
-      <span className="min-w-[26px] h-6 px-2 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-xs font-bold">
-        {n}
-      </span>
-    ) : null;
 
   return (
     <>
@@ -251,23 +229,10 @@ const openSubscriptionSettings = () => {
                 ].join(" ")}
                 aria-label="Compte"
               >
-                <Avatar />
-                <div className="min-w-0 text-left">
-                  <div className="flex items-center gap-2 text-sm font-medium text-white truncate max-w-[220px]">
-                    {displayName}
-
-                    {isPremium && (
-                      <img
-                        src="/toque-premium.png"
-                        alt="Premium"
-                        className="w-4 h-4 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]"
-                      />
-                    )}
-                </div>
-                  <div className="text-xs text-white/60 truncate max-w-[220px]">
-                    {user?.email}
-                  </div>
-                </div>
+             <NavbarAvatar
+  avatarUrl={avatarUrl}
+  fallback={avatarFallback}
+/>
 
                 {/* ✅ badge discret sur le bouton */}
                 {invCount > 0 && (
@@ -302,7 +267,11 @@ const openSubscriptionSettings = () => {
 
                   <div className="relative">
                     <div className="px-4 pt-4 pb-3 border-b border-white/10 flex items-center gap-3">
-                      <Avatar size="h-10 w-10" />
+                      <NavbarAvatar
+                        avatarUrl={avatarUrl}
+                        fallback={avatarFallback}
+                        size="h-10 w-10"
+                      />
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-slate-100 truncate">
                           {displayName}
@@ -327,7 +296,7 @@ const openSubscriptionSettings = () => {
                           <Mail className="w-4 h-4 text-slate-200" />
                           Invitations
                         </span>
-                        <Badge n={invCount} />
+                        <InvitationBadge count={invCount} />
                       </button>
                     </div>
 
@@ -466,7 +435,11 @@ const openSubscriptionSettings = () => {
               title="Compte"
               type="button"
             >
-              <Avatar size="h-9 w-9" />
+              <NavbarAvatar
+                avatarUrl={avatarUrl}
+                fallback={avatarFallback}
+                size="h-9 w-9"
+              />
               {invCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-[11px] font-bold">
                   {invCount}
@@ -492,7 +465,11 @@ const openSubscriptionSettings = () => {
               <div className="rounded-t-3xl rounded-b-2xl border border-white/10 bg-white/[0.06] ring-1 ring-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.35)] backdrop-blur-md overflow-hidden">
                 <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between">
                   <div className="min-w-0 flex items-center gap-3">
-                    <Avatar size="h-10 w-10" />
+                    <NavbarAvatar
+                      avatarUrl={avatarUrl}
+                      fallback={avatarFallback}
+                      size="h-10 w-10"
+                    />
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-slate-100 truncate">
                         {displayName}
@@ -526,7 +503,7 @@ const openSubscriptionSettings = () => {
                       <Mail className="w-4 h-4" />
                       Invitations
                     </span>
-                    <Badge n={invCount} />
+                    <InvitationBadge count={invCount} />
                   </button>
 
                   <div className="h-px bg-white/10 my-2" />
