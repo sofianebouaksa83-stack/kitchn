@@ -17,34 +17,13 @@ import {
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
-import type {
-  NavItem,
-  NavbarProfile,
-} from "../../features/navigation/types/navigation.types";
-
+import type { NavItem, NavbarProfile,} from "../../features/navigation/types/navigation.types";
+import { loadNavOrder, saveNavOrder,} from "../../features/navigation/services/navOrderService";
 type NavbarProps = {
   currentView: View;
   onViewChange: (view: View) => void;
 };
 
-async function loadNavOrder(userId: string) {
-  const { data, error } = await supabase
-    .from("user_preferences")
-    .select("nav_order")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return (data?.nav_order ?? []) as string[];
-}
-
-async function saveNavOrder(userId: string, keys: string[]) {
-  const { error } = await supabase
-    .from("user_preferences")
-    .upsert({ user_id: userId, nav_order: keys }, { onConflict: "user_id" });
-
-  if (error) throw error;
-}
 
 function isHttpUrl(v: string) {
   return /^https?:\/\//i.test(v);
