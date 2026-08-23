@@ -178,6 +178,11 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     (async () => {
       try {
         const savedKeys = await loadNavOrder(user.id);
+        const ordered = applySavedNavOrder( baseItems, savedKeys);
+
+        if (!cancelled) {
+        setMenuItems(ordered);
+        }
 
        } catch {
         if (!cancelled) setMenuItems(baseItems);
