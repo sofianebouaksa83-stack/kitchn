@@ -5,7 +5,6 @@ import { ui } from "../../styles/ui";
 import { formatSubscriptionDate, getSubscriptionStatusInfo, } from "../../features/subscription/utils/subscriptionHelpers";
 import { useSubscriptionData } from "../../features/subscription/hooks/useSubscriptionData";
 
-const { subscription, plan, loading, error, setError,} = useSubscriptionData();
 
 type SubscriptionManagementProps = {
   embedded?: boolean;
@@ -17,58 +16,7 @@ export function SubscriptionManagement({
   onOpenCheckout,
 }: SubscriptionManagementProps) {
   const [managingSubscription, setManagingSubscription] = useState(false);
-
-  useEffect(() => {
-    void loadSubscription();
-  }, []);
-
-  async function loadSubscription() {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-      if (!user) {
-        setSubscription(null);
-        setPlan(null);
-        return;
-      }
-
-      const { data: subData, error: subError } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (subError) throw subError;
-
-      const normalizedPlanId =
-        resolveSubscriptionPlanId(subData);
-
-      setSubscription(subData ?? null);
-
-      const { data: planData, error: planError } = await supabase
-        .from("subscription_plans")
-        .select("*")
-        .eq("id", normalizedPlanId)
-        .single();
-
-      if (planError) throw planError;
-      setPlan(planData);
-    } catch (err) {
-      console.error("Error loading subscription:", err);
-      setError(err instanceof Error ? err.message : "Impossible de charger l’abonnement");
-      setSubscription(null);
-      setPlan(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { subscription, plan, loading, error, setError,} = useSubscriptionData();
 
   async function handleManageSubscription() {
     setManagingSubscription(true);
