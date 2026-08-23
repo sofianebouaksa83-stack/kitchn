@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   LogOut,
@@ -16,13 +15,13 @@ import {
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
-import type { NavItem } from "../../features/navigation/types/navigation.types";
 import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
 import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfile";
 import { usePendingInvitationsCount } from "../../features/navigation/hooks/usePendingInvitationsCount";
 import { NavbarAvatar } from "../../features/navigation/components/NavbarAvatar";
 import { InvitationBadge } from "../../features/navigation/components/InvitationBadge";
 import { useNavbarMenus } from "../../features/navigation/hooks/useNavbarMenus";
+import { BASE_NAV_ITEMS } from "../../features/navigation/config/navigationItems";
 
 type NavbarProps = {
   currentView: View;
@@ -54,37 +53,8 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
         : "bg-white/[0.04] text-slate-200/90 hover:bg-white/[0.07]",
     ].join(" ");
 
-  const baseItems: NavItem[] = useMemo(
-    () => [
-      {
-        key: "recipes",
-        view: "recipes",
-        label: "Mes recettes",
-        icon: <BookOpen className="w-4 h-4" />,
-      },
-      {
-        key: "shared",
-        view: "shared",
-        label: "Partagées",
-        icon: <Share2 className="w-4 h-4" />,
-      },
-      {
-        key: "groups",
-        view: "groups",
-        label: "Groupes",
-        icon: <Users className="w-4 h-4" />,
-      },
-      {
-        key: "import-ai",
-        view: "import-ai",
-        label: "Import",
-        icon: <Sparkles className="w-4 h-4" />,
-      },
-    ],
-    []
-  );
 
-  const { menuItems, dragKey, onDragStartItem, onDragOverItem, onDropItem, onDragEndItem,} = useNavigationOrder({  userId: user?.id, baseItems,});
+  const { menuItems, dragKey, onDragStartItem, onDragOverItem, onDropItem, onDragEndItem,} = useNavigationOrder({  userId: user?.id, baseItems: BASE_NAV_ITEMS,});
   const { accountMenuOpen, setAccountMenuOpen, mobileSheetOpen, setMobileSheetOpen, menuRef,} = useNavbarMenus();
  
   // ✅ Profile local pour navbar (fiable)
