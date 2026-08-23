@@ -1,13 +1,5 @@
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  LogOut,
-  CreditCard,
-  Users2,
-  Settings,
-  LifeBuoy,
-  X,
-  Mail,
-} from "lucide-react";
+import { LogOut, CreditCard, Users2, Settings, LifeBuoy, Mail, } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
@@ -18,7 +10,7 @@ import { InvitationBadge } from "../../features/navigation/components/Invitation
 import { useNavbarMenus } from "../../features/navigation/hooks/useNavbarMenus";
 import { DesktopNavigation } from "../../features/navigation/components/DesktopNavigation";
 import { MobileNavigation } from "../../features/navigation/components/MobileNavigation";
-
+import { MobileAccountSheet } from "../../features/navigation/components/MobileAccountSheet";
 type NavbarProps = {
   currentView: View;
   onViewChange: (view: View) => void;
@@ -281,115 +273,26 @@ const openSubscriptionSettings = () => {
         />
 
       {/* MOBILE ACCOUNT SHEET (bottom) */}
-      {mobileSheetOpen && (
-        <div className="fixed inset-0 z-[70] lg:hidden">
-          <button
-            className="absolute inset-0 bg-black/60"
-            aria-label="Fermer"
-            onClick={() => setMobileSheetOpen(false)}
-            type="button"
-          />
-
-          <div className="absolute left-0 right-0 bottom-0">
-            <div className="mx-auto max-w-3xl px-3 pb-3">
-              <div className="rounded-t-3xl rounded-b-2xl border border-white/10 bg-white/[0.06] ring-1 ring-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.35)] backdrop-blur-md overflow-hidden">
-                <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between">
-                  <div className="min-w-0 flex items-center gap-3">
-                    <NavbarAvatar
-                      avatarUrl={avatarUrl}
-                      fallback={avatarFallback}
-                      size="h-10 w-10"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-100 truncate">
-                        {displayName}
-                      </div>
-                      <div className="text-xs text-slate-300/70 truncate">
-                        {user?.email}
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setMobileSheetOpen(false)}
-                    className="h-10 w-10 rounded-2xl inline-flex items-center justify-center hover:bg-white/[0.07] transition"
-                    aria-label="Fermer"
-                    type="button"
-                  >
-                    <X className="w-5 h-5 text-slate-200" />
-                  </button>
-                </div>
-
-                <div className="p-2 space-y-1">
-                  <button onClick={openSettings} className={dropdownItem} type="button">
-                    <span className={left}>
-                      <Settings className="w-4 h-4" />
-                      Paramètres
-                    </span>
-                  </button>
-
-                  <button onClick={openInvitations} className={dropdownItem} type="button">
-                    <span className={left}>
-                      <Mail className="w-4 h-4" />
-                      Invitations
-                    </span>
-                    <InvitationBadge count={invCount} />
-                  </button>
-
-                  <div className="h-px bg-white/10 my-2" />
-
-                  <button
-                    onClick={() => {
-                      setMobileSheetOpen(false);
-                      handleViewChange("team");
-                    }}
-                    className={dropdownItem}
-                    type="button"
-                  >
-                    <span className={left}>
-                      <Users2 className="w-4 h-4" />
-                      Équipe
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={openSubscriptionSettings}
-                    className={dropdownItem}
-                    type="button"
-                  >
-                    <span className={left}>
-                      <CreditCard className="w-4 h-4" />
-                      Abonnement
-                    </span>
-                  </button>
-                  
-                  <div className="h-px bg-white/10 my-2" />
-
-                  <button
-                    onClick={() => {
-                      setMobileSheetOpen(false);
-                      signOut();
-                    }}
-                    className={[
-                      dropdownItem,
-                      "text-red-200 hover:bg-red-500/10 active:bg-red-500/15",
-                      "focus-visible:ring-red-400/40",
-                    ].join(" ")}
-                    type="button"
-                  >
-                    <span className={left}>
-                      <LogOut className="w-4 h-4" />
-                      Se déconnecter
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="h-2" />
-            </div>
-          </div>
-        </div>
-      )}
+        <MobileAccountSheet
+          open={mobileSheetOpen}
+          displayName={displayName}
+          email={user?.email}
+          avatarUrl={avatarUrl}
+          avatarFallback={avatarFallback}
+          invitationCount={invCount}
+          onClose={() => setMobileSheetOpen(false)}
+          onOpenSettings={openSettings}
+          onOpenInvitations={openInvitations}
+          onOpenTeam={() => {
+            setMobileSheetOpen(false);
+            handleViewChange("team");
+          }}
+          onOpenSubscription={openSubscriptionSettings}
+          onSignOut={() => {
+            setMobileSheetOpen(false);
+            signOut();
+          }}
+        />
     </>
   );
 }
