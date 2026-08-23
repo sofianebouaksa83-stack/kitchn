@@ -15,13 +15,12 @@ import {
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
-import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
 import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfile";
 import { usePendingInvitationsCount } from "../../features/navigation/hooks/usePendingInvitationsCount";
 import { NavbarAvatar } from "../../features/navigation/components/NavbarAvatar";
 import { InvitationBadge } from "../../features/navigation/components/InvitationBadge";
 import { useNavbarMenus } from "../../features/navigation/hooks/useNavbarMenus";
-import { BASE_NAV_ITEMS } from "../../features/navigation/config/navigationItems";
+import { DesktopNavigation } from "../../features/navigation/components/DesktopNavigation";
 
 type NavbarProps = {
   currentView: View;
@@ -35,14 +34,6 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const invCount = usePendingInvitationsCount({ userId: user?.id,});
   const handleViewChange = (view: View) => onViewChange(view);
 
-  const navPill = (active: boolean) =>
-    [
-      "inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium transition select-none",
-      "ring-1",
-      active
-        ? "bg-amber-500/15 text-amber-200 ring-amber-400/25"
-        : "bg-white/[0.04] text-slate-200/90 ring-white/10 hover:bg-white/[0.07] hover:ring-white/15",
-    ].join(" ");
 
   const mobileIconBtn = (active: boolean) =>
     [
@@ -54,7 +45,6 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
     ].join(" ");
 
 
-  const { menuItems, dragKey, onDragStartItem, onDragOverItem, onDropItem, onDragEndItem,} = useNavigationOrder({  userId: user?.id, baseItems: BASE_NAV_ITEMS,});
   const { accountMenuOpen, setAccountMenuOpen, mobileSheetOpen, setMobileSheetOpen, menuRef,} = useNavbarMenus();
  
   // ✅ Profile local pour navbar (fiable)
@@ -124,32 +114,11 @@ const openSubscriptionSettings = () => {
           </div>
 
           {/* MENU CENTRE — DESKTOP + DRAG */}
-          <div className="flex-1 hidden lg:flex justify-center">
-            <div className="flex items-center gap-2">
-              {menuItems.map((item) => {
-                const active = currentView === item.view;
-                const isDragging = dragKey === item.key;
-
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => handleViewChange(item.view)}
-                    className={`${navPill(active)} ${isDragging ? "opacity-60 scale-[0.98]" : ""}`}
-                    draggable
-                    onDragStart={onDragStartItem(item.key)}
-                    onDragOver={onDragOverItem}
-                    onDrop={onDropItem(item.key)}
-                    onDragEnd={onDragEndItem}
-                    title="Glisse-dépose pour réordonner"
-                    type="button"
-                  >
-                    {item.icon}
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+              <DesktopNavigation
+                userId={user?.id}
+                currentView={currentView}
+                onViewChange={handleViewChange}
+              />
 
           {/* DROITE — DESKTOP : avatar + nom + dropdown */}
           <div className="hidden lg:flex items-center gap-3 ml-auto">
