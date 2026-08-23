@@ -16,37 +16,15 @@ import {
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
-
-type View =
-  | "recipes"
-  | "editor"
-  | "groups"
-  | "shared"
-  | "import-ai"
-  | "team"
-  | "subscription"
-  | "subscription-success"
-  | "subscription-cancel"
-  | "settings";
+import type { View } from "../../app/routes";
+import type {
+  NavItem,
+  NavbarProfile,
+} from "../../features/navigation/types/navigation.types";
 
 type NavbarProps = {
   currentView: View;
   onViewChange: (view: View) => void;
-};
-
-type NavItem = {
-  key: string;
-  view: View;
-  label: string;
-  icon?: JSX.Element;
-};
-
-type NavbarProfile = {
-  id: string;
-  full_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
-  updated_at: string | null;
 };
 
 async function loadNavOrder(userId: string) {
