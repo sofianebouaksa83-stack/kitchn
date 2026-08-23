@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
@@ -17,10 +17,9 @@ import {
 import { ui } from "../../styles/ui";
 import { useSubscription } from "../../hooks/useSubscription";
 import type { View } from "../../app/routes";
-import type { NavItem, NavbarProfile,} from "../../features/navigation/types/navigation.types";
-import { loadNavOrder, saveNavOrder,} from "../../features/navigation/services/navOrderService";
-import { applySavedNavOrder, isHttpUrl, withCacheBuster,} from "../../features/navigation/utils/navigationHelpers";
+import type { NavItem, } from "../../features/navigation/types/navigation.types";
 import { useNavigationOrder } from "../../features/navigation/hooks/useNavigationOrder";
+import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfile";
 
 type NavbarProps = {
   currentView: View;
@@ -93,53 +92,11 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // ✅ Profile local pour navbar (fiable)
-  const [navProfile, setNavProfile] = useState<NavbarProfile | null>(null);
   const { isPremium } = useSubscription(user?.id ?? null);
 
   // ✅ Invitations count
   const [invCount, setInvCount] = useState<number>(0);
 
-  // Charge profil pour la navbar (full_name + avatar_url)
-  useEffect(() => {
-    if (!user?.id) {
-      setNavProfile(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, username, avatar_url, updated_at")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (cancelled) return;
-      if (!error) setNavProfile((data as NavbarProfile | null) ?? null);
-    };
-
-    fetchProfile();
-
-    const channel = supabase
-      .channel(`nav-profile-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "profiles",
-          filter: `id=eq.${user.id}`,
-        },
-        () => fetchProfile()
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
 
   // ✅ Load invitations count (poll doux)
   useEffect(() => {
