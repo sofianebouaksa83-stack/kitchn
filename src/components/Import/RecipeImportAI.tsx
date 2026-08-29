@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import { ui } from "../../styles/ui";
 import { getAiImportQuota, type AiImportQuota } from "../../services/aiImportQuota";
+import type {
+  ImportStatus,
+  QueueItem,
+} from "../../features/import/types/import.types";
+
 
 declare global {
   interface Window {
@@ -21,18 +26,6 @@ declare global {
   }
 }
 
-type ImportStatus = "idle" | "uploading" | "processing" | "success" | "error";
-
-type QueueItem = {
-  id: string;
-  file: File;
-  status: ImportStatus;
-  message?: string;
-  progress: number; // 0..100
-  uploadProgress: number; // 0..100
-  resultTitle?: string;
-  relativePath?: string;
-};
 
 const MAX_MB = 10;
 
