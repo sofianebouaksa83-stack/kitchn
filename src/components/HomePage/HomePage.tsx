@@ -10,12 +10,15 @@ import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
 import type { HomePageProps, RecipeItem, SharedRecipeItem, } from "../../features/home/types/home.types";
-import { FREE_IMPORT_LIMIT, getRecipeDate, getRecipeSubtitle, getRecipeTitle, uniqById, } from "../../features/home/utils/homeHelpers";
+import { FREE_IMPORT_LIMIT, getRecipeSubtitle, getRecipeTitle, } from "../../features/home/utils/homeHelpers";
 import { HomeStatCard } from "../../features/home/components/HomeStatCard";
 import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
 import { HomeEmptyLine } from "../../features/home/components/HomeEmptyLine";
 import { HomeLoadingLine } from "../../features/home/components/HomeLoadingLine";
+import { getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
+
+
 function unlockPageScroll() {
   document.documentElement.style.overflow = "";
   document.body.style.overflow = "";
@@ -142,66 +145,7 @@ export default function HomePage({
     }
   }
 
-  async function getMyLatestRecipes(userId: string) {
-    const queries = [
-      supabase
-        .from("recipes")
-        .select("*")
-        .eq("created_by", userId)
-        .order("created_at", { ascending: false })
-        .limit(5),
-      supabase
-        .from("recipes")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ];
-
-    const results = await Promise.all(
-      queries.map(async (query) => {
-        const { data, error } = await query;
-
-        if (error) {
-          console.warn(
-            "[HomePage] latest recipes query ignored:",
-            error.message,
-          );
-          return [] as RecipeItem[];
-        }
-
-        return (data || []) as RecipeItem[];
-      }),
-    );
-
-    return uniqById(results.flat())
-      .sort((a, b) => getRecipeDate(b).localeCompare(getRecipeDate(a)))
-      .slice(0, 5);
-  }
-
-  async function getMyRecipesCount(userId: string) {
-    const queries = [
-      supabase.from("recipes").select("id").eq("created_by", userId),
-      supabase.from("recipes").select("id").eq("user_id", userId),
-    ];
-
-    const ids = new Set<string>();
-
-    for (const query of queries) {
-      const { data, error } = await query;
-
-      if (error) {
-        console.warn("[HomePage] recipes count query ignored:", error.message);
-        continue;
-      }
-
-      (data || []).forEach((item: any) => item?.id && ids.add(item.id));
-    }
-
-    return ids.size;
-  }
-
-  async function getLatestSharedRecipes(groupIds: string[]) {
+   async function getLatestSharedRecipes(groupIds: string[]) {
     const { data: sharedRows, error } = await supabase
       .from("work_group_recipes")
       .select("*")
