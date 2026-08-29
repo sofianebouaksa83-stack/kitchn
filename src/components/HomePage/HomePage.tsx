@@ -16,7 +16,7 @@ import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
 import { HomeEmptyLine } from "../../features/home/components/HomeEmptyLine";
 import { HomeLoadingLine } from "../../features/home/components/HomeLoadingLine";
-import { getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
+import { getLatestSharedRecipes, getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
 
 
 function unlockPageScroll() {
@@ -145,71 +145,7 @@ export default function HomePage({
     }
   }
 
-   async function getLatestSharedRecipes(groupIds: string[]) {
-    const { data: sharedRows, error } = await supabase
-      .from("work_group_recipes")
-      .select("*")
-      .in("group_id", groupIds)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (error) {
-      console.warn("[HomePage] latest shared recipes ignored:", error.message);
-      return [] as SharedRecipeItem[];
-    }
-
-    if (!sharedRows || sharedRows.length === 0) return [];
-
-    const recipeIds = sharedRows
-      .map((row: any) => row.recipe_id)
-      .filter(Boolean);
-    const relatedGroupIds = sharedRows
-      .map((row: any) => row.group_id)
-      .filter(Boolean);
-
-    const [recipesRes, groupsRes] = await Promise.all([
-      recipeIds.length > 0
-        ? supabase.from("recipes").select("*").in("id", recipeIds)
-        : Promise.resolve({ data: [] as any[], error: null } as any),
-      relatedGroupIds.length > 0
-        ? supabase
-            .from("work_groups")
-            .select("id, name")
-            .in("id", relatedGroupIds)
-        : Promise.resolve({ data: [] as any[], error: null } as any),
-    ]);
-
-    if (recipesRes.error) {
-      console.warn(
-        "[HomePage] shared recipe details ignored:",
-        recipesRes.error.message,
-      );
-    }
-
-    if (groupsRes.error) {
-      console.warn(
-        "[HomePage] shared group details ignored:",
-        groupsRes.error.message,
-      );
-    }
-
-    const recipesById = new Map(
-      (recipesRes.data || []).map((recipe: any) => [recipe.id, recipe]),
-    );
-    const groupsById = new Map(
-      (groupsRes.data || []).map((group: any) => [group.id, group.name]),
-    );
-
-    return sharedRows.map((row: any) => ({
-      id: row.id,
-      recipe_id: row.recipe_id,
-      group_id: row.group_id,
-      created_at: row.created_at,
-      recipe: recipesById.get(row.recipe_id) || null,
-      group_name: groupsById.get(row.group_id) || "Groupe partagé",
-    })) as SharedRecipeItem[];
-  }
-
+  
   function handleOpenRecipe(recipeId: string) {
     sessionStorage.setItem("selectedRecipeId", recipeId);
     window.dispatchEvent(
