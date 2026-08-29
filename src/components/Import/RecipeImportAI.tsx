@@ -18,8 +18,7 @@ import {
   MOBILE_NAVBAR_OFFSET_PX,
   statusBadge,
   statusLabel,
-  validateFile,
-} from "../../features/import/utils/importHelpers";
+  } from "../../features/import/utils/importHelpers";
 import { useGoogleDriveScripts } from "../../features/import/hooks/useGoogleDriveScripts";
 import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
 import { useImportQueue } from "../../features/import/hooks/useImportQueue";
@@ -61,6 +60,7 @@ export function RecipeImportAI() {
     onDropzoneClick: handleDropzoneClick,
     handleFileSelect: handleSelectedFiles,
     handleFolderSelect: handleSelectedFolder,
+    addFilesToQueue: enqueueSelectedFiles,
   } = useImportFileSelection({
     busy,
     enqueueFiles,
@@ -70,41 +70,7 @@ export function RecipeImportAI() {
 
 
   const processingRef = useRef(false);
-
-
-
-
-
-  const addFilesToQueue = async (files: File[]) => {
-    if (!files.length) return;
-
-    const valid: File[] = [];
-    const errors: string[] = [];
-
-    for (const f of files) {
-      const v = validateFile(f);
-      if (!v.ok) errors.push(`${f.name} → trop volumineux`);
-      else valid.push(f);
-    }
-
-    if (errors.length) {
-      setStatus("error");
-      setMessage(
-        `Certains fichiers ont été refusés:\n- ${errors.slice(0, 6).join("\n- ")}${
-          errors.length > 6 ? "\n- ..." : ""
-        }\n\nMax ${MAX_MB} MB par fichier`
-      );
-    } else {
-      setStatus("idle");
-      setMessage("");
-    }
-
-    if (!valid.length) return;
-
-    enqueueFiles(valid);
   
-  };
-
 
   async function importOne(itemId: string) {
     if (!user) return;
@@ -426,7 +392,7 @@ export function RecipeImportAI() {
         lastModified: Date.now(),
       });
 
-      await addFilesToQueue([file]);
+      await enqueueSelectedFiles([file]);
 
       setStatus("idle");
       setMessage(`Fichier téléchargé: ${file.name}`);
