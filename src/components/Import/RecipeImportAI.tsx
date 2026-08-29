@@ -1,22 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  Upload,
-  FileText,
-  CheckCircle,
-  AlertCircle,
-  Loader,
-  Sparkles,
-  X,
-  FolderOpen,
-} from "lucide-react";
+import { Loader, Sparkles, } from "lucide-react";
 import { ui } from "../../styles/ui";
 import {
-  clamp,
-  MAX_MB,
+  clamp, 
   MOBILE_NAVBAR_OFFSET_PX,
-  statusBadge,
-  statusLabel,
   } from "../../features/import/utils/importHelpers";
 import { useGoogleDriveImport } from "../../features/import/hooks/useGoogleDriveImport";
 import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
@@ -24,6 +12,8 @@ import { useImportQueue } from "../../features/import/hooks/useImportQueue";
 import { useImportFileSelection } from "../../features/import/hooks/useImportFileSelection";
 import type { ImportStatus } from "../../features/import/types/import.types";
 import { useAiImportProcessor } from "../../features/import/hooks/useAiImportProcessor";
+import { ImportSources } from "../../features/import/components/ImportSources";
+import { ImportQueueList } from "../../features/import/components/ImportQueueList";
 
 export function RecipeImportAI() {
   const { user } = useAuth();
@@ -191,215 +181,25 @@ export function RecipeImportAI() {
             </div>
           </div>
 
-          {/* MOBILE Sources */}
-          <div className="sm:hidden mt-5 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 p-3 max-w-full overflow-hidden">
-            <div className="text-sm font-semibold text-slate-100">Sources</div>
-            <div className="text-xs text-slate-400 mt-1">Tous formats • Max {MAX_MB} MB/fichier</div>
+          <ImportSources
+            busy={busy}
+            isGapiLoaded={isGapiLoaded}
+            isDragOver={isDragOver}
+            onFileSelect={handleSelectedFiles}
+            onFolderSelect={handleSelectedFolder}
+            onGoogleDrivePicker={handleGoogleDrivePicker}
+            onDropzoneClick={handleDropzoneClick}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          />
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <label htmlFor="ai-file-input-mobile" className="cursor-pointer">
-                <span className="w-full inline-flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition">
-                  <Upload className="w-5 h-5 text-amber-300" />
-                  Mes fichiers
-                </span>
-                <input
-                  id="ai-file-input-mobile"
-                  type="file"
-                  accept="*/*"
-                  multiple
-                  onChange={handleSelectedFiles}
-                  className="hidden"
-                  disabled={busy}
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={handleGoogleDrivePicker}
-                disabled={!isGapiLoaded || busy}
-                className="w-full inline-flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold bg-[#4285F4] text-white ring-1 ring-[#4285F4]/40 hover:bg-[#357ae8] hover:ring-[#4285F4]/70 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 110-12.064c1.498 0 2.866.549 3.921 1.453l2.814-2.814A9.969 9.969 0 0012.545 2C7.021 2 2.543 6.477 2.543 12s4.478 10 10.002 10c8.396 0 10.249-7.85 9.426-11.748l-9.426-.013z" />
-                </svg>
-                Drive
-              </button>
-            </div>
-          </div>
-
-          {/* DESKTOP drag/drop */}
-          <div className="mt-5 hidden sm:block rounded-2xl bg-white/[0.05] ring-1 ring-white/10 px-4 py-4 max-w-full overflow-hidden">
-            <div className="flex items-start sm:items-center justify-between gap-3 max-w-full">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-100">Sources</div>
-                <div className="text-xs text-slate-400 mt-1">
-                  Tous formats • Max {MAX_MB} MB/fichier
-                </div>
-              </div>
-
-              <div className="flex gap-2 items-center shrink-0">
-                <label htmlFor="ai-file-input-desktop" className="cursor-pointer">
-                  <span className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition">
-                    <Upload className="w-4 h-4 text-amber-300" />
-                    Mes fichiers
-                  </span>
-                  <input
-                    id="ai-file-input-desktop"
-                    type="file"
-                    accept="*/*"
-                    multiple
-                    onChange={handleSelectedFiles}
-                    className="hidden"
-                    disabled={busy}
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => (document.getElementById("ai-folder-input") as HTMLInputElement | null)?.click()}
-                  disabled={busy}
-                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FolderOpen className="w-4 h-4 text-amber-300" />
-                  Dossier
-                </button>
-
-                <input
-                  id="ai-folder-input"
-                  type="file"
-                  accept="*/*"
-                  multiple
-                  // @ts-ignore
-                  webkitdirectory="true"
-                  onChange={handleSelectedFolder}
-                  className="hidden"
-                  disabled={busy}
-                />
-
-                <button
-                  type="button"
-                  onClick={handleGoogleDrivePicker}
-                  disabled={!isGapiLoaded || busy}
-                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-[#4285F4] text-white ring-1 ring-[#4285F4]/40 hover:bg-[#357ae8] hover:ring-[#4285F4]/70 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 110-12.064c1.498 0 2.866.549 3.921 1.453l2.814-2.814A9.969 9.969 0 0012.545 2C7.021 2 2.543 6.477 2.543 12s4.478 10 10.002 10c8.396 0 10.249-7.85 9.426-11.748l-9.426-.013z" />
-                  </svg>
-                  Drive
-                </button>
-              </div>
-            </div>
-
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={handleDropzoneClick}
-              onDragEnter={handleDragEnter}
-              onDragOver={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={[
-                "mt-3 rounded-xl border border-dashed px-4 py-3 transition",
-                isDragOver ? "border-amber-400/60 bg-black/10" : "border-white/15 hover:border-white/25",
-                busy ? "opacity-60 pointer-events-none" : "cursor-pointer",
-              ].join(" ")}
-            >
-              <div className="flex items-center justify-between gap-3 max-w-full">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Upload className="w-4 h-4 text-amber-300 shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-xs text-slate-200/90 truncate">
-                      Glisse-dépose des fichiers ici, ou clique pour choisir
-                    </div>
-                    <div className="text-[11px] text-slate-400 truncate">Import IA en file (un par un)</div>
-                  </div>
-                </div>
-
-                <span className="text-[11px] px-2 py-1 rounded-lg bg-white/5 text-slate-200 border border-white/10 shrink-0">
-                  Ajouter
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Queue + Selection */}
-          {queue.length > 0 && (
-            <div className="mt-5 grid lg:grid-cols-2 gap-4 max-w-full">
-              {/* ✅ CARTE FICHIERS : ne sort JAMAIS */}
-              <div className="w-full max-w-full rounded-2xl bg-white/[0.05] ring-1 ring-white/10 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 min-w-0 max-w-full">
-                  <div className="text-sm font-semibold text-slate-100 shrink-0">Fichiers</div>
-                  <div className="ml-auto text-xs text-slate-400 truncate max-w-[52%]">
-                    Clique pour sélectionner
-                  </div>
-                </div>
-
-                <div className="divide-y divide-white/10 max-w-full">
-                  {queue.map((q) => {
-                    const active = q.id === (selected?.id || null);
-
-                    return (
-                      <div
-                        key={q.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedId(q.id)}
-                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelectedId(q.id)}
-                        className={[
-                          "px-4 py-3 transition outline-none max-w-full",
-                          active ? "bg-white/[0.04]" : "hover:bg-white/[0.04]",
-                        ].join(" ")}
-                      >
-                        {/* ✅ Anti overflow ultime */}
-                        <div className="flex items-start gap-3 min-w-0 max-w-full overflow-hidden">
-                          <FileText className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-
-                          {/* ✅ Le bloc central doit pouvoir shrink */}
-                          <div className="flex-1 min-w-0 max-w-full">
-                            {/* ✅ TITRE = w-0 + flex-1 (anti débordement même sans espaces) */}
-                            <div className="flex items-center gap-2 min-w-0 max-w-full overflow-hidden">
-                              <div className="w-0 flex-1 min-w-0 truncate text-sm text-slate-100 font-medium">
-                                {q.relativePath || q.file.name}
-                              </div>
-
-                              <span className={`shrink-0 text-[11px] px-2 py-1 rounded-xl border ${statusBadge(q)}`}>
-                                {statusLabel(q)}
-                              </span>
-                            </div>
-
-                            <div className="mt-2 h-2 rounded-full bg-black/20 ring-1 ring-white/10 overflow-hidden max-w-full">
-                              <div
-                                className="h-full bg-amber-400/80 rounded-full"
-                                style={{ width: `${clamp(q.progress, 0, 100)}%` }}
-                              />
-                            </div>
-
-                            {q.message ? (
-                              <div className="mt-2 text-xs text-slate-300/90 line-clamp-2">{q.message}</div>
-                            ) : null}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="shrink-0 ml-1 inline-flex items-center justify-center h-9 w-9 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-slate-200"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              removeItem(q.id);
-                            }}
-                            title="Retirer"
-                            aria-label="Retirer"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
+          <ImportQueueList
+            queue={queue}
+            selectedId={selected?.id ?? null}
+            onSelect={setSelectedId}
+            onRemove={removeItem}
+          />
         </div>
       </div>
 
