@@ -15,3 +15,13 @@ export type RecipeRow = {
   is_favorite?: boolean;
   folder_id?: string | null;
 };
+
+export type GroupMini = {
+  id: string;
+  name: string;
+};
+
+export type SharedRecipeOpen = {
+  recipeId: string;
+  groupId: string;
+};

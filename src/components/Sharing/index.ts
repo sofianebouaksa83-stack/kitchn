@@ -1,6 +1,4 @@
 export { SharedRecipes } from "./SharedRecipes";
-export { SharedRecipesDesktop } from "./SharedRecipesDesktop";
-export { SharedRecipesMobile } from "./SharedRecipesMobile";
 
 export { SharedRecipeGroup } from "./SharedRecipeGroup";
 
