@@ -16,7 +16,7 @@ import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
 import { HomeEmptyLine } from "../../features/home/components/HomeEmptyLine";
 import { HomeLoadingLine } from "../../features/home/components/HomeLoadingLine";
-import { getHomeUserIdentity, getLatestSharedRecipes, getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
+import {  getHomeGroupIds, getHomeImportCount, getHomeUserIdentity, getLatestSharedRecipes, getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
 
 
 function unlockPageScroll() {
@@ -92,30 +92,22 @@ export default function HomePage({
 
       const periodKey = new Date().toISOString().slice(0, 7);
 
-      const [recipesData, recipesTotal, groupMembersRes, importUsageRes] =
-        await Promise.all([
-          getMyLatestRecipes(userIdentity.id),
-          getMyRecipesCount(userIdentity.id),
-          supabase
-            .from("group_members")
-            .select("work_group_id")
-            .eq("user_id", userIdentity.id),
-          supabase
-            .from("ai_import_usage")
-            .select("import_count")
-            .eq("user_id", userIdentity.id)
-            .eq("period_key", periodKey)
-            .maybeSingle(),
-        ]);
+      const [ recipesData, recipesTotal, groupIds, currentImportCount, 
+        ] = await Promise.all([
+        getMyLatestRecipes(userIdentity.id),
+        getMyRecipesCount(userIdentity.id),
+        getHomeGroupIds(userIdentity.id),
+        getHomeImportCount(
+          userIdentity.id,
+          periodKey
+        ),
+      ]);
 
       setLatestRecipes(recipesData);
       setRecipesCount(recipesTotal);
-      setImportCount(importUsageRes.data?.import_count || 0);
+      setImportCount(currentImportCount);
 
-      const groupIds =
-        groupMembersRes.data
-          ?.map((item: any) => item.work_group_id)
-          .filter(Boolean) || [];
+
 
       setSharedCount(0);
       setLatestSharedRecipes([]);

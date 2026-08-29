@@ -201,3 +201,31 @@ export async function getHomeUserIdentity() {
     displayName,
   };
 }
+
+export async function getHomeGroupIds(userId: string) {
+  const { data } = await supabase
+    .from("group_members")
+    .select("work_group_id")
+    .eq("user_id", userId);
+
+  return (data || [])
+    .map((item) => item.work_group_id)
+    .filter(
+      (groupId): groupId is string =>
+        typeof groupId === "string"
+    );
+}
+
+export async function getHomeImportCount(
+  userId: string,
+  periodKey: string
+) {
+  const { data } = await supabase
+    .from("ai_import_usage")
+    .select("import_count")
+    .eq("user_id", userId)
+    .eq("period_key", periodKey)
+    .maybeSingle();
+
+  return data?.import_count || 0;
+}
