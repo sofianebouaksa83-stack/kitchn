@@ -36,14 +36,14 @@ export default function HomePage({
   const isPremium = !!subscription.isPremium;
   const subscriptionLoading = !!subscription.loading;
   const {
-  loading,
-  firstName,
-  recipesCount,
-  sharedCount,
-  importCount,
-  latestRecipes,
-  latestSharedRecipes,
-} = useHomeData(isPremium);
+    loading,
+    firstName,
+    recipesCount,
+    sharedCount,
+    importCount,
+    latestRecipes,
+    latestSharedRecipes,
+  } = useHomeData(isPremium);
 
 
   useEffect(() => {
@@ -57,27 +57,7 @@ export default function HomePage({
     };
   }, []);
 
-  useEffect(() => {
-    void loadHomeData();
-
-    const onRefresh = () => void loadHomeData();
-    const onVisibility = () => {
-      if (!document.hidden) void loadHomeData();
-    };
-
-    window.addEventListener("focus", onRefresh);
-    window.addEventListener("popstate", onRefresh);
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      window.removeEventListener("focus", onRefresh);
-      window.removeEventListener("popstate", onRefresh);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPremium]);
-
-  
+    
   function handleOpenRecipe(recipeId: string) {
     sessionStorage.setItem("selectedRecipeId", recipeId);
     window.dispatchEvent(
