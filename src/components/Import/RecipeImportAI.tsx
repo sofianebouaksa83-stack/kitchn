@@ -1,4 +1,5 @@
-import React, { useRef, useState, } from "react";import { useAuth } from "../../contexts/AuthContext";
+import React, { useRef, useState, } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
   Upload,
@@ -11,22 +12,18 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
-import type {
-  ImportStatus,
-  QueueItem,
-} from "../../features/import/types/import.types";
 import {
   clamp,
   MAX_MB,
   MOBILE_NAVBAR_OFFSET_PX,
   statusBadge,
   statusLabel,
-  uid,
   validateFile,
 } from "../../features/import/utils/importHelpers";
 import { useGoogleDriveScripts } from "../../features/import/hooks/useGoogleDriveScripts";
 import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
 import { useImportQueue } from "../../features/import/hooks/useImportQueue";
+import type { ImportStatus } from "../../features/import/types/import.types";
 
 export function RecipeImportAI() {
   const { user } = useAuth();
@@ -39,14 +36,16 @@ export function RecipeImportAI() {
 } = useAiImportQuota(user);
 
   const {
-  queue,
-  setQueue,
-  queueRef,
-  selectedId,
-  setSelectedId,
-  overall,
-  selected,
-} = useImportQueue();
+    queue,
+    setQueue,
+    queueRef,
+    setSelectedId,
+    overall,
+    selected,
+    enqueueFiles,
+    removeItem,
+    clearDone,
+  } = useImportQueue();
 
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [message, setMessage] = useState("");
@@ -88,47 +87,11 @@ export function RecipeImportAI() {
 
     if (!valid.length) return;
 
-    const items: QueueItem[] = valid.map((file) => ({
-      id: uid(),
-      file,
-      status: "idle",
-      progress: 0,
-      uploadProgress: 0,
-      relativePath: (file as any).webkitRelativePath || "",
-    }));
-
-    setQueue((prev) => {
-      const sig = (f: File) => `${f.name}__${f.size}__${f.lastModified}`;
-      const seen = new Set(prev.map((q) => sig(q.file)));
-
-      const filtered = items.filter((it) => {
-        const s = sig(it.file);
-        if (seen.has(s)) return false;
-        seen.add(s);
-        return true;
-      });
-
-      const next = [...prev, ...filtered];
-      setSelectedId((sid) => sid || filtered[0]?.id || next[0]?.id || null);
-      return next;
-    });
+    enqueueFiles(valid);
+  
   };
 
-  const removeItem = (id: string) => {
-    setQueue((prev) => {
-      const next = prev.filter((q) => q.id !== id);
-      setSelectedId((sid) => (sid === id ? next[0]?.id ?? null : sid));
-      return next;
-    });
-  };
 
-  const clearDone = () => {
-    setQueue((prev) => {
-      const next = prev.filter((q) => q.status !== "success");
-      setSelectedId((sid) => (sid && next.some((q) => q.id === sid) ? sid : next[0]?.id ?? null));
-      return next;
-    });
-  };
 
   const onDropzoneClick = (e: React.MouseEvent) => {
     if (busy) return;
