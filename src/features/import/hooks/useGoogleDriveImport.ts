@@ -2,18 +2,38 @@ import type { ImportStatus } from "../types/import.types";
 import { downloadGoogleDriveFile } from "../services/googleDriveImportService";
 import { useGoogleDriveScripts } from "./useGoogleDriveScripts";
 
+type GoogleDriveImportMessages = {
+  notLoaded: string;
+  missingConfig: string;
+  defaultConfig: string;
+};
+
 type UseGoogleDriveImportOptions = {
-  addFilesToQueue: (files: File[]) => Promise<void>;
+  addFilesToQueue: (
+    files: File[]
+  ) => Promise<void>;
   setStatus: (status: ImportStatus) => void;
   setMessage: (message: string) => void;
+  messages?: Partial<GoogleDriveImportMessages>;
 };
 
 export function useGoogleDriveImport({
   addFilesToQueue,
   setStatus,
   setMessage,
+  messages,
 }: UseGoogleDriveImportOptions) {
   const isGapiLoaded = useGoogleDriveScripts();
+
+  const driveMessages: GoogleDriveImportMessages = {
+    notLoaded:
+      "Les APIs Google ne sont pas encore chargées. Veuillez réessayer.",
+    missingConfig:
+      "⚠️ Configuration Google Drive manquante. Vérifiez VITE_GOOGLE_API_KEY et VITE_GOOGLE_CLIENT_ID dans le .env.",
+    defaultConfig:
+      "⚠️ Remplace les valeurs par défaut dans le .env avec tes vraies clés Google.",
+    ...messages,
+  };
 
   async function downloadFileFromDrive(
     fileId: string,
@@ -33,7 +53,9 @@ export function useGoogleDriveImport({
       await addFilesToQueue([file]);
 
       setStatus("idle");
-      setMessage(`Fichier téléchargé: ${file.name}`);
+      setMessage(
+        `Fichier téléchargé: ${file.name}`
+      );
     } catch (error) {
       setStatus("error");
       setMessage(
@@ -47,9 +69,7 @@ export function useGoogleDriveImport({
   async function handleGoogleDrivePicker() {
     if (!isGapiLoaded) {
       setStatus("error");
-      setMessage(
-        "Les APIs Google ne sont pas encore chargées. Veuillez réessayer."
-      );
+      setMessage(driveMessages.notLoaded);
       return;
     }
 
@@ -60,20 +80,17 @@ export function useGoogleDriveImport({
 
     if (!apiKey || !clientId) {
       setStatus("error");
-      setMessage(
-        "⚠️ Configuration Google Drive manquante. Vérifiez VITE_GOOGLE_API_KEY et VITE_GOOGLE_CLIENT_ID dans le .env."
-      );
+      setMessage(driveMessages.missingConfig);
       return;
     }
 
     if (
       apiKey === "votre_cle_api_google_ici" ||
-      clientId === "votre_client_id_google_ici"
+      clientId ===
+        "votre_client_id_google_ici"
     ) {
       setStatus("error");
-      setMessage(
-        "⚠️ Remplace les valeurs par défaut dans le .env avec tes vraies clés Google."
-      );
+      setMessage(driveMessages.defaultConfig);
       return;
     }
 
@@ -110,20 +127,26 @@ export function useGoogleDriveImport({
                   )
                   .setDeveloperKey(apiKey)
                   .setOAuthToken(token)
-                  .setAppId(clientId.split("-")[0])
-                  .setCallback(async (data: any) => {
-                    if (
-                      data.action ===
-                      window.google.picker.Action.PICKED
-                    ) {
-                      const file = data.docs[0];
+                  .setAppId(
+                    clientId.split("-")[0]
+                  )
+                  .setCallback(
+                    async (data: any) => {
+                      if (
+                        data.action ===
+                        window.google.picker.Action
+                          .PICKED
+                      ) {
+                        const file =
+                          data.docs[0];
 
-                      await downloadFileFromDrive(
-                        file.id,
-                        token
-                      );
+                        await downloadFileFromDrive(
+                          file.id,
+                          token
+                        );
+                      }
                     }
-                  })
+                  )
                   .build();
 
               picker.setVisible(true);

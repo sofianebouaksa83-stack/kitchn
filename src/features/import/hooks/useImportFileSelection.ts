@@ -15,6 +15,7 @@ type UseImportFileSelectionOptions = {
   enqueueFiles: (files: File[]) => void;
   setStatus: (status: ImportStatus) => void;
   setMessage: (message: string) => void;
+  fileInputId?: string;
 };
 
 export function useImportFileSelection({
@@ -22,8 +23,10 @@ export function useImportFileSelection({
   enqueueFiles,
   setStatus,
   setMessage,
+  fileInputId = "ai-file-input-desktop",
 }: UseImportFileSelectionOptions) {
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [isDragOver, setIsDragOver] =
+    useState(false);
 
   async function addFilesToQueue(files: File[]) {
     if (!files.length) return;
@@ -35,7 +38,9 @@ export function useImportFileSelection({
       const validation = validateFile(file);
 
       if (!validation.ok) {
-        errors.push(`${file.name} → trop volumineux`);
+        errors.push(
+          `${file.name} → trop volumineux`
+        );
       } else {
         valid.push(file);
       }
@@ -64,14 +69,18 @@ export function useImportFileSelection({
     event: MouseEvent<HTMLElement>
   ) {
     if (busy) return;
-    if (event.target !== event.currentTarget) return;
+    if (event.target !== event.currentTarget) {
+      return;
+    }
 
     document
-      .getElementById("ai-file-input-desktop")
+      .getElementById(fileInputId)
       ?.click();
   }
 
-  async function onDrop(event: DragEvent<HTMLElement>) {
+  async function onDrop(
+    event: DragEvent<HTMLElement>
+  ) {
     event.preventDefault();
     setIsDragOver(false);
 
@@ -85,7 +94,9 @@ export function useImportFileSelection({
   async function handleFileSelect(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    const files = Array.from(event.target.files || []);
+    const files = Array.from(
+      event.target.files || []
+    );
 
     event.target.value = "";
     await addFilesToQueue(files);
@@ -94,7 +105,9 @@ export function useImportFileSelection({
   async function handleFolderSelect(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    const files = Array.from(event.target.files || []);
+    const files = Array.from(
+      event.target.files || []
+    );
 
     event.target.value = "";
     await addFilesToQueue(files);
