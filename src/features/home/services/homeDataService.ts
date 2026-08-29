@@ -229,3 +229,19 @@ export async function getHomeImportCount(
 
   return data?.import_count || 0;
 }
+
+export async function getSharedRecipesCount(
+  groupIds: string[]
+) {
+  const { count, error } = await supabase
+    .from("work_group_recipes")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .in("group_id", groupIds);
+
+  if (error) return 0;
+
+  return count || 0;
+}

@@ -5,7 +5,6 @@ import {
   Sparkles,
   Plus,
 } from "lucide-react";
-import { supabase } from "../../lib/supabase";
 import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
@@ -16,8 +15,15 @@ import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
 import { HomeEmptyLine } from "../../features/home/components/HomeEmptyLine";
 import { HomeLoadingLine } from "../../features/home/components/HomeLoadingLine";
-import {  getHomeGroupIds, getHomeImportCount, getHomeUserIdentity, getLatestSharedRecipes, getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
-
+import {
+  getHomeGroupIds,
+  getHomeImportCount,
+  getHomeUserIdentity,
+  getLatestSharedRecipes,
+  getMyLatestRecipes,
+  getMyRecipesCount,
+  getSharedRecipesCount,
+} from "../../features/home/services/homeDataService";
 
 function unlockPageScroll() {
   document.documentElement.style.overflow = "";
@@ -114,12 +120,10 @@ export default function HomePage({
 
       if (groupIds.length === 0) return;
 
-      const { count: sharedTotal, error: sharedCountError } = await supabase
-        .from("work_group_recipes")
-        .select("id", { count: "exact", head: true })
-        .in("group_id", groupIds);
+      const sharedTotal =
+        await getSharedRecipesCount(groupIds);
 
-      if (!sharedCountError) setSharedCount(sharedTotal || 0);
+      setSharedCount(sharedTotal);
 
       const latestShared = await getLatestSharedRecipes(groupIds);
       setLatestSharedRecipes(latestShared);
