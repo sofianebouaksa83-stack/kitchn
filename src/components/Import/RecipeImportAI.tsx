@@ -23,6 +23,7 @@ import {
 import { useGoogleDriveScripts } from "../../features/import/hooks/useGoogleDriveScripts";
 import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
 import { useImportQueue } from "../../features/import/hooks/useImportQueue";
+import { useImportFileSelection } from "../../features/import/hooks/useImportFileSelection";
 import type { ImportStatus } from "../../features/import/types/import.types";
 
 export function RecipeImportAI() {
@@ -52,7 +53,16 @@ export function RecipeImportAI() {
   const busy = status === "uploading" || status === "processing";
 
   
-  const [isDragOver, setIsDragOver] = useState(false);
+  const {
+    isDragOver,
+    handleDragEnter,
+    handleDragLeave,
+  } = useImportFileSelection({
+    busy,
+    enqueueFiles,
+    setStatus,
+    setMessage,
+  });
 
 
   const processingRef = useRef(false);
@@ -651,9 +661,9 @@ export function RecipeImportAI() {
               role="button"
               tabIndex={0}
               onClick={onDropzoneClick}
-              onDragEnter={(e) => (e.preventDefault(), !busy && setIsDragOver(true))}
-              onDragOver={(e) => (e.preventDefault(), !busy && setIsDragOver(true))}
-              onDragLeave={() => setIsDragOver(false)}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragEnter}
+              onDragLeave={handleDragLeave}
               onDrop={onDrop}
               className={[
                 "mt-3 rounded-xl border border-dashed px-4 py-3 transition",
