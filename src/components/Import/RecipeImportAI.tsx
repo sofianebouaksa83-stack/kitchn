@@ -59,6 +59,7 @@ export function RecipeImportAI() {
     handleDragLeave,
     onDrop: handleDrop,
     onDropzoneClick: handleDropzoneClick,
+    handleFileSelect: handleSelectedFiles,
   } = useImportFileSelection({
     busy,
     enqueueFiles,
@@ -103,11 +104,6 @@ export function RecipeImportAI() {
   
   };
  
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-    await addFilesToQueue(files);
-  };
 
   const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -561,7 +557,7 @@ export function RecipeImportAI() {
                   type="file"
                   accept="*/*"
                   multiple
-                  onChange={handleFileSelect}
+                  onChange={handleSelectedFiles}
                   className="hidden"
                   disabled={busy}
                 />
@@ -602,7 +598,7 @@ export function RecipeImportAI() {
                     type="file"
                     accept="*/*"
                     multiple
-                    onChange={handleFileSelect}
+                    onChange={handleSelectedFiles}
                     className="hidden"
                     disabled={busy}
                   />
