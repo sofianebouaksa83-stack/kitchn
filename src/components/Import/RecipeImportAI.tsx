@@ -19,7 +19,7 @@ import {
   statusBadge,
   statusLabel,
   } from "../../features/import/utils/importHelpers";
-import { useGoogleDriveScripts } from "../../features/import/hooks/useGoogleDriveScripts";
+import { useGoogleDriveImport } from "../../features/import/hooks/useGoogleDriveImport";
 import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
 import { useImportQueue } from "../../features/import/hooks/useImportQueue";
 import { useImportFileSelection } from "../../features/import/hooks/useImportFileSelection";
@@ -27,7 +27,7 @@ import type { ImportStatus } from "../../features/import/types/import.types";
 
 export function RecipeImportAI() {
   const { user } = useAuth();
-  const isGapiLoaded = useGoogleDriveScripts();
+
   const {
   quota,
   quotaLoading,
@@ -68,9 +68,18 @@ export function RecipeImportAI() {
     setMessage,
   });
 
+  const {
+    isGapiLoaded,
+    handleGoogleDrivePicker,
+  } = useGoogleDriveImport({
+    addFilesToQueue: enqueueSelectedFiles,
+    setStatus,
+    setMessage,
+  });
+
 
   const processingRef = useRef(false);
-  
+
 
   async function importOne(itemId: string) {
     if (!user) return;
@@ -287,121 +296,7 @@ export function RecipeImportAI() {
 
   function viewRecipe() {
     window.location.reload();
-  }
-
-  async function handleGoogleDrivePicker() {
-    if (!isGapiLoaded) {
-      setStatus("error");
-      setMessage("Les APIs Google ne sont pas encore chargées. Veuillez réessayer.");
-      return;
-    }
-
-    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-    if (!apiKey || !clientId) {
-      setStatus("error");
-      setMessage("⚠️ Configuration Google Drive manquante. Vérifiez VITE_GOOGLE_API_KEY et VITE_GOOGLE_CLIENT_ID dans le .env.");
-      return;
-    }
-
-    if (apiKey === "votre_cle_api_google_ici" || clientId === "votre_client_id_google_ici") {
-      setStatus("error");
-      setMessage("⚠️ Remplace les valeurs par défaut dans le .env avec tes vraies clés Google.");
-      return;
-    }
-
-    try {
-      const tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: "https://www.googleapis.com/auth/drive.readonly",
-        callback: async (response: any) => {
-          if (response.error) {
-            setStatus("error");
-            setMessage("Erreur d'authentification Google: " + response.error);
-            return;
-          }
-
-          const token = response.access_token;
-
-          try {
-            await window.gapi.client.init({
-              apiKey,
-              discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-            });
-
-            const picker = new window.google.picker.PickerBuilder()
-              .addView(window.google.picker.ViewId.DOCS)
-              .setDeveloperKey(apiKey)
-              .setOAuthToken(token)
-              .setAppId(clientId.split("-")[0])
-              .setCallback(async (data: any) => {
-                if (data.action === window.google.picker.Action.PICKED) {
-                  const file = data.docs[0];
-                  await downloadFileFromDrive(file.id, token);
-                }
-              })
-              .build();
-
-            picker.setVisible(true);
-          } catch (initError) {
-            setStatus("error");
-            setMessage(
-              "Erreur init Google Picker: " + (initError instanceof Error ? initError.message : "Erreur inconnue")
-            );
-          }
-        },
-      });
-
-      tokenClient.requestAccessToken();
-    } catch (error) {
-      setStatus("error");
-      setMessage("Erreur ouverture Google Drive Picker: " + (error instanceof Error ? error.message : "Erreur inconnue"));
-    }
-  }
-
-  async function downloadFileFromDrive(fileId: string, token: string) {
-    try {
-      setStatus("uploading");
-      setMessage("Téléchargement depuis Google Drive...");
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) throw new Error("Non authentifié");
-
-      const downloadUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-drive-file`;
-      const downloadResponse = await fetch(downloadUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileId, accessToken: token }),
-      });
-
-      const downloadResult = await downloadResponse.json();
-      if (!downloadResponse.ok || !downloadResult.success) {
-        throw new Error(downloadResult.error || "Erreur lors du téléchargement");
-      }
-
-      const fileData = new Uint8Array(downloadResult.fileData);
-      const blob = new Blob([fileData], { type: downloadResult.mimeType });
-      const file = new File([blob], downloadResult.fileName, {
-        type: downloadResult.mimeType,
-        lastModified: Date.now(),
-      });
-
-      await enqueueSelectedFiles([file]);
-
-      setStatus("idle");
-      setMessage(`Fichier téléchargé: ${file.name}`);
-    } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Erreur téléchargement Google Drive");
-    }
-  }
-
+  }  
 
   const hasPendingImports = queue.some((q) => q.status === "idle" || q.status === "error");
   const canAnalyze = hasPendingImports && (quota?.plan === "premium" || quota == null || quota.can_import);
