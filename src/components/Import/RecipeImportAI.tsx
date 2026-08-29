@@ -58,6 +58,7 @@ export function RecipeImportAI() {
     handleDragEnter,
     handleDragLeave,
     onDrop: handleDrop,
+    onDropzoneClick: handleDropzoneClick,
   } = useImportFileSelection({
     busy,
     enqueueFiles,
@@ -101,15 +102,6 @@ export function RecipeImportAI() {
     enqueueFiles(valid);
   
   };
-
-
-
-  const onDropzoneClick = (e: React.MouseEvent) => {
-    if (busy) return;
-    if (e.target !== e.currentTarget) return;
-    (document.getElementById("ai-file-input-desktop") as HTMLInputElement | null)?.click();
-  };
-
  
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -655,7 +647,7 @@ export function RecipeImportAI() {
             <div
               role="button"
               tabIndex={0}
-              onClick={onDropzoneClick}
+              onClick={handleDropzoneClick}
               onDragEnter={handleDragEnter}
               onDragOver={handleDragEnter}
               onDragLeave={handleDragLeave}
