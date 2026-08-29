@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   Users,
@@ -15,6 +15,7 @@ import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { HomePageProps, RecipeItem, SharedRecipeItem, } from "../../features/home/types/home.types";
 import { FREE_IMPORT_LIMIT, getRecipeDate, getRecipeSubtitle, getRecipeTitle, uniqById, } from "../../features/home/utils/homeHelpers";
 import { HomeStatCard } from "../../features/home/components/HomeStatCard";
+import { HomePanel } from "../../features/home/components/HomePanel";
 
 function unlockPageScroll() {
   document.documentElement.style.overflow = "";
@@ -350,7 +351,7 @@ export default function HomePage({
       </section>
 
       <div className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel
+        <HomePanel
           title="Dernières recettes ajoutées"
           onClick={() => navigateTo("/recipes")}
         >
@@ -370,9 +371,9 @@ export default function HomePage({
               ))}
             </div>
           )}
-        </Panel>
+        </HomePanel>
 
-        <Panel
+        <HomePanel
           title="Dernières recettes partagées"
           onClick={() => navigateTo("/shared")}
         >
@@ -394,7 +395,7 @@ export default function HomePage({
               ))}
             </div>
           )}
-        </Panel>
+        </HomePanel>
       </div>
 
       <RecipeImportAIWidget onOpenFull={() => navigateTo("/import")} />
@@ -402,33 +403,7 @@ export default function HomePage({
   );
 }
 
-function Panel({
-  title,
-  onClick,
-  children,
-}: {
-  title: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="w-full min-w-0 rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-      <div className="mb-5 flex min-w-0 items-center justify-between gap-4">
-        <h3 className="min-w-0 truncate font-semibold">{title}</h3>
 
-        <button
-          type="button"
-          onClick={onClick}
-          className="shrink-0 text-sm text-[#D4AF37]"
-        >
-          Voir tout
-        </button>
-      </div>
-
-      {children}
-    </div>
-  );
-}
 
 function ListItem({
   title,
