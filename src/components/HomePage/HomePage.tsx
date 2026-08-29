@@ -3,20 +3,19 @@ import {
   BookOpen,
   Users,
   Sparkles,
-  Loader2,
   Plus,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
-import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { HomePageProps, RecipeItem, SharedRecipeItem, } from "../../features/home/types/home.types";
 import { FREE_IMPORT_LIMIT, getRecipeDate, getRecipeSubtitle, getRecipeTitle, uniqById, } from "../../features/home/utils/homeHelpers";
 import { HomeStatCard } from "../../features/home/components/HomeStatCard";
 import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
-
+import { HomeEmptyLine } from "../../features/home/components/HomeEmptyLine";
+import { HomeLoadingLine } from "../../features/home/components/HomeLoadingLine";
 function unlockPageScroll() {
   document.documentElement.style.overflow = "";
   document.body.style.overflow = "";
@@ -356,9 +355,9 @@ export default function HomePage({
           onClick={() => navigateTo("/recipes")}
         >
           {loading ? (
-            <LoadingLine />
+            <HomeLoadingLine />
           ) : latestRecipes.length === 0 ? (
-            <EmptyLine text="Aucune recette récente pour le moment." />
+            <HomeEmptyLine text="Aucune recette récente pour le moment." />
           ) : (
             <div className="space-y-3">
               {latestRecipes.map((recipe) => (
@@ -378,9 +377,9 @@ export default function HomePage({
           onClick={() => navigateTo("/shared")}
         >
           {loading ? (
-            <LoadingLine />
+            <HomeLoadingLine />
           ) : latestSharedRecipes.length === 0 ? (
-            <EmptyLine text="Aucune recette partagée pour le moment." />
+            <HomeEmptyLine text="Aucune recette partagée pour le moment." />
           ) : (
             <div className="space-y-3">
               {latestSharedRecipes.map((item) => (
@@ -399,27 +398,6 @@ export default function HomePage({
       </div>
 
       <RecipeImportAIWidget onOpenFull={() => navigateTo("/import")} />
-    </div>
-  );
-}
-
-
-
-
-
-function EmptyLine({ text }: { text: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-white/45">
-      {text}
-    </div>
-  );
-}
-
-function LoadingLine() {
-  return (
-    <div className="flex items-center gap-2 text-sm text-white/50">
-      <KitchNLoader className="kitchn-loader--mini" />
-      Chargement...
     </div>
   );
 }
