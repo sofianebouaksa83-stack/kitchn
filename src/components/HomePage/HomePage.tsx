@@ -13,41 +13,7 @@ import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 import type { HomePageProps, RecipeItem, SharedRecipeItem, } from "../../features/home/types/home.types";
-const FREE_IMPORT_LIMIT = 30;
-
-function getRecipeDate(recipe: RecipeItem) {
-  return recipe?.created_at || recipe?.updated_at || recipe?.imported_at || "";
-}
-
-function getRecipeTitle(recipe?: RecipeItem | null) {
-  return (
-    recipe?.title ||
-    recipe?.recipe_name ||
-    recipe?.name ||
-    recipe?.nom ||
-    "Recette sans titre"
-  );
-}
-
-function getRecipeSubtitle(recipe?: RecipeItem | null) {
-  return (
-    recipe?.category ||
-    recipe?.categorie ||
-    recipe?.type ||
-    recipe?.recipe_type ||
-    "Recette"
-  );
-}
-
-function uniqById(items: RecipeItem[]) {
-  const map = new Map<string, RecipeItem>();
-
-  for (const item of items) {
-    if (item?.id && !map.has(item.id)) map.set(item.id, item);
-  }
-
-  return Array.from(map.values());
-}
+import { FREE_IMPORT_LIMIT, getRecipeDate, getRecipeSubtitle, getRecipeTitle, uniqById, } from "../../features/home/utils/homeHelpers";
 
 function unlockPageScroll() {
   document.documentElement.style.overflow = "";
