@@ -3,7 +3,6 @@ import {
   BookOpen,
   Users,
   Sparkles,
-  ArrowRight,
   Loader2,
   Plus,
 } from "lucide-react";
@@ -16,6 +15,7 @@ import type { HomePageProps, RecipeItem, SharedRecipeItem, } from "../../feature
 import { FREE_IMPORT_LIMIT, getRecipeDate, getRecipeSubtitle, getRecipeTitle, uniqById, } from "../../features/home/utils/homeHelpers";
 import { HomeStatCard } from "../../features/home/components/HomeStatCard";
 import { HomePanel } from "../../features/home/components/HomePanel";
+import { HomeListItem } from "../../features/home/components/HomeListItem";
 
 function unlockPageScroll() {
   document.documentElement.style.overflow = "";
@@ -362,7 +362,7 @@ export default function HomePage({
           ) : (
             <div className="space-y-3">
               {latestRecipes.map((recipe) => (
-                <ListItem
+                <HomeListItem
                   key={recipe.id}
                   title={getRecipeTitle(recipe)}
                   subtitle={getRecipeSubtitle(recipe)}
@@ -384,7 +384,7 @@ export default function HomePage({
           ) : (
             <div className="space-y-3">
               {latestSharedRecipes.map((item) => (
-                <ListItem
+                <HomeListItem
                   key={item.id}
                   title={getRecipeTitle(item.recipe)}
                   subtitle={item.group_name || "Groupe partagé"}
@@ -405,32 +405,7 @@ export default function HomePage({
 
 
 
-function ListItem({
-  title,
-  subtitle,
-  onClick,
-}: {
-  title: string;
-  subtitle: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full min-w-0 items-center justify-between rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-left transition hover:bg-white/[0.06]"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 break-words font-medium text-white">
-          {title}
-        </p>
-        <p className="mt-1 truncate text-sm text-white/45">{subtitle}</p>
-      </div>
 
-      <ArrowRight className="ml-3 h-4 w-4 shrink-0 text-white/35" />
-    </button>
-  );
-}
 
 function EmptyLine({ text }: { text: string }) {
   return (
