@@ -180,3 +180,24 @@ export async function getLatestSharedRecipes(
       "Groupe partagé",
   })) as SharedRecipeItem[];
 }
+
+export async function getHomeUserIdentity() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const displayName =
+    user.user_metadata?.first_name ||
+    user.user_metadata?.full_name ||
+    user.email?.split("@")[0] ||
+    "Chef";
+
+  return {
+    id: user.id,
+    displayName,
+  };
+}

@@ -16,7 +16,7 @@ import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
 import { HomeEmptyLine } from "../../features/home/components/HomeEmptyLine";
 import { HomeLoadingLine } from "../../features/home/components/HomeLoadingLine";
-import { getLatestSharedRecipes, getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
+import { getHomeUserIdentity, getLatestSharedRecipes, getMyLatestRecipes, getMyRecipesCount, } from "../../features/home/services/homeDataService";
 
 
 function unlockPageScroll() {
@@ -83,34 +83,27 @@ export default function HomePage({
     try {
       setLoading(true);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const userIdentity =
+        await getHomeUserIdentity();
 
-      if (!user) return;
+      if (!userIdentity) return;
 
-      const displayName =
-        user.user_metadata?.first_name ||
-        user.user_metadata?.full_name ||
-        user.email?.split("@")[0] ||
-        "Chef";
-
-      setFirstName(displayName);
+      setFirstName(userIdentity.displayName);
 
       const periodKey = new Date().toISOString().slice(0, 7);
 
       const [recipesData, recipesTotal, groupMembersRes, importUsageRes] =
         await Promise.all([
-          getMyLatestRecipes(user.id),
-          getMyRecipesCount(user.id),
+          getMyLatestRecipes(userIdentity.id),
+          getMyRecipesCount(userIdentity.id),
           supabase
             .from("group_members")
             .select("work_group_id")
-            .eq("user_id", user.id),
+            .eq("user_id", userIdentity.id),
           supabase
             .from("ai_import_usage")
             .select("import_count")
-            .eq("user_id", user.id)
+            .eq("user_id", userIdentity.id)
             .eq("period_key", periodKey)
             .maybeSingle(),
         ]);
