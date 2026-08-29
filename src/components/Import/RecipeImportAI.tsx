@@ -26,25 +26,18 @@ import {
   uid,
   validateFile,
 } from "../../features/import/utils/importHelpers";
-
-declare global {
-  interface Window {
-    google: any;
-    gapi: any;
-  }
-}
-
-
+import { useGoogleDriveScripts } from "../../features/import/hooks/useGoogleDriveScripts";
 
 
 export function RecipeImportAI() {
   const { user } = useAuth();
+  const isGapiLoaded = useGoogleDriveScripts();
 
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [message, setMessage] = useState("");
   const busy = status === "uploading" || status === "processing";
 
-  const [isGapiLoaded, setIsGapiLoaded] = useState(false);
+  
   const [isDragOver, setIsDragOver] = useState(false);
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -61,26 +54,6 @@ export function RecipeImportAI() {
   const processingRef = useRef(false);
 
  
-  useEffect(() => {
-    const loadGoogleAPIs = () => {
-      const gapiScript = document.createElement("script");
-      gapiScript.src = "https://apis.google.com/js/api.js";
-      gapiScript.async = true;
-      gapiScript.defer = true;
-      gapiScript.onload = () => {
-        window.gapi.load("client:picker", () => setIsGapiLoaded(true));
-      };
-      document.body.appendChild(gapiScript);
-
-      const gisScript = document.createElement("script");
-      gisScript.src = "https://accounts.google.com/gsi/client";
-      gisScript.async = true;
-      gisScript.defer = true;
-      document.body.appendChild(gisScript);
-    };
-
-    loadGoogleAPIs();
-  }, []);
 
   useEffect(() => {
     void refreshQuota();
