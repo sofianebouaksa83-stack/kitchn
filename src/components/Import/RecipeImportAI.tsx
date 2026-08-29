@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
 import {
   Upload,
   FileText,
@@ -24,6 +23,7 @@ import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
 import { useImportQueue } from "../../features/import/hooks/useImportQueue";
 import { useImportFileSelection } from "../../features/import/hooks/useImportFileSelection";
 import type { ImportStatus } from "../../features/import/types/import.types";
+import { useAiImportProcessor } from "../../features/import/hooks/useAiImportProcessor";
 
 export function RecipeImportAI() {
   const { user } = useAuth();
@@ -77,222 +77,16 @@ export function RecipeImportAI() {
     setMessage,
   });
 
+  const { processQueue } = useAiImportProcessor({
+    user,
+    queueRef,
+    setQueue,
+    loadQuota,
+    refreshQuota,
+    setStatus,
+    setMessage,
+  });
 
-  const processingRef = useRef(false);
-
-
-  async function importOne(itemId: string) {
-    if (!user) return;
-
-    const item = queueRef.current.find((q) => q.id === itemId);
-    if (!item) return;
-
-    try {
-      setStatus("uploading");
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) throw new Error("Non authentifié");
-
-      setQueue((prev) =>
-        prev.map((q) =>
-          q.id === itemId
-            ? {
-                ...q,
-                status: "uploading",
-                message: "Envoi du fichier...",
-                progress: Math.max(q.progress, 1),
-              }
-            : q
-        )
-      );
-
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-recipe`;
-      const formData = new FormData();
-      formData.append("file", item.file, item.file.name);
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", apiUrl, true);
-        xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
-
-        xhr.upload.onprogress = (evt) => {
-          if (!evt.lengthComputable) return;
-
-          const upPct = Math.round((evt.loaded / evt.total) * 100);
-          const mixed = Math.min(70, Math.round((upPct / 100) * 70));
-
-          setQueue((prev) =>
-            prev.map((q) =>
-              q.id === itemId
-                ? {
-                    ...q,
-                    uploadProgress: upPct,
-                    progress: Math.max(q.progress, mixed),
-                  }
-                : q
-            )
-          );
-        };
-
-        xhr.onerror = () => reject(new Error("Erreur réseau (upload)"));
-
-        xhr.onload = () => {
-          try {
-            const json = JSON.parse(xhr.responseText || "{}");
-
-            if (xhr.status >= 200 && xhr.status < 300 && json?.success) {
-              setQueue((prev) =>
-                prev.map((q) =>
-                  q.id === itemId
-                    ? {
-                        ...q,
-                        status: "success",
-                        message: `Recette "${json.title}" créée • ${json.sectionsCount} section(s).`,
-                        resultTitle: json.title,
-                        uploadProgress: 100,
-                        progress: 100,
-                      }
-                    : q
-                )
-              );
-
-              void refreshQuota();
-              resolve();
-            } else {
-              if (json?.code === "AI_IMPORT_LIMIT_REACHED") {
-                setStatus("error");
-                setMessage(json?.error || "Limite atteinte, passez à Premium");
-                void refreshQuota();
-              }
-
-              reject(new Error(json?.error || "Erreur lors de l'import"));
-            }
-          } catch {
-            reject(new Error("Réponse serveur invalide"));
-          }
-        };
-
-        let alive = false;
-        let tickTimer: number | null = null;
-
-        xhr.onreadystatechange = () => {
-          if ((xhr.readyState === 2 || xhr.readyState === 3) && !alive) {
-            alive = true;
-
-            setQueue((prev) =>
-              prev.map((q) =>
-                q.id === itemId
-                  ? {
-                      ...q,
-                      status: "processing",
-                      message: "Analyse IA en cours...",
-                      progress: Math.max(q.progress, 75),
-                    }
-                  : q
-              )
-            );
-
-            const tick = () => {
-              if (!alive) return;
-
-              setQueue((prev) =>
-                prev.map((q) => {
-                  if (q.id !== itemId) return q;
-                  if (q.status !== "processing") return q;
-
-                  return {
-                    ...q,
-                    progress: Math.min(95, (q.progress || 75) + 1),
-                  };
-                })
-              );
-
-              tickTimer = window.setTimeout(tick, 250);
-            };
-
-            tickTimer = window.setTimeout(tick, 250);
-
-            xhr.addEventListener("loadend", () => {
-              alive = false;
-              if (tickTimer) window.clearTimeout(tickTimer);
-            });
-          }
-        };
-
-        xhr.send(formData);
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Erreur lors de l'importation";
-
-      setStatus("error");
-      setMessage(
-        errorMessage.includes("OPENAI_API_KEY")
-          ? "⚠️ Clé OpenAI non configurée. Veuillez configurer OPENAI_API_KEY dans les secrets Supabase."
-          : errorMessage
-      );
-
-      setQueue((prev) =>
-        prev.map((q) =>
-          q.id === itemId
-            ? {
-                ...q,
-                status: "error",
-                message: errorMessage,
-                progress: Math.min(q.progress || 0, 90),
-              }
-            : q
-        )
-      );
-    } finally {
-      setQueue((prev) => {
-        const stillBusy = prev.some(
-          (q) => q.status === "uploading" || q.status === "processing"
-        );
-        setStatus(stillBusy ? "processing" : "idle");
-        return prev;
-      });
-    }
-  }
-
-  async function processQueue() {
-    if (processingRef.current) return;
-    if (!user) return;
-
-    processingRef.current = true;
-    setStatus("processing");
-    setMessage("");
-
-    try {
-      while (true) {
-        const latestQuota = await loadQuota();
-
-        if (latestQuota.plan === "free" && !latestQuota.can_import) {
-          setStatus("error");
-          setMessage("Limite atteinte, passez à Premium");
-          break;
-        }
-
-        const current = queueRef.current;
-        const next = current.find((q) => q.status === "idle" || q.status === "error");
-
-        if (!next) break;
-
-        // eslint-disable-next-line no-await-in-loop
-        await importOne(next.id);
-      }
-    } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Erreur lors du traitement");
-    } finally {
-      processingRef.current = false;
-      setStatus("idle");
-      void refreshQuota();
-    }
-  }
 
   function viewRecipe() {
     window.location.reload();
