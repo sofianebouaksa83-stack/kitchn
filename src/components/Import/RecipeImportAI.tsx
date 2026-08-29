@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
+import React, { useRef, useState, } from "react";import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
   Upload,
@@ -27,6 +26,7 @@ import {
 } from "../../features/import/utils/importHelpers";
 import { useGoogleDriveScripts } from "../../features/import/hooks/useGoogleDriveScripts";
 import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
+import { useImportQueue } from "../../features/import/hooks/useImportQueue";
 
 export function RecipeImportAI() {
   const { user } = useAuth();
@@ -38,6 +38,16 @@ export function RecipeImportAI() {
   refreshQuota,
 } = useAiImportQuota(user);
 
+  const {
+  queue,
+  setQueue,
+  queueRef,
+  selectedId,
+  setSelectedId,
+  overall,
+  selected,
+} = useImportQueue();
+
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [message, setMessage] = useState("");
   const busy = status === "uploading" || status === "processing";
@@ -45,30 +55,11 @@ export function RecipeImportAI() {
   
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const queueRef = useRef<QueueItem[]>([]);
-  useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
 
   const processingRef = useRef(false);
 
 
-  const overall = useMemo(() => {
-    if (!queue.length) return { pct: 0, done: 0, total: 0, failed: 0 };
-    const total = queue.length;
-    const done = queue.filter((q) => q.status === "success").length;
-    const failed = queue.filter((q) => q.status === "error").length;
-    const pct = Math.round(queue.reduce((acc, q) => acc + (q.progress || 0), 0) / total);
-    return { pct, done, total, failed };
-  }, [queue]);
 
-  const selected = useMemo(
-    () => queue.find((q) => q.id === selectedId) || queue[0] || null,
-    [queue, selectedId]
-  );
 
 
   const addFilesToQueue = async (files: File[]) => {
