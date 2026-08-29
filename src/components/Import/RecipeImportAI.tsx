@@ -12,7 +12,6 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { ui } from "../../styles/ui";
-import { getAiImportQuota, type AiImportQuota } from "../../services/aiImportQuota";
 import type {
   ImportStatus,
   QueueItem,
@@ -27,11 +26,17 @@ import {
   validateFile,
 } from "../../features/import/utils/importHelpers";
 import { useGoogleDriveScripts } from "../../features/import/hooks/useGoogleDriveScripts";
-
+import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
 
 export function RecipeImportAI() {
   const { user } = useAuth();
   const isGapiLoaded = useGoogleDriveScripts();
+  const {
+  quota,
+  quotaLoading,
+  loadQuota,
+  refreshQuota,
+} = useAiImportQuota(user);
 
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [message, setMessage] = useState("");
@@ -43,9 +48,6 @@ export function RecipeImportAI() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const [quota, setQuota] = useState<AiImportQuota | null>(null);
-  const [quotaLoading, setQuotaLoading] = useState(false);
-
   const queueRef = useRef<QueueItem[]>([]);
   useEffect(() => {
     queueRef.current = queue;
@@ -53,12 +55,6 @@ export function RecipeImportAI() {
 
   const processingRef = useRef(false);
 
- 
-
-  useEffect(() => {
-    void refreshQuota();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
 
   const overall = useMemo(() => {
     if (!queue.length) return { pct: 0, done: 0, total: 0, failed: 0 };
@@ -355,8 +351,7 @@ export function RecipeImportAI() {
 
     try {
       while (true) {
-        const latestQuota = await getAiImportQuota();
-        setQuota(latestQuota);
+        const latestQuota = await loadQuota();
 
         if (latestQuota.plan === "free" && !latestQuota.can_import) {
           setStatus("error");
@@ -499,22 +494,6 @@ export function RecipeImportAI() {
     }
   }
 
-  async function refreshQuota() {
-    if (!user) {
-      setQuota(null);
-      return;
-    }
-
-    try {
-      setQuotaLoading(true);
-      const result = await getAiImportQuota();
-      setQuota(result);
-    } catch (error) {
-      console.error("Erreur quota IA:", error);
-    } finally {
-      setQuotaLoading(false);
-    }
-  }
 
   const hasPendingImports = queue.some((q) => q.status === "idle" || q.status === "error");
   const canAnalyze = hasPendingImports && (quota?.plan === "premium" || quota == null || quota.can_import);
