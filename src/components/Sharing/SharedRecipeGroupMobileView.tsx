@@ -4,10 +4,13 @@ import {
   useRef,
   useState,
   type DragEvent,
+  type ReactNode,
 } from "react";
-import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import {
+  AnimatePresence,
+  motion,
+  useDragControls,
+} from "framer-motion";
 import {
   Search,
   Plus,
@@ -25,6 +28,12 @@ import {
   Check,
   ArrowLeft,
 } from "lucide-react";
+import { useSharedRecipeGroup } from "../../features/sharing/hooks/useSharedRecipeGroup";
+import type { RecipeRow } from "../../features/sharing/types/sharing.types";
+import {
+  cn,
+  safeTitle,
+} from "../../features/sharing/utils/sharingHelpers";
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
 import { RecipeDisplay } from "../Recipe/components/RecipeDisplay";
@@ -36,34 +45,9 @@ type Props = {
   groupName?: string;
   onBack?: () => void;
   onEdit?: (recipeId: string) => void;
+  initialRecipeId?: string | null;
+  onInitialRecipeOpened?: () => void;
 };
-
-type GroupFolder = {
-  id: string;
-  group_id: string;
-  name: string;
-  created_by: string;
-};
-
-type RecipeRow = {
-  id: string;
-  title: string | null;
-  category: string | null;
-  servings: number | null;
-  prep_time: number | null;
-  cook_time: number | null;
-  is_favorite?: boolean;
-  folder_id?: string | null;
-};
-
-function cn(...classes: Array<string | undefined | false>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function safeTitle(r?: RecipeRow | null) {
-  const t = (r?.title || "").trim();
-  return t ? t : "Sans titre";
-}
 
 function CategoryChips({
   categories,
@@ -72,18 +56,19 @@ function CategoryChips({
 }: {
   categories: string[];
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
 }) {
   return (
     <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
       <div className="flex items-center gap-2 min-w-max pr-2">
-        {categories.map((cat) => {
-          const active = cat === value;
+        {categories.map((category) => {
+          const active = category === value;
+
           return (
             <button
-              key={cat}
+              key={category}
               type="button"
-              onClick={() => onChange(cat)}
+              onClick={() => onChange(category)}
               className={cn(
                 "h-10 px-4 rounded-full text-sm font-medium whitespace-nowrap ring-1 transition",
                 active
@@ -91,7 +76,7 @@ function CategoryChips({
                   : "bg-white/[0.04] ring-amber-400/15 text-slate-200 hover:bg-white/[0.07]"
               )}
             >
-              {cat}
+              {category}
             </button>
           );
         })}
@@ -106,7 +91,7 @@ function SheetAction({
   tone = "neutral",
   onClick,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   tone?: "neutral" | "danger";
   onClick: () => void;
@@ -118,7 +103,8 @@ function SheetAction({
       className={cn(
         "w-full flex items-center gap-3 px-4 py-3 rounded-2xl",
         "bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.05] transition text-left",
-        tone === "danger" && "hover:bg-red-500/10 ring-red-500/20"
+        tone === "danger" &&
+          "hover:bg-red-500/10 ring-red-500/20"
       )}
     >
       <span
@@ -131,10 +117,13 @@ function SheetAction({
       >
         {icon}
       </span>
+
       <span
         className={cn(
           "text-sm font-medium",
-          tone === "danger" ? "text-red-100" : "text-slate-100"
+          tone === "danger"
+            ? "text-red-100"
+            : "text-slate-100"
         )}
       >
         {label}
@@ -143,78 +132,160 @@ function SheetAction({
   );
 }
 
-export function SharedRecipeGroupMobile({
+export function SharedRecipeGroupMobileView({
   groupId,
   groupName = "Groupe",
   onBack,
   onEdit,
+  initialRecipeId,
+  onInitialRecipeOpened,
 }: Props) {
-  const { user } = useAuth();
+  const {
+    loading,
+    folders,
+    recipes,
+    recipesCount,
 
-  const [loading, setLoading] = useState(true);
-  const [folders, setFolders] = useState<GroupFolder[]>([]);
-  const [recipes, setRecipes] = useState<RecipeRow[]>([]);
-  const [recipesCount, setRecipesCount] = useState(0);
+    selectedFolder,
+    setSelectedFolder,
+    showFavoritesOnly,
+    setShowFavoritesOnly,
 
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+    searchTerm,
+    setSearchTerm,
+    categoryFilter,
+    setCategoryFilter,
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("Toutes");
+    newFolderName,
+    setNewFolderName,
+    showNewFolderInput,
+    setShowNewFolderInput,
 
-  const [newFolderName, setNewFolderName] = useState("");
-  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+    canShare,
+    canEdit,
+    canRemoveFromGroup,
+    canManageFolders,
 
-  const [draggedRecipe, setDraggedRecipe] = useState<string | null>(null);
+    categories,
+    folderCounts,
+    filteredRecipes,
+
+    handleCreateFolder,
+    handleRenameFolder: renameFolder,
+    handleDeleteFolder: deleteFolder,
+    handleToggleFavorite,
+    handleMoveToFolder,
+    handleRemoveFromGroup,
+    handleRemoveFromFolder,
+  } = useSharedRecipeGroup({ groupId });
+
+  const [draggedRecipe, setDraggedRecipe] =
+    useState<string | null>(null);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [viewingRecipeId, setViewingRecipeId] = useState<string | null>(null);
+  const [viewingRecipeId, setViewingRecipeId] =
+    useState<string | null>(null);
 
-  const [openedRecipeId, setOpenedRecipeId] = useState<string | null>(null);
-  const recipeSheetOpen = !!openedRecipeId;
-  const closeRecipeSheet = () => setOpenedRecipeId(null);
+  const [openedRecipeId, setOpenedRecipeId] =
+    useState<string | null>(null);
+
+  const recipeSheetOpen = Boolean(openedRecipeId);
+
+  const closeRecipeSheet = () => {
+    setOpenedRecipeId(null);
+  };
+
   const recipeDragControls = useDragControls();
   const foldersDragControls = useDragControls();
 
-  const [showGroupsModal, setShowGroupsModal] = useState(false);
-  const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
+  const [showGroupsModal, setShowGroupsModal] =
+    useState(false);
 
-  const [folderMenuOpenId, setFolderMenuOpenId] = useState<string | null>(null);
+  const [activeRecipeId, setActiveRecipeId] =
+    useState<string | null>(null);
+
+  const [folderMenuOpenId, setFolderMenuOpenId] =
+    useState<string | null>(null);
+
   const folderMenuRef = useRef<HTMLDivElement>(null);
 
-  const [sheetRecipe, setSheetRecipe] = useState<RecipeRow | null>(null);
-  const sheetOpen = !!sheetRecipe;
-  const closeSheet = () => setSheetRecipe(null);
+  const [sheetRecipe, setSheetRecipe] =
+    useState<RecipeRow | null>(null);
 
-  const [moveFolderOpen, setMoveFolderOpen] = useState(false);
-  const [moveRecipe, setMoveRecipe] = useState<RecipeRow | null>(null);
+  const sheetOpen = Boolean(sheetRecipe);
 
-  const [memberRole, setMemberRole] = useState<string | null>(null);
+  const closeSheet = () => {
+    setSheetRecipe(null);
+  };
+
+  const [moveFolderOpen, setMoveFolderOpen] =
+    useState(false);
+
+  const [moveRecipe, setMoveRecipe] =
+    useState<RecipeRow | null>(null);
+
+  useEffect(() => {
+    if (!initialRecipeId) return;
+
+    setOpenedRecipeId(initialRecipeId);
+    onInitialRecipeOpened?.();
+  }, [initialRecipeId, onInitialRecipeOpened]);
 
   useEffect(() => {
     const openPendingSharedRecipe = (event?: Event) => {
-      const detail = (event as
-        | CustomEvent<{ recipeId?: string; groupId?: string }>
-        | undefined)?.detail;
+      const detail = (
+        event as
+          | CustomEvent<{
+              recipeId?: string;
+              groupId?: string;
+            }>
+          | undefined
+      )?.detail;
 
       const pendingRecipeId =
-        detail?.recipeId || sessionStorage.getItem("selectedSharedRecipeId");
+        detail?.recipeId ||
+        sessionStorage.getItem(
+          "selectedSharedRecipeId"
+        );
+
       const pendingGroupId =
         detail?.groupId ||
-        sessionStorage.getItem("selectedSharedGroupId") ||
-        sessionStorage.getItem("selectedWorkGroupId");
+        sessionStorage.getItem(
+          "selectedSharedGroupId"
+        ) ||
+        sessionStorage.getItem(
+          "selectedWorkGroupId"
+        );
 
       if (!pendingRecipeId) return;
-      if (pendingGroupId && pendingGroupId !== groupId) return;
 
-      sessionStorage.removeItem("selectedSharedRecipeId");
-      sessionStorage.removeItem("selectedSharedGroupId");
-      sessionStorage.removeItem("selectedWorkGroupId");
+      if (
+        pendingGroupId &&
+        pendingGroupId !== groupId
+      ) {
+        return;
+      }
+
+      sessionStorage.removeItem(
+        "selectedSharedRecipeId"
+      );
+      sessionStorage.removeItem(
+        "selectedSharedGroupId"
+      );
+      sessionStorage.removeItem(
+        "selectedWorkGroupId"
+      );
+
       setOpenedRecipeId(pendingRecipeId);
     };
 
     openPendingSharedRecipe();
-    window.addEventListener("kitchn:open-shared-recipe", openPendingSharedRecipe);
+
+    window.addEventListener(
+      "kitchn:open-shared-recipe",
+      openPendingSharedRecipe
+    );
 
     return () => {
       window.removeEventListener(
@@ -224,30 +295,39 @@ export function SharedRecipeGroupMobile({
     };
   }, [groupId]);
 
-  const canShare = memberRole === "admin" || memberRole === "second";
-  const canEdit = memberRole === "admin" || memberRole === "second";
-  const canRemoveFromGroup = memberRole === "admin" || memberRole === "second";
-  const canManageFolders = memberRole === "chef" || memberRole === "admin";
-
   useEffect(() => {
-    void loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupId, user?.id]);
-
-  useEffect(() => {
-    function onDocDown(e: MouseEvent) {
+    function handleDocumentMouseDown(event: MouseEvent) {
       if (!folderMenuOpenId) return;
-      const target = e.target as Node;
-      if (folderMenuRef.current && !folderMenuRef.current.contains(target)) {
+
+      const target = event.target as Node;
+
+      if (
+        folderMenuRef.current &&
+        !folderMenuRef.current.contains(target)
+      ) {
         setFolderMenuOpenId(null);
       }
     }
-    document.addEventListener("mousedown", onDocDown);
-    return () => document.removeEventListener("mousedown", onDocDown);
+
+    document.addEventListener(
+      "mousedown",
+      handleDocumentMouseDown
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleDocumentMouseDown
+      );
+    };
   }, [folderMenuOpenId]);
 
   useEffect(() => {
-    const shouldLock = sidebarOpen || recipeSheetOpen || sheetOpen || moveFolderOpen;
+    const shouldLock =
+      sidebarOpen ||
+      recipeSheetOpen ||
+      sheetOpen ||
+      moveFolderOpen;
 
     if (!shouldLock) {
       document.documentElement.style.overflow = "";
@@ -265,319 +345,111 @@ export function SharedRecipeGroupMobile({
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
     };
-  }, [sidebarOpen, recipeSheetOpen, sheetOpen, moveFolderOpen]);
+  }, [
+    sidebarOpen,
+    recipeSheetOpen,
+    sheetOpen,
+    moveFolderOpen,
+  ]);
 
   useEffect(() => {
-    if (!sidebarOpen && !recipeSheetOpen && !sheetOpen && !moveFolderOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setSidebarOpen(false);
-        closeRecipeSheet();
-        closeSheet();
-        setMoveFolderOpen(false);
-        setMoveRecipe(null);
-      }
+    if (
+      !sidebarOpen &&
+      !recipeSheetOpen &&
+      !sheetOpen &&
+      !moveFolderOpen
+    ) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      setSidebarOpen(false);
+      setOpenedRecipeId(null);
+      setSheetRecipe(null);
+      setMoveFolderOpen(false);
+      setMoveRecipe(null);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sidebarOpen, recipeSheetOpen, sheetOpen, moveFolderOpen]);
 
-  async function loadAll() {
-    setLoading(true);
-    try {
-      await Promise.all([loadMembership(), loadFolders(), loadRecipes()]);
-    } finally {
-      setLoading(false);
-    }
-  }
+    window.addEventListener("keydown", handleEscape);
 
-  async function loadMembership() {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("group_members")
-      .select("role")
-      .eq("work_group_id", groupId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (error) return;
-    setMemberRole((data as { role?: string } | null)?.role ?? null);
-  }
-
-  async function loadFolders() {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("work_group_folders")
-      .select("id,group_id,name,created_by")
-      .eq("group_id", groupId)
-      .order("name");
-
-    setFolders((data ?? []) as GroupFolder[]);
-  }
-
-  async function loadRecipes() {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("work_group_recipes")
-      .select(`recipes ( id, title, category, servings, prep_time, cook_time )`)
-      .eq("group_id", groupId);
-
-    if (error) return;
-
-    const list: RecipeRow[] = (data ?? [])
-      .map((r: any) => r.recipes)
-      .filter(Boolean)
-      .map((r: any) => ({
-        id: String(r.id),
-        title: r.title ?? null,
-        category: r.category ?? null,
-        servings: r.servings ?? null,
-        prep_time: r.prep_time ?? null,
-        cook_time: r.cook_time ?? null,
-      }));
-
-    setRecipesCount(list.length);
-
-    const { data: mapData } = await supabase
-      .from("work_group_folder_recipes")
-      .select("recipe_id, folder_id")
-      .eq("group_id", groupId);
-
-    const folderByRecipeId = new Map<string, string | null>();
-    for (const row of mapData ?? []) {
-      folderByRecipeId.set(String((row as any).recipe_id), (row as any).folder_id);
-    }
-
-    const { data: favData } = await supabase
-      .from("favorite_recipes")
-      .select("recipe_id")
-      .eq("user_id", user.id);
-
-    const favSet = new Set((favData ?? []).map((x: any) => String(x.recipe_id)));
-
-    setRecipes(
-      list.map((r) => ({
-        ...r,
-        folder_id: folderByRecipeId.get(String(r.id)) ?? null,
-        is_favorite: favSet.has(String(r.id)),
-      }))
-    );
-  }
-
-  const categories = useMemo(
-    () => [
-      "Toutes",
-      ...Array.from(new Set(recipes.map((r) => r.category || "Sans catégorie"))),
-    ],
-    [recipes]
-  );
-
-  const folderCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    recipes.forEach((r) => {
-      if (!r.folder_id) return;
-      map.set(r.folder_id, (map.get(r.folder_id) ?? 0) + 1);
-    });
-    return map;
-  }, [recipes]);
-
-  const filteredRecipes = useMemo(() => {
-    const hasSearch = searchTerm.trim().length > 0;
-
-    return recipes.filter((r) => {
-      if (showFavoritesOnly && !r.is_favorite) return false;
-      if (!hasSearch && selectedFolder && r.folder_id !== selectedFolder) return false;
-
-      if (
-        categoryFilter !== "Toutes" &&
-        (r.category || "Sans catégorie") !== categoryFilter
-      ) {
-        return false;
-      }
-
-      if (
-        hasSearch &&
-        !(r.title || "").toLowerCase().includes(searchTerm.trim().toLowerCase())
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [recipes, showFavoritesOnly, selectedFolder, categoryFilter, searchTerm]);
-
-  async function handleCreateFolder() {
-    if (!user || !canManageFolders) return;
-
-    const name = newFolderName.trim();
-    if (!name) return;
-
-    const { data, error } = await supabase
-      .from("work_group_folders")
-      .insert({
-        group_id: groupId,
-        name,
-        created_by: user.id,
-      })
-      .select()
-      .maybeSingle();
-
-    if (!error && data) {
-      setFolders((prev) => {
-        const exists = prev.some((f) => f.id === (data as any).id);
-        const next = exists ? prev : [...prev, data as GroupFolder];
-        return next.slice().sort((a, b) => a.name.localeCompare(b.name));
-      });
-      setNewFolderName("");
-      setShowNewFolderInput(false);
-    }
-  }
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+    };
+  }, [
+    sidebarOpen,
+    recipeSheetOpen,
+    sheetOpen,
+    moveFolderOpen,
+  ]);
 
   async function handleRenameFolder(folderId: string) {
-    if (!canManageFolders) return;
-
-    const folder = folders.find((f) => f.id === folderId);
-    const next = prompt("Nouveau nom :", folder?.name ?? "");
-    if (!next?.trim()) return;
-
-    await supabase
-      .from("work_group_folders")
-      .update({ name: next.trim() })
-      .eq("id", folderId)
-      .eq("group_id", groupId);
-
-    await loadFolders();
+    await renameFolder(folderId);
     setFolderMenuOpenId(null);
   }
 
   async function handleDeleteFolder(folderId: string) {
-    if (!canManageFolders) return;
-    if (!confirm("Supprimer ce dossier ?")) return;
-
-    await supabase
-      .from("work_group_folder_recipes")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("folder_id", folderId);
-
-    await supabase
-      .from("work_group_folders")
-      .delete()
-      .eq("id", folderId)
-      .eq("group_id", groupId);
-
-    if (selectedFolder === folderId) setSelectedFolder(null);
+    await deleteFolder(folderId);
     setFolderMenuOpenId(null);
-    await loadAll();
   }
 
-  async function handleToggleFavorite(recipeId: string, isFavorite: boolean) {
-    if (!user) return;
-
-    if (isFavorite) {
-      await supabase
-        .from("favorite_recipes")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("recipe_id", recipeId);
-    } else {
-      await supabase
-        .from("favorite_recipes")
-        .insert({ user_id: user.id, recipe_id: recipeId });
-    }
-
-    setRecipes((prev) =>
-      prev.map((r) => (r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r))
-    );
-  }
-
-  async function handleMoveToFolder(recipeId: string, folderId: string | null) {
-    if (!user || !canManageFolders) return;
-
-    await supabase
-      .from("work_group_folder_recipes")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("recipe_id", recipeId);
-
-    if (folderId) {
-      await supabase.from("work_group_folder_recipes").insert({
-        group_id: groupId,
-        recipe_id: recipeId,
-        folder_id: folderId,
-      });
-    }
-
-    setRecipes((prev) =>
-      prev.map((r) => (r.id === recipeId ? { ...r, folder_id: folderId } : r))
-    );
-  }
-
-  async function handleSelectMoveFolder(folderId: string | null) {
+  async function handleSelectMoveFolder(
+    folderId: string | null
+  ) {
     if (!moveRecipe) return;
+
     await handleMoveToFolder(moveRecipe.id, folderId);
     setMoveFolderOpen(false);
     setMoveRecipe(null);
   }
 
-  async function handleRemoveFromGroup(recipeId: string) {
-    if (!canRemoveFromGroup) return;
-    if (!confirm("Retirer cette recette du groupe ?")) return;
+  async function handleDrop(
+    folderId: string | null,
+    event: DragEvent
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
 
-    await supabase
-      .from("work_group_recipes")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("recipe_id", recipeId);
-
-    await supabase
-      .from("work_group_folder_recipes")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("recipe_id", recipeId);
-
-    await loadRecipes();
-  }
-
-  async function handleRemoveFromFolder(recipeId: string) {
-  if (!canManageFolders) return;
-  if (!confirm("Retirer cette recette du dossier ?")) return;
-
-  await supabase
-    .from("work_group_folder_recipes")
-    .delete()
-    .eq("group_id", groupId)
-    .eq("recipe_id", recipeId);
-
-  setRecipes((prev) =>
-    prev.map((r) => (r.id === recipeId ? { ...r, folder_id: null } : r))
-  );
-}
-
-  async function handleDrop(folderId: string | null, e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
     if (!draggedRecipe || !canManageFolders) return;
+
     await handleMoveToFolder(draggedRecipe, folderId);
     setDraggedRecipe(null);
   }
 
   function handleEdit(recipeId: string) {
     if (!canEdit) return;
-    if (onEdit) return onEdit(recipeId);
+
+    if (onEdit) {
+      onEdit(recipeId);
+      return;
+    }
+
     setViewingRecipeId(recipeId);
   }
 
   const headerLabel = useMemo(() => {
     if (selectedFolder && !searchTerm.trim()) {
-      return folders.find((f) => f.id === selectedFolder)?.name ?? "Dossier";
+      return (
+        folders.find(
+          (folder) => folder.id === selectedFolder
+        )?.name ?? "Dossier"
+      );
     }
+
     if (showFavoritesOnly) return "Favoris";
+
     return groupName;
-  }, [selectedFolder, showFavoritesOnly, folders, groupName, searchTerm]);
+  }, [
+    selectedFolder,
+    searchTerm,
+    folders,
+    showFavoritesOnly,
+    groupName,
+  ]);
 
   if (viewingRecipeId) {
     return (
@@ -1295,14 +1167,16 @@ export function SharedRecipeGroupMobile({
         )}
       </AnimatePresence>
 
-      <RecipeGroupsModal
-        open={showGroupsModal}
-        recipeId={activeRecipeId}
-        onClose={() => {
-          setShowGroupsModal(false);
-          setActiveRecipeId(null);
-        }}
-      />
+     {activeRecipeId && (
+        <RecipeGroupsModal
+          open={showGroupsModal}
+          recipeId={activeRecipeId}
+          onClose={() => {
+            setShowGroupsModal(false);
+            setActiveRecipeId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

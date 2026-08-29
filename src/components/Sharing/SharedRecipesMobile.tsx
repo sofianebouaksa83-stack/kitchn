@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Folder } from "lucide-react";
-import { SharedRecipeGroupMobile } from "./SharedRecipeGroupMobile";
+import { SharedRecipeGroup } from "./SharedRecipeGroup";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 
 type GroupMini = { id: string; name: string };
@@ -89,7 +89,8 @@ export function SharedRecipesMobile({
 
   if (selectedGroupId) {
     return (
-      <SharedRecipeGroupMobile
+      <SharedRecipeGroup
+        variant="mobile"
         groupId={selectedGroupId}
         groupName={selected?.name ?? "Groupe"}
         initialRecipeId={recipeToOpenId}

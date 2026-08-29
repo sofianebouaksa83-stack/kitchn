@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Share2, Folder } from "lucide-react";
 import { ui } from "../../styles/ui";
-import { SharedRecipeGroupDesktop } from "./SharedRecipeGroupDesktop";
+import { SharedRecipeGroup } from "./SharedRecipeGroup";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 type GroupMini = { id: string; name: string };
 
@@ -117,7 +117,8 @@ export function SharedRecipesDesktop({
   // ✅ Vue “dans un groupe”
   if (!loading && selectedGroupId) {
     return (
-      <SharedRecipeGroupDesktop
+      <SharedRecipeGroup
+        variant="desktop"
         groupId={selectedGroupId}
         groupName={selectedGroup?.name ?? "Groupe"}
         initialRecipeId={recipeToOpenId}

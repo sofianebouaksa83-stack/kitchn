@@ -1,22 +1,23 @@
-import { SharedRecipeGroupDesktop } from "./SharedRecipeGroupDesktop";
-import { SharedRecipeGroupMobile } from "./SharedRecipeGroupMobile";
+import { SharedRecipeGroupDesktopView } from "./SharedRecipeGroupDesktopView";
+import { SharedRecipeGroupMobileView } from "./SharedRecipeGroupMobileView";
 
 type Props = {
+  variant: "mobile" | "desktop";
   groupId: string;
   groupName?: string;
   onBack?: () => void;
+  onEdit?: (recipeId: string) => void;
+  initialRecipeId?: string | null;
+  onInitialRecipeOpened?: () => void;
 };
 
-export function SharedRecipeGroup(props: Props) {
-  return (
-    <>
-      <div className="lg:hidden">
-        <SharedRecipeGroupMobile {...props} />
-      </div>
+export function SharedRecipeGroup({
+  variant,
+  ...props
+}: Props) {
+  if (variant === "mobile") {
+    return <SharedRecipeGroupMobileView {...props} />;
+  }
 
-      <div className="hidden lg:block">
-        <SharedRecipeGroupDesktop {...props} />
-      </div>
-    </>
-  );
+  return <SharedRecipeGroupDesktopView {...props} />;
 }
