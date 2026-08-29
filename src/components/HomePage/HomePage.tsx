@@ -12,25 +12,8 @@ import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
 import { KitchNLoader } from "../Loading/KitchNLoader";
-
+import type { HomePageProps, RecipeItem, SharedRecipeItem, } from "../../features/home/types/home.types";
 const FREE_IMPORT_LIMIT = 30;
-
-type HomePageProps = {
-  navigateTo: (path: string) => void;
-  openRecipe?: (recipeId: string) => void;
-  openSharedRecipe?: (recipeId: string, groupId: string) => void;
-};
-
-type RecipeItem = Record<string, any>;
-
-type SharedRecipeItem = {
-  id: string;
-  recipe_id: string;
-  group_id: string;
-  created_at?: string | null;
-  recipe?: RecipeItem | null;
-  group_name?: string | null;
-};
 
 function getRecipeDate(recipe: RecipeItem) {
   return recipe?.created_at || recipe?.updated_at || recipe?.imported_at || "";
