@@ -1,4 +1,4 @@
-import React, { useRef, useState, } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
@@ -60,6 +60,7 @@ export function RecipeImportAI() {
     onDrop: handleDrop,
     onDropzoneClick: handleDropzoneClick,
     handleFileSelect: handleSelectedFiles,
+    handleFolderSelect: handleSelectedFolder,
   } = useImportFileSelection({
     busy,
     enqueueFiles,
@@ -103,13 +104,7 @@ export function RecipeImportAI() {
     enqueueFiles(valid);
   
   };
- 
 
-  const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-    await addFilesToQueue(files);
-  };
 
   async function importOne(itemId: string) {
     if (!user) return;
@@ -621,7 +616,7 @@ export function RecipeImportAI() {
                   multiple
                   // @ts-ignore
                   webkitdirectory="true"
-                  onChange={handleFolderSelect}
+                  onChange={handleSelectedFolder}
                   className="hidden"
                   disabled={busy}
                 />
