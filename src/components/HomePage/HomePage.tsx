@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   BookOpen,
   Users,
@@ -8,22 +8,14 @@ import {
 import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
-import type { HomePageProps, RecipeItem, SharedRecipeItem, } from "../../features/home/types/home.types";
+import type { HomePageProps } from "../../features/home/types/home.types";
 import { FREE_IMPORT_LIMIT, getRecipeSubtitle, getRecipeTitle, } from "../../features/home/utils/homeHelpers";
 import { HomeStatCard } from "../../features/home/components/HomeStatCard";
 import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
 import { HomeEmptyLine } from "../../features/home/components/HomeEmptyLine";
 import { HomeLoadingLine } from "../../features/home/components/HomeLoadingLine";
-import {
-  getHomeGroupIds,
-  getHomeImportCount,
-  getHomeUserIdentity,
-  getLatestSharedRecipes,
-  getMyLatestRecipes,
-  getMyRecipesCount,
-  getSharedRecipesCount,
-} from "../../features/home/services/homeDataService";
+import { useHomeData } from "../../features/home/hooks/useHomeData";
 
 function unlockPageScroll() {
   document.documentElement.style.overflow = "";
@@ -43,16 +35,16 @@ export default function HomePage({
 
   const isPremium = !!subscription.isPremium;
   const subscriptionLoading = !!subscription.loading;
+  const {
+  loading,
+  firstName,
+  recipesCount,
+  sharedCount,
+  importCount,
+  latestRecipes,
+  latestSharedRecipes,
+} = useHomeData(isPremium);
 
-  const [loading, setLoading] = useState(true);
-  const [firstName, setFirstName] = useState("Chef");
-  const [recipesCount, setRecipesCount] = useState(0);
-  const [sharedCount, setSharedCount] = useState(0);
-  const [importCount, setImportCount] = useState(0);
-  const [latestRecipes, setLatestRecipes] = useState<RecipeItem[]>([]);
-  const [latestSharedRecipes, setLatestSharedRecipes] = useState<
-    SharedRecipeItem[]
-  >([]);
 
   useEffect(() => {
     unlockPageScroll();
@@ -84,55 +76,6 @@ export default function HomePage({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPremium]);
-
-  async function loadHomeData() {
-    try {
-      setLoading(true);
-
-      const userIdentity =
-        await getHomeUserIdentity();
-
-      if (!userIdentity) return;
-
-      setFirstName(userIdentity.displayName);
-
-      const periodKey = new Date().toISOString().slice(0, 7);
-
-      const [ recipesData, recipesTotal, groupIds, currentImportCount, 
-        ] = await Promise.all([
-        getMyLatestRecipes(userIdentity.id),
-        getMyRecipesCount(userIdentity.id),
-        getHomeGroupIds(userIdentity.id),
-        getHomeImportCount(
-          userIdentity.id,
-          periodKey
-        ),
-      ]);
-
-      setLatestRecipes(recipesData);
-      setRecipesCount(recipesTotal);
-      setImportCount(currentImportCount);
-
-
-
-      setSharedCount(0);
-      setLatestSharedRecipes([]);
-
-      if (groupIds.length === 0) return;
-
-      const sharedTotal =
-        await getSharedRecipesCount(groupIds);
-
-      setSharedCount(sharedTotal);
-
-      const latestShared = await getLatestSharedRecipes(groupIds);
-      setLatestSharedRecipes(latestShared);
-    } catch (error) {
-      console.error("[HomePage] loadHomeData error:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   
   function handleOpenRecipe(recipeId: string) {
