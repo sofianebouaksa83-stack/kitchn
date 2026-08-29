@@ -57,6 +57,7 @@ export function RecipeImportAI() {
     isDragOver,
     handleDragEnter,
     handleDragLeave,
+    onDrop: handleDrop,
   } = useImportFileSelection({
     busy,
     enqueueFiles,
@@ -109,13 +110,7 @@ export function RecipeImportAI() {
     (document.getElementById("ai-file-input-desktop") as HTMLInputElement | null)?.click();
   };
 
-  const onDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (busy) return;
-    await addFilesToQueue(Array.from(e.dataTransfer.files || []));
-  };
-
+ 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
@@ -664,7 +659,7 @@ export function RecipeImportAI() {
               onDragEnter={handleDragEnter}
               onDragOver={handleDragEnter}
               onDragLeave={handleDragLeave}
-              onDrop={onDrop}
+              onDrop={handleDrop}
               className={[
                 "mt-3 rounded-xl border border-dashed px-4 py-3 transition",
                 isDragOver ? "border-amber-400/60 bg-black/10" : "border-white/15 hover:border-white/25",
