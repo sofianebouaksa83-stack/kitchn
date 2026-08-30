@@ -21,26 +21,16 @@ import {
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
 import RecipeDisplayMobile from "./RecipeDisplayMobile";
+import type {
+  RecipeFolder,
+  RecipeListItem,
+} from "../../../features/recipe/types/recipe.types";
 
-type IngredientRow = { designation: string | null };
+export type RecipeListMobileRecipe =
+  RecipeListItem;
 
-export type RecipeListMobileRecipe = {
-  id: string;
-  title: string | null;
-  category: string | null;
-  servings: number | null;
-  prep_time: number | null;
-  cook_time: number | null;
-  is_visible?: boolean;
-  is_favorite?: boolean;
-  folder_id?: string | null;
-  ingredients: IngredientRow[];
-};
-
-export type RecipeListMobileFolder = {
-  id: string;
-  name: string;
-};
+export type RecipeListMobileFolder =
+  RecipeFolder;
 
 type Props = {
   userExists: boolean;
@@ -103,6 +93,8 @@ type Props = {
   onTrash: (recipeId: string, e: React.MouseEvent) => void;
 
   onMoveToFolder: (recipeId: string, folderId: string | null) => void;
+  recipeToOpenId?: string | null;
+  onRecipeOpened?: () => void;
 };
 
 function cn(...classes: Array<string | undefined | false>) {
@@ -248,7 +240,9 @@ export function RecipeListMobile(props: Props) {
     onEdit,
     onTrash,
     onMoveToFolder,
-  } = props;
+    recipeToOpenId,
+    onRecipeOpened,
+    } = props;
 
   const [openedRecipeId, setOpenedRecipeId] = useState<string | null>(null);
   const recipeSheetOpen = !!openedRecipeId;
@@ -263,6 +257,14 @@ export function RecipeListMobile(props: Props) {
 
   const [moveFolderOpen, setMoveFolderOpen] = useState(false);
   const [moveRecipe, setMoveRecipe] = useState<RecipeListMobileRecipe | null>(null);
+
+
+  useEffect(() => {
+  if (!recipeToOpenId) return;
+
+  setOpenedRecipeId(recipeToOpenId);
+  onRecipeOpened?.();
+}, [recipeToOpenId, onRecipeOpened]);
 
   useEffect(() => {
     const openPendingRecipe = (event?: Event) => {

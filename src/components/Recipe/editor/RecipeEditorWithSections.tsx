@@ -1,6 +1,6 @@
-import React from "react";
-import { RecipeEditorMobile } from "./RecipeEditorMobile";
+import { useIsDesktop } from "../../../features/recipe/hooks/useMediaQuery";
 import { RecipeEditorDesktop } from "./RecipeEditorDesktop";
+import { RecipeEditorMobile } from "./RecipeEditorMobile";
 
 type Props = {
   recipeId?: string | null;
@@ -10,15 +10,11 @@ type Props = {
 };
 
 export function RecipeEditorWithSections(props: Props) {
-  return (
-    <>
-      <div className="lg:hidden">
-        <RecipeEditorMobile {...props} />
-      </div>
+  const isDesktop = useIsDesktop();
 
-      <div className="hidden lg:block">
-        <RecipeEditorDesktop {...props} />
-      </div>
-    </>
+  return isDesktop ? (
+    <RecipeEditorDesktop {...props} />
+  ) : (
+    <RecipeEditorMobile {...props} />
   );
 }

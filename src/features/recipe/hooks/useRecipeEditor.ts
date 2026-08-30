@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAuth } from "../../../../contexts/AuthContext";
-import { supabase, type Recipe, type Ingredient } from "../../../../lib/supabase";
+import { useAuth } from "../../../contexts/AuthContext";
+import {
+  supabase,
+  type Recipe,
+  type Ingredient,
+} from "../../../lib/supabase";
 
 type RecipeSectionRow = {
   id: string;
   title: string | null;
   instructions: string | null;
-  order_index: number | null;
-};
-
-type SectionIngredientRow = {
-  section_id: string;
-  ingredient_id: string;
   order_index: number | null;
 };
 
@@ -23,7 +21,7 @@ type SectionForm = {
   collapsed: boolean;
 };
 
-type IngredientForm = {
+export type IngredientForm = {
   localId: string;
   dbId?: string; // id DB si existant (edit)
   quantity: number | string;
@@ -104,7 +102,6 @@ export function useRecipeEditor({ recipeId, onSave, onCreated }: UseRecipeEditor
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [sectionsDb, setSectionsDb] = useState<RecipeSectionRow[]>([]);
   const [ingredientsDb, setIngredientsDb] = useState<Ingredient[]>([]);
-  const [linksDb, setLinksDb] = useState<SectionIngredientRow[]>([]);
 
   // ---------- form state ----------
   const [title, setTitle] = useState<string>("");
@@ -156,7 +153,6 @@ export function useRecipeEditor({ recipeId, onSave, onCreated }: UseRecipeEditor
       setRecipe(null);
       setSectionsDb([]);
       setIngredientsDb([]);
-      setLinksDb([]);
 
       // form defaults
       setTitle("");
@@ -218,7 +214,6 @@ export function useRecipeEditor({ recipeId, onSave, onCreated }: UseRecipeEditor
         setRecipe(recipeData as Recipe);
         setSectionsDb((sectionsData ?? []) as RecipeSectionRow[]);
         setIngredientsDb((ingredientsData ?? []) as Ingredient[]);
-        setLinksDb((linksData ?? []) as SectionIngredientRow[]);
 
         // ---- hydrate form ----
         setTitle((recipeData as any)?.title ?? "");
@@ -482,7 +477,7 @@ export function useRecipeEditor({ recipeId, onSave, onCreated }: UseRecipeEditor
           .single();
         if (error) throw error;
         currentRecipeId = created.id;
-        onCreated?.(currentRecipeId);
+        onCreated?.(created.id);
       } else {
         const { error } = await supabase
           .from("recipes")

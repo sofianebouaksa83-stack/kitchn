@@ -10,7 +10,7 @@ import { AuthCallback } from "./components/Auth/AuthCallback";
 
 import HomePage from "./pages/HomePage";
 import RecipesPage from "./pages/RecipesPage";
-import RecipeEditorPage from "./pages/RecipeEditorPage";
+import RecipesEditorPage from "./pages/RecipesEditorPage";
 import GroupsPage from "./pages/GroupsPage";
 import SharedRecipesPage from "./pages/SharedRecipesPage";
 import ImportPage from "./pages/ImportPage";

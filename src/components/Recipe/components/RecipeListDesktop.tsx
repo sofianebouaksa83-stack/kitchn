@@ -16,26 +16,16 @@ import {
   X,
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
+import type {
+  RecipeFolder,
+  RecipeListItem,
+} from "../../../features/recipe/types/recipe.types";
 
-type IngredientRow = { designation: string | null };
+export type RecipeListDesktopRecipe =
+  RecipeListItem;
 
-export type RecipeListDesktopRecipe = {
-  id: string;
-  title: string | null;
-  category: string | null;
-  servings: number | null;
-  prep_time: number | null;
-  cook_time: number | null;
-  is_visible?: boolean;
-  is_favorite?: boolean;
-  folder_id?: string | null;
-  ingredients: IngredientRow[];
-};
-
-export type RecipeListDesktopFolder = {
-  id: string;
-  name: string;
-};
+export type RecipeListDesktopFolder =
+  RecipeFolder;
 
 type Props = {
   userExists: boolean;

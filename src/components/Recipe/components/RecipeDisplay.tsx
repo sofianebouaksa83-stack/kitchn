@@ -1,6 +1,6 @@
-import React from "react";
-import RecipeDisplayMobile from "./RecipeDisplayMobile";
+import { useIsDesktop } from "../../../features/recipe/hooks/useMediaQuery";
 import RecipeDisplayDesktop from "./RecipeDisplayDesktop";
+import RecipeDisplayMobile from "./RecipeDisplayMobile";
 
 type Props = {
   recipeId: string;
@@ -8,17 +8,13 @@ type Props = {
   onEdit?: (id: string) => void;
 };
 
-export function RecipeDisplay({ recipeId, onBack, onEdit }: Props) {
-  return (
-    <>
-      <div className="lg:hidden">
-        <RecipeDisplayMobile recipeId={recipeId} onBack={onBack} onEdit={onEdit} />
-      </div>
+export function RecipeDisplay(props: Props) {
+  const isDesktop = useIsDesktop();
 
-      <div className="hidden lg:block">
-        <RecipeDisplayDesktop recipeId={recipeId} onBack={onBack} onEdit={onEdit} />
-      </div>
-    </>
+  return isDesktop ? (
+    <RecipeDisplayDesktop {...props} />
+  ) : (
+    <RecipeDisplayMobile {...props} />
   );
 }
 
