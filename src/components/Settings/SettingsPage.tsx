@@ -52,7 +52,7 @@ function getTabFromHash(): SettingsTab | null {
     "subscription",
     "account",
   ];
-  return allowed.includes(tab as any) ? (tab as SettingsTab) : null;
+  return allowed.find((allowedTab) => allowedTab === tab) ?? null;
 }
 
 

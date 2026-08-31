@@ -9,17 +9,7 @@ import {
 
 import { Section } from "./Section";
 import { cn } from "../utils/cn";
-
-export type PendingInvitationRow = {
-  id: string;
-  token: string;
-  email: string | null;
-  role: string | null;
-  work_group_id: string | null;
-  work_group_name: string | null;
-  expires_at: string | null;
-  created_at: string | null;
-};
+import type { PendingInvitationRow } from "../types/settings.types";
 
 type InvitationsSettingsProps = {
   loading: boolean;

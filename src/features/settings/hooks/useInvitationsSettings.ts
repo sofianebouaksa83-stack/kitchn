@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
-import type { PendingInvitationRow } from "../components/InvitationsSettings";
+import { getErrorMessage } from "../services/settingsHelpers";
+import type { PendingInvitationRow } from "../types/settings.types";
 
 type UseInvitationsSettingsProps = {
   userId?: string;
@@ -86,18 +87,19 @@ export function useInvitationsSettings({
 
         setInvitations(rows);
         setInvCount(rows.length);
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!alive) return;
 
         setInvErr(
-          error?.message ??
+          getErrorMessage(
+            error,
             "Impossible de charger les invitations."
+          )
         );
 
         setInvitations([]);
       } finally {
-        if (!alive) return;
-        setInvLoading(false);
+        if (alive) setInvLoading(false);
       }
     }
 
@@ -140,10 +142,12 @@ export function useInvitationsSettings({
       setInvCount(rows.length);
 
       window.location.hash = "/groups";
-    } catch (error: any) {
+    } catch (error: unknown) {
       setInvErr(
-        error?.message ??
+        getErrorMessage(
+          error,
           "Impossible d'accepter l'invitation."
+        )
       );
     } finally {
       setJoiningToken(null);

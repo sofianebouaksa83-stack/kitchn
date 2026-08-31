@@ -16,6 +16,17 @@ export type ProfileRow = {
   updated_at: string | null;
 };
 
+export type PendingInvitationRow = {
+  id: string;
+  token: string;
+  email: string | null;
+  role: string | null;
+  work_group_id: string | null;
+  work_group_name: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+};
+
 export type SettingsTab =
   | "profile"
   | "notifications"
