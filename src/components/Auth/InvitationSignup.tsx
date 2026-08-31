@@ -37,7 +37,6 @@ export function InvitationSignup({ token }: InvitationSignupProps) {
   const [success, setSuccess] = useState(false);
 
   const inputClass = ui.inputSoft ?? ui.input;
-  const textareaClass = ui.textareaSoft ?? ui.textarea ?? inputClass;
   const selectClass = ui.selectSoft ?? ui.inputSoft ?? ui.input;
   const btnPrimary = ui.btnPrimary;
   const pageBg = ui.dashboardBg;

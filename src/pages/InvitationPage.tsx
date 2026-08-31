@@ -25,6 +25,23 @@ type InvitePublicRow = {
   accepted_at: string | null;
 };
 
+type AcceptInvitationResult = {
+  success?: boolean;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 function getInvitationToken() {
   const path = window.location.pathname;
 
@@ -121,11 +138,11 @@ export default function InvitationPage() {
         }
 
         setState("ready");
-      } catch (e: any) {
+      } catch (error: unknown) {
         if (!alive) return;
         setInv(null);
         setState("invalid");
-        setErr(e?.message ?? "Invitation invalide.");
+        setErr(getErrorMessage(error, "Invitation invalide."));
       }
     }
 
@@ -157,25 +174,23 @@ export default function InvitationPage() {
     try {
       setState("joining");
 
-const { data, error } = await supabase.rpc("accept_group_invitation", {
-  invitation_token: token,
-});
-
-if (error) throw error;
-
-const payload = data as any;
-if (!payload?.success) throw new Error("Impossible d'accepter l'invitation.");
-
-// ✅ redirige vers groupes
-window.location.hash = "/groups";
+      const { data, error } = await supabase.rpc("accept_group_invitation", {
+        invitation_token: token,
+      });
 
       if (error) throw error;
 
-      // ✅ ton app utilise des views -> /groups suffit
+      const payload = data as AcceptInvitationResult | null;
+      if (!payload?.success) {
+        throw new Error("Impossible d'accepter l'invitation.");
+      }
+
       window.location.hash = "/groups";
-    } catch (e: any) {
+    } catch (error: unknown) {
       setState("ready");
-      setErr(e?.message ?? "Impossible d'accepter l'invitation.");
+      setErr(
+        getErrorMessage(error, "Impossible d'accepter l'invitation.")
+      );
     }
   }
 
@@ -188,7 +203,7 @@ window.location.hash = "/groups";
       <div className="mx-auto w-full max-w-xl">
         <div
           className={[
-            ui.cardGlass,
+            ui.glassPanel,
             "p-4 sm:p-6",
             "space-y-4 sm:space-y-5",
           ].join(" ")}
@@ -225,12 +240,12 @@ window.location.hash = "/groups";
               {err && <div className="text-xs text-white/55">{err}</div>}
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
-                  className={ui.buttonSecondary}
+                  className={ui.btnDark}
                   onClick={() => (window.location.hash = "/")}
                 >
                   Retour à l’accueil
                 </button>
-                <button className={ui.buttonPrimary} onClick={goLogin}>
+                <button className={ui.btnPrimary} onClick={goLogin}>
                   <LogIn size={16} />
                   Se connecter
                 </button>
@@ -304,7 +319,7 @@ window.location.hash = "/groups";
                       Invitation déjà acceptée.
                     </div>
                     <button
-                      className={ui.buttonPrimary}
+                      className={ui.btnPrimary}
                       onClick={() => (window.location.hash = "/groups")}
                     >
                       Aller à mes groupes
@@ -323,12 +338,12 @@ window.location.hash = "/groups";
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button
-                        className={ui.buttonSecondary}
+                        className={ui.btnDark}
                         onClick={() => (window.location.hash = "/")}
                       >
                         Retour
                       </button>
-                      <button className={ui.buttonPrimary} onClick={goLogin}>
+                      <button className={ui.btnPrimary} onClick={goLogin}>
                         <LogIn size={16} />
                         Se connecter
                       </button>
@@ -347,7 +362,7 @@ window.location.hash = "/groups";
                           Après connexion, tu reviens automatiquement ici.
                         </div>
                         <button
-                          className={[ui.buttonPrimary, "mt-3 w-full"].join(" ")}
+                          className={[ui.btnPrimary, "mt-3 w-full"].join(" ")}
                           onClick={goLogin}
                         >
                           <LogIn size={16} />
@@ -356,7 +371,7 @@ window.location.hash = "/groups";
                       </div>
                     ) : (
                       <button
-                        className={[ui.buttonPrimary, "w-full"].join(" ")}
+                        className={[ui.btnPrimary, "w-full"].join(" ")}
                         onClick={onAccept}
                         disabled={state === "joining"}
                       >

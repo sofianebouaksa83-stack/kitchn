@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { CheckoutProvider } from "@stripe/react-stripe-js/checkout";
-import { Crown, ArrowLeft, Loader2, ShieldCheck, Check } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { ui } from "../../styles/ui";
 import { SubscriptionPaymentForm } from "./SubscriptionPaymentForm";
-import { ChefHat } from "../icons/ChefHat";
 type Props = {
   onBack: () => void;
 };
@@ -67,7 +66,7 @@ const options = useMemo(() => {
     clientSecret,
     elementsOptions: {
       appearance: {
-        theme: "night",
+        theme: "night" as const,
         variables: {
           colorPrimary: "#f59e0b",
           colorBackground: "rgba(15,23,42,0.65)",
@@ -142,7 +141,7 @@ const options = useMemo(() => {
           },
         }
       },
-      loader: "auto",
+      loader: "auto" as const,
     },
   };
 }, [clientSecret]);

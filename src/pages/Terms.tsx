@@ -1,4 +1,3 @@
-import React from "react";
 import { LegalLayout, LegalSection } from "../components/Legal/LegalLayout";
 
 export default function Terms() {

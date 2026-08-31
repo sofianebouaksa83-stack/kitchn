@@ -32,10 +32,10 @@ export function PremiumModal({ open, gateKey, onClose, onGoSubscription }: Props
           <div className="text-sm opacity-80 mt-2">{copy.body}</div>
 
           <div className="mt-5 flex gap-2 justify-end">
-            <button className={ui.btnSecondary} onClick={onClose}>
+            <button type="button" className={ui.btnDark} onClick={onClose}>
               Plus tard
             </button>
-            <button className={ui.btnPrimary} onClick={onGoSubscription}>
+            <button type="button" className={ui.btnPrimary} onClick={onGoSubscription}>
               {copy.cta}
             </button>
           </div>

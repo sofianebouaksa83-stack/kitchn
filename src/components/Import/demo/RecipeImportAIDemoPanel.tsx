@@ -22,7 +22,6 @@ import {
 import { ui } from "../../../styles/ui";
 import {
   DemoCursor,
-  type DemoStep,
   moveCursorToElement,
   pulseClick,
   wait,
@@ -222,34 +221,6 @@ Ingrédients
   });
 }
 
-function SidebarItem({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active?: boolean;
-  icon: React.ReactNode;
-  label: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm transition",
-        active
-          ? "bg-white/[0.08] text-white ring-1 ring-white/10"
-          : "text-slate-300 hover:bg-white/[0.05]",
-      ].join(" ")}
-    >
-      <span className="shrink-0">{icon}</span>
-      <span className="truncate">{label}</span>
-    </button>
-  );
-}
-
 export function RecipeImportAIDemoPanel() {
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [message, setMessage] = useState("");
@@ -268,13 +239,13 @@ export function RecipeImportAIDemoPanel() {
   const [activeFolderId, setActiveFolderId] = useState<string>(FAKE_FOLDERS[0].id);
 
   const [demoRunning, setDemoRunning] = useState(false);
-  const [demoStep, setDemoStep] = useState<DemoStep>("idle");
   const [cursor, setCursor] = useState({ x: 120, y: 120, click: false });
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const filesBtnRef = useRef<HTMLButtonElement | null>(null);
   const analyzeBtnRef = useRef<HTMLButtonElement | null>(null);
   const firstOpenBtnRef = useRef<HTMLButtonElement | null>(null);
+  const runDemoRef = useRef<() => void>(() => undefined);
 
   const queueRef = useRef<QueueItem[]>([]);
   useEffect(() => {
@@ -591,8 +562,6 @@ export function RecipeImportAIDemoPanel() {
     if (demoRunning) return;
 
     setDemoRunning(true);
-    setDemoStep("move-to-files");
-
     setQueue([]);
     setSelectedId(null);
     setMessage("");
@@ -612,13 +581,10 @@ export function RecipeImportAIDemoPanel() {
     await wait(160);
 
     setIsLibraryOpen(true);
-    setDemoStep("open-library");
-
     await wait(250);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-    setDemoStep("move-to-open");
     moveCursorToElement(firstOpenBtnRef.current, rootRef.current, setCursor, -6, -2);
     await wait(900);
 
@@ -627,11 +593,8 @@ export function RecipeImportAIDemoPanel() {
     await wait(160);
 
     await handleFakeLibraryDownload(FAKE_LIBRARY_FILES[0]);
-    setDemoStep("select-file");
-
     await wait(900);
 
-    setDemoStep("move-to-analyze");
     moveCursorToElement(analyzeBtnRef.current, rootRef.current, setCursor, -4, -2);
     await wait(900);
 
@@ -639,22 +602,26 @@ export function RecipeImportAIDemoPanel() {
     pulseClick(setCursor, 140);
     await wait(160);
 
-    setDemoStep("analyze");
     await processQueue();
 
     await wait(1400);
 
-    setDemoStep("done");
     setDemoRunning(false);
 
     window.setTimeout(() => {
-      void runDemo();
+      runDemoRef.current();
     }, 1800);
   }
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    runDemoRef.current = () => {
       void runDemo();
+    };
+  });
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      runDemoRef.current();
     }, 1200);
 
     return () => window.clearTimeout(t);
@@ -757,7 +724,7 @@ export function RecipeImportAIDemoPanel() {
                   id="ai-demo-panel-folder-input"
                   type="file"
                   multiple
-                  // @ts-ignore
+                  // @ts-expect-error -- attribut Chromium absent des types React.
                   webkitdirectory="true"
                   onChange={handleFolderSelect}
                   className="hidden"
