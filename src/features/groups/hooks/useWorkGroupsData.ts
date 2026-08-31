@@ -1,14 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase, Profile, WorkGroup } from "../../../../lib/supabase";
-import type { PremiumGateKey } from "../../../../lib/entitlements";
+import type { Profile } from "../../../lib/supabase";
+import type { PremiumGateKey } from "../../../lib/entitlements";
+import {
+  addGroupMember,
+  addGroupOwner,
+  canAddGroupMember,
+  canCreateWorkGroup,
+  createWorkGroup,
+  deleteWorkGroup,
+  fetchTeamUsers,
+  fetchUserRestaurantId,
+  fetchWorkGroups,
+  removeGroupMember,
+  renameWorkGroup,
+} from "../services/groupsService";
+import type { GroupWithMembers } from "../types/groups.types";
 
-export type GroupWithMembers = WorkGroup & {
-  members: (Profile & { role: string })[];
-  isOwner: boolean;
-};
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
 
-function isForbidden(err: any) {
-  const msg = String(err?.message ?? "").toLowerCase();
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+}
+
+function isForbidden(error: unknown) {
+  const msg = getErrorMessage(error, "").toLowerCase();
   return (
     msg.includes("403") ||
     msg.includes("forbidden") ||
@@ -27,11 +47,7 @@ export function useWorkGroupsData(opts: {
   const { userId, isPremium, ent, openPremium, onCreatedToast } = opts;
 
   const [groups, setGroups] = useState<GroupWithMembers[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const [profileLoading, setProfileLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [restaurantRole, setRestaurantRole] = useState<string | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
@@ -64,116 +80,51 @@ export function useWorkGroupsData(opts: {
   }, [teamUsers, selectedGroupFresh]);
 
   async function loadTeamUsers(restaurantIdParam: string) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, restaurant_id, restaurant_role")
-      .eq("restaurant_id", restaurantIdParam)
-      .order("full_name", { ascending: true });
-
-    if (error) throw error;
-    setTeamUsers(data ?? []);
+    setTeamUsers(await fetchTeamUsers(restaurantIdParam));
   }
 
   async function loadGroups() {
     if (!userId) return;
 
-    setLoading(true);
     setErrorMsg(null);
 
     try {
-      const { data: membershipData, error: membershipErr } = await supabase
-        .from("group_members")
-        .select("work_group_id")
-        .eq("user_id", userId);
-
-      if (membershipErr) throw membershipErr;
-
-      const memberGroupIds = (membershipData ?? []).map((m: any) => m.work_group_id);
-
-      const { data: ownedGroups, error: ownedErr } = await supabase
-        .from("work_groups")
-        .select("id")
-        .eq("created_by", userId);
-
-      if (ownedErr) throw ownedErr;
-
-      const allGroupIds = [
-        ...new Set([...memberGroupIds, ...(ownedGroups ?? []).map((g: any) => g.id)]),
-      ];
-
-      if (!allGroupIds.length) {
-        setGroups([]);
-        return;
-      }
-
-      const { data: groupsData, error: groupsErr } = await supabase
-        .from("work_groups")
-        .select("*")
-        .in("id", allGroupIds);
-
-      if (groupsErr) throw groupsErr;
-
-      const groupsWithMembers: GroupWithMembers[] = await Promise.all(
-        (groupsData ?? []).map(async (group: any) => {
-          const { data: members, error: membersErr } = await supabase
-            .from("group_members")
-            .select("role, profiles!group_members_user_id_fkey(*)")
-            .eq("work_group_id", group.id);
-
-          if (membersErr) throw membersErr;
-
-          return {
-            ...group,
-            members: (members ?? []).map((m: any) => ({
-              ...m.profiles,
-              role: m.role,
-            })),
-            isOwner: group.created_by === userId,
-          } as GroupWithMembers;
-        })
+      setGroups(await fetchWorkGroups(userId));
+    } catch (error: unknown) {
+      setErrorMsg(
+        getErrorMessage(
+          error,
+          "Erreur lors du chargement des groupes"
+        )
       );
-
-      setGroups(groupsWithMembers);
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors du chargement des groupes");
       setGroups([]);
-    } finally {
-      setLoading(false);
     }
   }
 
   async function reloadProfileAndData() {
     if (!userId) return;
 
-    setProfileLoading(true);
     setErrorMsg(null);
 
     try {
-      const { data: me, error: meErr } = await supabase
-        .from("profiles")
-        .select("restaurant_id, restaurant_role")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (meErr) throw meErr;
-
-      const rid = (me as any)?.restaurant_id ?? null;
+      const rid = await fetchUserRestaurantId(userId);
       setRestaurantId(rid);
-      setRestaurantRole((me as any)?.restaurant_role ?? null);
 
       await loadGroups();
 
       if (!rid) {
         setTeamUsers([]);
       }
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors du chargement du profil");
+    } catch (error: unknown) {
+      setErrorMsg(
+        getErrorMessage(
+          error,
+          "Erreur lors du chargement du profil"
+        )
+      );
       setRestaurantId(null);
-      setRestaurantRole(null);
       setGroups([]);
       setTeamUsers([]);
-    } finally {
-      setProfileLoading(false);
     }
   }
 
@@ -186,60 +137,29 @@ export function useWorkGroupsData(opts: {
   async function handleCreateGroup(): Promise<string | null> {
     if (!userId || !newGroupName.trim()) return null;
 
-  const ownedGroups = groups.filter(g => g.isOwner).length;
+    const ownedGroups = groups.filter((group) => group.isOwner).length;
 
-  if (!isPremium && ownedGroups >= ent.maxGroups) {
-    openPremium("groups.limit");
-    return null;
-  }
+    if (!isPremium && ownedGroups >= ent.maxGroups) {
+      openPremium("groups.limit");
+      return null;
+    }
 
     setManageLoading(true);
     setErrorMsg(null);
 
     try {
-      // Vérif backend réelle
-      const { data: canCreate, error: canCreateErr } = await supabase.rpc("can_create_group");
-      if (canCreateErr) throw canCreateErr;
-
-      if (!canCreate) {
+      if (!(await canCreateWorkGroup())) {
         openPremium("groups.limit");
         return null;
       }
 
-      const { data: me, error: meErr } = await supabase
-        .from("profiles")
-        .select("restaurant_id")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (meErr) throw meErr;
-
-      const { data: created, error: createErr } = await supabase
-        .from("work_groups")
-        .insert({
-          name: newGroupName.trim(),
-          description: newGroupDescription.trim() || null,
-          restaurant_id: (me as any)?.restaurant_id ?? null,
-          created_by: userId,
-        })
-        .select()
-        .single();
-
-      if (createErr) throw createErr;
-      if (!created) throw new Error("Création du groupe impossible");
-
-      const { error: memberErr } = await supabase.from("group_members").insert({
-        work_group_id: created.id,
-        user_id: userId,
-        role: "admin",
+      const created = await createWorkGroup({
+        name: newGroupName.trim(),
+        description: newGroupDescription.trim() || null,
+        restaurantId: await fetchUserRestaurantId(userId),
+        userId,
       });
-
-      if (
-        memberErr &&
-        !String(memberErr.message || "").toLowerCase().includes("duplicate")
-      ) {
-        throw memberErr;
-      }
+      await addGroupOwner(created.id, userId);
 
       await loadGroups();
 
@@ -250,8 +170,13 @@ export function useWorkGroupsData(opts: {
       onCreatedToast?.(created.name ?? "Groupe");
 
       return created.id;
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors de la création du groupe");
+    } catch (error: unknown) {
+      setErrorMsg(
+        getErrorMessage(
+          error,
+          "Erreur lors de la création du groupe"
+        )
+      );
       return null;
     } finally {
       setManageLoading(false);
@@ -280,26 +205,12 @@ export function useWorkGroupsData(opts: {
     setErrorMsg(null);
 
     try {
-      // Vérif backend réelle
-      const { data: canAdd, error: canAddErr } = await supabase.rpc(
-        "can_add_group_member",
-        { p_group_id: groupId }
-      );
-
-      if (canAddErr) throw canAddErr;
-
-      if (!canAdd) {
+      if (!(await canAddGroupMember(groupId))) {
         openPremium("members.limit");
         return;
       }
 
-      const { error } = await supabase.from("group_members").insert({
-        work_group_id: groupId,
-        user_id: selectedUserId,
-        role: "commis",
-      });
-
-      if (error) throw error;
+      await addGroupMember(groupId, selectedUserId);
 
       setSelectedUserId("");
       await loadGroups();
@@ -307,9 +218,14 @@ export function useWorkGroupsData(opts: {
       if (selectedGroupFresh?.restaurant_id) {
         await loadTeamUsers(selectedGroupFresh.restaurant_id);
       }
-    } catch (e: any) {
-      if (!isForbidden(e)) {
-        setErrorMsg(e?.message ?? "Erreur lors de l'ajout du membre");
+    } catch (error: unknown) {
+      if (!isForbidden(error)) {
+        setErrorMsg(
+          getErrorMessage(
+            error,
+            "Erreur lors de l'ajout du membre"
+          )
+        );
       }
     } finally {
       setManageLoading(false);
@@ -323,8 +239,7 @@ export function useWorkGroupsData(opts: {
     setErrorMsg(null);
 
     try {
-      const { error } = await supabase.from("work_groups").delete().eq("id", groupId);
-      if (error) throw error;
+      await deleteWorkGroup(groupId);
 
       setShowManageModal(false);
       setSelectedGroup(null);
@@ -332,8 +247,13 @@ export function useWorkGroupsData(opts: {
       setTeamUsers([]);
 
       await loadGroups();
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors de la suppression du groupe");
+    } catch (error: unknown) {
+      setErrorMsg(
+        getErrorMessage(
+          error,
+          "Erreur lors de la suppression du groupe"
+        )
+      );
     } finally {
       setManageLoading(false);
     }
@@ -350,19 +270,16 @@ export function useWorkGroupsData(opts: {
     setErrorMsg(null);
 
     try {
-      const { error } = await supabase
-        .from("work_groups")
-        .update({ name: next })
-        .eq("id", groupId);
-
-      if (error) throw error;
+      await renameWorkGroup(groupId, next);
 
       setEditingId(null);
       setEditName("");
 
       await loadGroups();
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors du renommage");
+    } catch (error: unknown) {
+      setErrorMsg(
+        getErrorMessage(error, "Erreur lors du renommage")
+      );
     } finally {
       setManageLoading(false);
     }
@@ -379,21 +296,20 @@ export function useWorkGroupsData(opts: {
         return;
       }
 
-      const { error } = await supabase
-        .from("group_members")
-        .delete()
-        .eq("work_group_id", groupId)
-        .eq("user_id", userIdToRemove);
-
-      if (error) throw error;
+      await removeGroupMember(groupId, userIdToRemove);
 
       await loadGroups();
 
       if (selectedGroupFresh?.restaurant_id) {
         await loadTeamUsers(selectedGroupFresh.restaurant_id);
       }
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors de la suppression du membre");
+    } catch (error: unknown) {
+      setErrorMsg(
+        getErrorMessage(
+          error,
+          "Erreur lors de la suppression du membre"
+        )
+      );
     } finally {
       setManageLoading(false);
     }
@@ -410,9 +326,14 @@ export function useWorkGroupsData(opts: {
     if (group.restaurant_id) {
       try {
         await loadTeamUsers(group.restaurant_id);
-      } catch (e: any) {
-        if (!isForbidden(e)) {
-          setErrorMsg(e?.message ?? "Impossible de charger l'équipe");
+      } catch (error: unknown) {
+        if (!isForbidden(error)) {
+          setErrorMsg(
+            getErrorMessage(
+              error,
+              "Impossible de charger l'équipe"
+            )
+          );
         }
       }
     } else {
@@ -430,10 +351,7 @@ export function useWorkGroupsData(opts: {
 
   return {
     groups,
-    loading,
-    profileLoading,
     restaurantId,
-    restaurantRole,
     canManageGroups,
 
     showCreateModal,
@@ -447,7 +365,6 @@ export function useWorkGroupsData(opts: {
     showManageModal,
     manageLoading,
     errorMsg,
-    setErrorMsg,
 
     availableTeam,
     selectedUserId,

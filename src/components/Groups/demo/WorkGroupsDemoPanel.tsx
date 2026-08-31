@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Users } from "lucide-react";
 import { ui } from "../../../styles/ui";
 

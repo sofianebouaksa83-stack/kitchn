@@ -1,14 +1,12 @@
 import { RefreshCw } from "lucide-react";
-import { InvitationStatusIcon } from "../../../InvitationStatusIcon";
-import type { InviteViewState, InvitationRow } from "../hooks/usePendingInvitation";
-
-type Entitlements = {
-  maxGroups: number;
-  maxMembersPerGroup: number;
-};
+import { InvitationStatusIcon } from "../../../components/InvitationStatusIcon";
+import { ui } from "../../../styles/ui";
+import type {
+  InvitationRow,
+  InviteViewState,
+} from "../types/groups.types";
 
 export function SoloModeCard(props: {
-  ui: any;
   errorMsg: string | null;
 
   checkingInvite: boolean;
@@ -20,17 +18,8 @@ export function SoloModeCard(props: {
 
   onRefreshInvite: () => Promise<void>;
   onAcceptInvite: () => Promise<void>;
-
-  canCreateGroup: boolean;
-  onCreateGroup: () => void;
-  isPremium: boolean;
-
-  // ⚠️ peut être undefined → on protège
-  ent?: Entitlements;
-  groupsCount?: number;
 }) {
   const {
-    ui,
     errorMsg,
     checkingInvite,
     acceptingInvite,
@@ -40,21 +29,7 @@ export function SoloModeCard(props: {
     acceptSuccess,
     onRefreshInvite,
     onAcceptInvite,
-    canCreateGroup,
-    onCreateGroup,
-    isPremium,
-    ent,
-    groupsCount,
   } = props;
-
-  // ✅ SAFE DEFAULTS (clé du fix)
-const safeEnt = ent ?? { maxGroups: 1, maxMembersPerGroup: 10 };
-
-
-  const safeGroupsCount = groupsCount ?? 0;
-
-  const freeLimitReached =
-    !isPremium && safeGroupsCount >= safeEnt.maxGroups;
 
   const restaurantName =
     pendingInvite?.restaurants?.name ??
@@ -77,38 +52,6 @@ const safeEnt = ent ?? { maxGroups: 1, maxMembersPerGroup: 10 };
           équipe.
         </p>
 
-        {canCreateGroup && (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                if (freeLimitReached) return;
-                onCreateGroup();
-              }}
-              className={`${ui.btnPrimary} w-full sm:w-auto`}
-              disabled={freeLimitReached}
-              title={
-                freeLimitReached
-                  ? "Limite Free atteinte (1 groupe max)"
-                  : "Créer mon premier groupe"
-              }
-            >
-              + Créer mon premier groupe
-            </button>
-
-            <p className="mt-2 text-xs text-slate-400">
-              {isPremium
-                ? "Premium : groupes illimités."
-                : `Version gratuite : ${safeEnt.maxGroups} groupe max / ${safeEnt.maxMembersPerGroup} membres max.`}
-            </p>
-
-            {freeLimitReached && (
-              <p className="mt-1 text-xs text-amber-200">
-                Limite atteinte. Passe Premium pour créer plusieurs groupes.
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="rounded-2xl bg-black/10 ring-1 ring-white/10 p-4">

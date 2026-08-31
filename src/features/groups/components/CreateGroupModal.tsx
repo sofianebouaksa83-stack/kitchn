@@ -1,30 +1,10 @@
-import { useEffect } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { X } from "lucide-react";
-
-function useLockBodyScroll(open: boolean) {
-  useEffect(() => {
-    if (!open) {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-      return;
-    }
-
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
-
-    return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    };
-  }, [open]);
-}
+import type { GroupEntitlements } from "../../../lib/entitlements";
+import { useLockBodyScroll } from "../../../hooks/useLockBodyScroll";
+import { ui } from "../../../styles/ui";
 
 export function CreateGroupModal(props: {
-  ui: any;
   open: boolean;
   onClose: () => void;
   manageLoading: boolean;
@@ -36,10 +16,9 @@ export function CreateGroupModal(props: {
 
   onCreate: () => Promise<void>;
   isPremium: boolean;
-  ent: { maxGroups: number; maxMembersPerGroup: number };
+  ent: GroupEntitlements;
 }) {
   const {
-    ui,
     open,
     onClose,
     manageLoading,
@@ -53,7 +32,7 @@ export function CreateGroupModal(props: {
   } = props;
 
   const dragControls = useDragControls();
-  useLockBodyScroll(open);
+  useLockBodyScroll(open, true);
 
   return (
     <AnimatePresence>

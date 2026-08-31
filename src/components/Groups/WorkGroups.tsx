@@ -1,22 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { Users, Plus } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus, Users } from "lucide-react";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { CreateGroupModal } from "../../features/groups/components/CreateGroupModal";
+import { GroupsGrid } from "../../features/groups/components/GroupsGrid";
+import { ManageGroupModal } from "../../features/groups/components/ManageGroupModal";
+import { SoloModeCard } from "../../features/groups/components/SoloModeCard";
+import { usePendingInvitation } from "../../features/groups/hooks/usePendingInvitation";
+import { useWorkGroupsData } from "../../features/groups/hooks/useWorkGroupsData";
 import { useSubscription } from "../../hooks/useSubscription";
-import { getGroupEntitlements, PremiumGateKey } from "../../lib/entitlements";
-
+import {
+  getGroupEntitlements,
+  type PremiumGateKey,
+} from "../../lib/entitlements";
 import { ui } from "../../styles/ui";
-import { PremiumModal } from "../PremiumModal";
-
-import { useWorkGroupsData } from "./workgroups/hooks/useWorkGroupsData";
-import { usePendingInvitation } from "./workgroups/hooks/usePendingInvitation";
-
-import { SoloModeCard } from "./workgroups/ui/SoloModeCard";
-import { GroupsGrid } from "./workgroups/ui/GroupsGrid";
-import { CreateGroupModal } from "./workgroups/ui/CreateGroupModal";
-import { ManageGroupModal } from "./workgroups/ui/ManageGroupModal";
-
 import { KitchNLoader } from "../Loading/KitchNLoader";
+import { PremiumModal } from "../PremiumModal";
 
 type View = "subscription" | "settings";
 
@@ -24,16 +23,22 @@ type WorkGroupsProps = {
   onViewChange?: (view: View) => void;
 };
 
-function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
+function Toast({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
   useEffect(() => {
-    const t = setTimeout(onClose, 3500);
-    return () => clearTimeout(t);
+    const timer = window.setTimeout(onClose, 3500);
+    return () => window.clearTimeout(timer);
   }, [onClose]);
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70]">
-      <div className="rounded-2xl bg-black/70 ring-1 ring-white/15 backdrop-blur-md px-4 py-3 text-sm text-slate-100 shadow-[0_18px_70px_rgba(0,0,0,0.45)]">
-        {msg}
+    <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2">
+      <div className="rounded-2xl bg-black/70 px-4 py-3 text-sm text-slate-100 shadow-[0_18px_70px_rgba(0,0,0,0.45)] ring-1 ring-white/15 backdrop-blur-md">
+        {message}
       </div>
     </div>
   );
@@ -41,24 +46,75 @@ function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
 
 export function WorkGroups({ onViewChange }: WorkGroupsProps) {
   const { user, refreshProfile } = useAuth();
-  const { isPremium, loading: subLoading } = useSubscription(user?.id ?? null);
-
-  
-
-  console.log("USER ID:", user?.id)
-  console.log("Premium:", isPremium)
-  console.log("GROUPS isPremium:", isPremium);
+  const { isPremium, loading: subscriptionLoading } =
+    useSubscription(user?.id ?? null);
 
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const [premiumKey, setPremiumKey] = useState<PremiumGateKey>("groups");
-
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [premiumKey, setPremiumKey] =
+    useState<PremiumGateKey>("groups.limit");
+  const [toastMessage, setToastMessage] =
+    useState<string | null>(null);
 
   const groupsAnchorRef = useRef<HTMLDivElement | null>(null);
+  const entitlements = getGroupEntitlements(Boolean(isPremium));
 
   const openPremium = (key: PremiumGateKey) => {
     setPremiumKey(key);
     setPremiumOpen(true);
+  };
+
+  const workGroups = useWorkGroupsData({
+    userId: user?.id ?? null,
+    isPremium: Boolean(isPremium),
+    ent: entitlements,
+    openPremium,
+    onCreatedToast: (name) => {
+      setToastMessage(`Groupe “${name}” créé ✅`);
+    },
+  });
+
+  const invitation = usePendingInvitation({
+    userId: user?.id ?? null,
+    refreshProfile: async () => {
+      await refreshProfile?.();
+    },
+    onAccepted: workGroups.reloadProfileAndData,
+  });
+
+  const ownedGroupsCount = workGroups.groups.filter(
+    (group) => group.isOwner
+  ).length;
+  const isSolo = !workGroups.restaurantId;
+
+  const requestCreate = () => {
+    if (
+      !isPremium &&
+      ownedGroupsCount >= entitlements.maxGroups
+    ) {
+      openPremium("groups.limit");
+      return;
+    }
+
+    workGroups.setShowCreateModal(true);
+  };
+
+  const handleCreateAndGo = async () => {
+    const createdId = await workGroups.handleCreateGroup();
+    if (!createdId) return;
+
+    window.setTimeout(() => {
+      groupsAnchorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 250);
+
+    window.setTimeout(() => {
+      const createdGroup = workGroups.groups.find(
+        (group) => group.id === createdId
+      );
+      if (createdGroup) void workGroups.openManage(createdGroup);
+    }, 450);
   };
 
   const goSubscription = () => {
@@ -67,269 +123,144 @@ export function WorkGroups({ onViewChange }: WorkGroupsProps) {
     window.location.hash = "/settings?tab=subscription";
   };
 
-  const ent = getGroupEntitlements(!!isPremium);
+  const closeToast = useCallback(() => {
+    setToastMessage(null);
+  }, []);
 
-  const wg = useWorkGroupsData({
-    userId: user?.id ?? null,
-    isPremium: !!isPremium,
-    ent,
-    openPremium,
-    onCreatedToast: (name) => {
-      setToastMsg(`Groupe “${name}” créé ✅`);
-    },
-  });
-
-  const inv = usePendingInvitation({
-    userId: user?.id ?? null,
-    refreshProfile: async () => {
-      await refreshProfile?.();
-    },
-    onAccepted: async () => {
-      await wg.reloadProfileAndData();
-    },
-  });
-
-  const requestCreate = () => {
-    const ownedGroups = wg.groups.filter(g => g.isOwner).length;
-
-    if (!isPremium && ownedGroups >= ent.maxGroups) {
-      openPremium("groups.limit");
-      return;
-    }
-    wg.setShowCreateModal(true);
-  };
-
-  // ✅ Transition automatique : après création on scroll vers la grille + on ouvre la gestion (bonus)
-  const handleCreateAndGo = async () => {
-    const createdId = await wg.handleCreateGroup();
-    if (!createdId) return;
-
-    // petit délai pour laisser React afficher la grille
-    setTimeout(() => {
-      groupsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 250);
-
-    // bonus : ouvrir directement la modale de gestion du groupe créé
-    setTimeout(() => {
-      const g = wg.groups.find((x) => x.id === createdId);
-      if (g) wg.openManage(g);
-    }, 450);
-  };
-
-  const showGrid = wg.groups.length > 0;
-
-  // ✅ Mode solo
-  if (!wg.restaurantId) {
-    return (
-      <div className={ui.dashboardBg}>
-        <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>
-          <div className="max-w-4xl mx-auto">
-            <SoloModeCard
-              ui={ui}
-              errorMsg={wg.errorMsg}
-              checkingInvite={inv.checkingInvite}
-              acceptingInvite={inv.acceptingInvite}
-              inviteMsg={inv.inviteMsg}
-              inviteState={inv.inviteState}
-              pendingInvite={inv.pendingInvite}
-              acceptSuccess={inv.acceptSuccess}
-              onRefreshInvite={inv.loadPendingInvitation}
-              onAcceptInvite={inv.handleAcceptInvitation}
-              canCreateGroup={false}
-              onCreateGroup={requestCreate}
-              isPremium={!!isPremium}
-              ent={ent}
-              groupsCount={wg.groups.filter((g) => g.isOwner).length}
-            />
-
-            <div className="mt-4 flex justify-center">
-              <button
-                type="button"
-                onClick={requestCreate}
-                className={`${ui.btnPrimary} px-5 py-2.5 rounded-2xl`}
-                disabled={subLoading}
-                title={
-                  !isPremium && wg.groups.length >= ent.maxGroups
-                    ? "Limite Free atteinte"
-                    : "Créer un groupe"
-                }
-              >
-                <Plus className="w-5 h-5" /> Créer mon premier groupe
-              </button>
-            </div>
-
-            {/* ✅ Vue Groupes (Étape 3) */}
-            <div ref={groupsAnchorRef} className="mt-6">
-              {wg.errorMsg && (
-                <div className="mb-5 rounded-2xl bg-red-500/10 text-red-200 ring-1 ring-red-400/20 px-4 py-3 text-sm">
-                  {wg.errorMsg}
-                </div>
-              )}
-
-              <GroupsGrid
-                ui={ui}
-                groups={wg.groups}
-                canManageGroups={wg.canManageGroups}
-                editingId={wg.editingId}
-                editName={wg.editName}
-                setEditName={wg.setEditName}
-                manageLoading={wg.manageLoading}
-                onStartRename={(groupId, name) => {
-                  wg.setEditingId(groupId);
-                  wg.setEditName(name);
-                }}
-                onCancelRename={() => {
-                  wg.setEditingId(null);
-                  wg.setEditName("");
-                }}
-                onConfirmRename={wg.handleRenameGroup}
-                onOpenManage={wg.openManage}
-                onRequestCreate={requestCreate}
-              />
-            </div>
-
-            <CreateGroupModal
-              ui={ui}
-              open={wg.showCreateModal}
-              onClose={() => wg.setShowCreateModal(false)}
-              manageLoading={wg.manageLoading}
-              newGroupName={wg.newGroupName}
-              setNewGroupName={wg.setNewGroupName}
-              newGroupDescription={wg.newGroupDescription}
-              setNewGroupDescription={wg.setNewGroupDescription}
-              // ✅ ici on branche la transition auto
-              onCreate={handleCreateAndGo}
-              isPremium={!!isPremium}
-              ent={ent}
-            />
-
-            <ManageGroupModal
-              ui={ui}
-              open={wg.showManageModal && !!wg.selectedGroupFresh}
-              onClose={wg.closeManage}
-              canManageGroups={!!wg.selectedGroupFresh?.isOwner}
-              manageLoading={wg.manageLoading}
-              selectedGroup={wg.selectedGroupFresh}
-              userId={user?.id ?? null}
-              availableTeam={wg.availableTeam}
-              selectedUserId={wg.selectedUserId}
-              setSelectedUserId={wg.setSelectedUserId}
-              onAddMember={wg.handleAddMemberFromTeam}
-              onRemoveMember={wg.handleRemoveMember}
-              onDeleteGroup={wg.handleDeleteGroup}
-              isPremium={!!isPremium}
-              ent={ent}
-            />
-
-            <PremiumModal
-              open={premiumOpen}
-              gateKey={premiumKey}
-              onClose={() => setPremiumOpen(false)}
-              onGoSubscription={goSubscription}
-            />
-
-            {toastMsg && <Toast msg={toastMsg} onClose={() => setToastMsg(null)} />}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ✅ Restaurant OK
   return (
     <div className={ui.dashboardBg}>
-      <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <h1 className="text-lg sm:text-xl font-semibold text-slate-100 flex items-center gap-3">
-              <span className="h-11 w-11 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center">
-                <Users className="w-5 h-5 text-amber-200" />
-              </span>
-              Groupes de travail
-            </h1>
-            <p className="text-sm text-slate-300/70 mt-2">
-              Collaborez avec votre équipe (partage de recettes par groupe).
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {isPremium ? "Premium activé" : "Version gratuite"}
-            </p>
-          </div>
+      <div className={`${ui.containerWide} px-4 py-6 sm:px-6 sm:py-8`}>
+        <div className={isSolo ? "mx-auto max-w-4xl" : undefined}>
+          {isSolo ? (
+            <>
+              <SoloModeCard
+                errorMsg={workGroups.errorMsg}
+                checkingInvite={invitation.checkingInvite}
+                acceptingInvite={invitation.acceptingInvite}
+                inviteMsg={invitation.inviteMsg}
+                inviteState={invitation.inviteState}
+                pendingInvite={invitation.pendingInvite}
+                acceptSuccess={invitation.acceptSuccess}
+                onRefreshInvite={invitation.loadPendingInvitation}
+                onAcceptInvite={invitation.handleAcceptInvitation}
+              />
 
-          <div className="flex items-center gap-3">
-            {!subLoading ? (
-              <button
-                type="button"
-                onClick={requestCreate}
-                className={`${ui.btnPrimary} px-5 py-2.5 rounded-2xl`}
-              >
-                <Plus className="w-5 h-5" /> Créer un groupe
-              </button>
-            ) : (
-              <KitchNLoader className="kitchn-loader--compact" />
-            )}
-          </div>
-        </div>
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={requestCreate}
+                  className={`${ui.btnPrimary} rounded-2xl px-5 py-2.5`}
+                  disabled={subscriptionLoading}
+                  title={
+                    !isPremium &&
+                    ownedGroupsCount >= entitlements.maxGroups
+                      ? "Limite Free atteinte"
+                      : "Créer un groupe"
+                  }
+                >
+                  <Plus className="h-5 w-5" />
+                  Créer mon premier groupe
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h1 className="flex items-center gap-3 text-lg font-semibold text-slate-100 sm:text-xl">
+                  <span className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25">
+                    <Users className="h-5 w-5 text-amber-200" />
+                  </span>
+                  Groupes de travail
+                </h1>
+                <p className="mt-2 text-sm text-slate-300/70">
+                  Collaborez avec votre équipe (partage de recettes par groupe).
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {isPremium ? "Premium activé" : "Version gratuite"}
+                </p>
+              </div>
 
-        <div ref={groupsAnchorRef}>
-          {wg.errorMsg && (
-            <div className="mb-5 rounded-2xl bg-red-500/10 text-red-200 ring-1 ring-red-400/20 px-4 py-3 text-sm">
-              {wg.errorMsg}
+              {!subscriptionLoading ? (
+                <button
+                  type="button"
+                  onClick={requestCreate}
+                  className={`${ui.btnPrimary} rounded-2xl px-5 py-2.5`}
+                >
+                  <Plus className="h-5 w-5" />
+                  Créer un groupe
+                </button>
+              ) : (
+                <KitchNLoader className="kitchn-loader--compact" />
+              )}
             </div>
           )}
 
-          <GroupsGrid
-            ui={ui}
-            groups={wg.groups}
-            canManageGroups={wg.canManageGroups}
-            editingId={wg.editingId}
-            editName={wg.editName}
-            setEditName={wg.setEditName}
-            manageLoading={wg.manageLoading}
-            onStartRename={(groupId, name) => {
-              wg.setEditingId(groupId);
-              wg.setEditName(name);
-            }}
-            onCancelRename={() => {
-              wg.setEditingId(null);
-              wg.setEditName("");
-            }}
-            onConfirmRename={wg.handleRenameGroup}
-            onOpenManage={wg.openManage}
-            onRequestCreate={requestCreate}
+          <div
+            ref={groupsAnchorRef}
+            className={isSolo ? "mt-6" : undefined}
+          >
+            {workGroups.errorMsg && (
+              <div className="mb-5 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-200 ring-1 ring-red-400/20">
+                {workGroups.errorMsg}
+              </div>
+            )}
+
+            <GroupsGrid
+              groups={workGroups.groups}
+              canManageGroups={workGroups.canManageGroups}
+              editingId={workGroups.editingId}
+              editName={workGroups.editName}
+              setEditName={workGroups.setEditName}
+              manageLoading={workGroups.manageLoading}
+              onStartRename={(groupId, name) => {
+                workGroups.setEditingId(groupId);
+                workGroups.setEditName(name);
+              }}
+              onCancelRename={() => {
+                workGroups.setEditingId(null);
+                workGroups.setEditName("");
+              }}
+              onConfirmRename={workGroups.handleRenameGroup}
+              onOpenManage={workGroups.openManage}
+              onRequestCreate={requestCreate}
+            />
+          </div>
+
+          <CreateGroupModal
+            open={workGroups.showCreateModal}
+            onClose={() => workGroups.setShowCreateModal(false)}
+            manageLoading={workGroups.manageLoading}
+            newGroupName={workGroups.newGroupName}
+            setNewGroupName={workGroups.setNewGroupName}
+            newGroupDescription={workGroups.newGroupDescription}
+            setNewGroupDescription={workGroups.setNewGroupDescription}
+            onCreate={handleCreateAndGo}
+            isPremium={Boolean(isPremium)}
+            ent={entitlements}
+          />
+
+          <ManageGroupModal
+            open={
+              workGroups.showManageModal &&
+              Boolean(workGroups.selectedGroupFresh)
+            }
+            onClose={workGroups.closeManage}
+            canManageGroups={Boolean(
+              workGroups.selectedGroupFresh?.isOwner
+            )}
+            manageLoading={workGroups.manageLoading}
+            selectedGroup={workGroups.selectedGroupFresh}
+            userId={user?.id ?? null}
+            availableTeam={workGroups.availableTeam}
+            selectedUserId={workGroups.selectedUserId}
+            setSelectedUserId={workGroups.setSelectedUserId}
+            onAddMember={workGroups.handleAddMemberFromTeam}
+            onRemoveMember={workGroups.handleRemoveMember}
+            onDeleteGroup={workGroups.handleDeleteGroup}
+            isPremium={Boolean(isPremium)}
+            ent={entitlements}
           />
         </div>
-
-        <CreateGroupModal
-          ui={ui}
-          open={wg.showCreateModal}
-          onClose={() => wg.setShowCreateModal(false)}
-          manageLoading={wg.manageLoading}
-          newGroupName={wg.newGroupName}
-          setNewGroupName={wg.setNewGroupName}
-          newGroupDescription={wg.newGroupDescription}
-          setNewGroupDescription={wg.setNewGroupDescription}
-          onCreate={handleCreateAndGo}
-          isPremium={!!isPremium}
-          ent={ent}
-        />
-
-        <ManageGroupModal
-          ui={ui}
-          open={wg.showManageModal && !!wg.selectedGroupFresh}
-          onClose={wg.closeManage}
-          canManageGroups={!!wg.selectedGroupFresh?.isOwner}
-          manageLoading={wg.manageLoading}
-          selectedGroup={wg.selectedGroupFresh}
-          userId={user?.id ?? null}
-          availableTeam={wg.availableTeam}
-          selectedUserId={wg.selectedUserId}
-          setSelectedUserId={wg.setSelectedUserId}
-          onAddMember={wg.handleAddMemberFromTeam}
-          onRemoveMember={wg.handleRemoveMember}
-          onDeleteGroup={wg.handleDeleteGroup}
-          isPremium={!!isPremium}
-          ent={ent}
-        />
       </div>
 
       <PremiumModal
@@ -339,7 +270,9 @@ export function WorkGroups({ onViewChange }: WorkGroupsProps) {
         onGoSubscription={goSubscription}
       />
 
-      {toastMsg && <Toast msg={toastMsg} onClose={() => setToastMsg(null)} />}
+      {toastMessage && (
+        <Toast message={toastMessage} onClose={closeToast} />
+      )}
     </div>
   );
 }

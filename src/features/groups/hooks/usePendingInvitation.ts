@@ -1,20 +1,30 @@
 import { useState } from "react";
-import { supabase } from "../../../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
+import type {
+  InvitationRow,
+  InviteViewState,
+} from "../types/groups.types";
 
-export type InvitationRow = {
-  id: string;
-  restaurant_id: string;
-  invited_user_id?: string | null;
-  email?: string | null;
-  role: string | null;
-  token: string | null;
-  expires_at: string | null;
-  accepted_at: string | null;
-  created_at: string | null;
-  restaurants?: { name: string | null } | null;
+type InvitationQueryRow = Omit<
+  InvitationRow,
+  "restaurants"
+> & {
+  restaurants:
+    | Array<{ name: string | null }>
+    | { name: string | null }
+    | null;
 };
 
-export type InviteViewState = "none" | "pending" | "expired" | "accepted";
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+}
 
 function computeInviteState(inv: InvitationRow | null): InviteViewState {
   if (!inv) return "none";
@@ -71,11 +81,23 @@ export function usePendingInvitation(opts: {
         return;
       }
 
-      const inv = data as InvitationRow;
+      const row = data as unknown as InvitationQueryRow;
+      const restaurants = Array.isArray(row.restaurants)
+        ? row.restaurants[0] ?? null
+        : row.restaurants;
+      const inv: InvitationRow = {
+        ...row,
+        restaurants,
+      };
       setPendingInvite(inv);
       setInviteState(computeInviteState(inv));
-    } catch (e: any) {
-      setInviteMsg(e?.message ?? "Erreur lors de la détection de l’invitation.");
+    } catch (error: unknown) {
+      setInviteMsg(
+        getErrorMessage(
+          error,
+          "Erreur lors de la détection de l’invitation."
+        )
+      );
       setInviteState("none");
     } finally {
       setCheckingInvite(false);
@@ -107,8 +129,13 @@ export function usePendingInvitation(opts: {
       await refreshProfile();
       setAcceptSuccess(true);
       await onAccepted();
-    } catch (e: any) {
-      setInviteMsg(e?.message ?? "Impossible d’accepter l’invitation.");
+    } catch (error: unknown) {
+      setInviteMsg(
+        getErrorMessage(
+          error,
+          "Impossible d’accepter l’invitation."
+        )
+      );
     } finally {
       setAcceptingInvite(false);
     }

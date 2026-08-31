@@ -1,8 +1,9 @@
 import { Check, Pencil, Users, X } from "lucide-react";
+import { ui } from "../../../styles/ui";
+import type { GroupWithMembers } from "../types/groups.types";
 
 export function GroupsGrid(props: {
-  ui: any;
-  groups: any[];
+  groups: GroupWithMembers[];
   canManageGroups: boolean;
 
   editingId: string | null;
@@ -14,11 +15,10 @@ export function GroupsGrid(props: {
   onCancelRename: () => void;
   onConfirmRename: (groupId: string, name: string) => Promise<void>;
 
-  onOpenManage: (g: any) => Promise<void>;
+  onOpenManage: (group: GroupWithMembers) => Promise<void>;
   onRequestCreate: () => void;
 }) {
   const {
-    ui,
     groups,
     canManageGroups,
     editingId,
@@ -62,7 +62,9 @@ export function GroupsGrid(props: {
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") onOpenManage(group);
+            if (e.key === "Enter" || e.key === " ") {
+              void onOpenManage(group);
+            }
           }}
         >
           <div className="p-6">
@@ -81,7 +83,7 @@ export function GroupsGrid(props: {
                       disabled={manageLoading}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onConfirmRename(group.id, editName);
+                        void onConfirmRename(group.id, editName);
                       }}
                       title="Enregistrer"
                     >
