@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type DragEvent,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
+import { useEffect } from "react";
 import {
   Search,
   Plus,
@@ -18,8 +12,7 @@ import {
   Pencil,
   Check,
 } from "lucide-react";
-import { useSharedRecipeGroup } from "../../features/sharing/hooks/useSharedRecipeGroup";
-import type { RecipeRow } from "../../features/sharing/types/sharing.types";
+import { useSharedRecipeGroupView } from "../../features/sharing/hooks/useSharedRecipeGroupView";
 import { cn } from "../../features/sharing/utils/sharingHelpers";
 import { ui } from "../../styles/ui";
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
@@ -73,70 +66,48 @@ export function SharedRecipeGroupDesktopView({
     filteredRecipes,
 
     handleCreateFolder,
-    handleRenameFolder: renameFolder,
-    handleDeleteFolder: deleteFolder,
-    handleToggleFavorite: toggleFavorite,
-    handleMoveToFolder,
-    handleRemoveFromGroup: removeFromGroup,
-    handleRemoveFromFolder: removeFromFolder,
-  } = useSharedRecipeGroup({ groupId });
+    handleRenameFolder,
+    handleDeleteFolder,
+    handleToggleFavorite,
+    handleSelectMoveFolder,
+    handleRemoveFromGroup,
+    handleRemoveFromFolder,
+    handleDrop,
+    handleEdit,
 
-  const [draggedRecipe, setDraggedRecipe] =
-    useState<string | null>(null);
+    setDraggedRecipe,
 
-  const [viewingRecipeId, setViewingRecipeId] =
-    useState<string | null>(null);
+    viewingRecipeId,
+    setViewingRecipeId,
 
-  const [showGroupsModal, setShowGroupsModal] =
-    useState(false);
+    showGroupsModal,
+    activeRecipeId,
+    openGroupsModal,
+    closeGroupsModal,
 
-  const [activeRecipeId, setActiveRecipeId] =
-    useState<string | null>(null);
+    folderMenuOpenId,
+    setFolderMenuOpenId,
+    folderMenuRef,
 
-  const [folderMenuOpenId, setFolderMenuOpenId] =
-    useState<string | null>(null);
-
-  const folderMenuRef = useRef<HTMLDivElement>(null);
-
-  const [moveFolderOpen, setMoveFolderOpen] =
-    useState(false);
-
-  const [moveRecipe, setMoveRecipe] =
-    useState<RecipeRow | null>(null);
+    moveFolderOpen,
+    moveRecipe,
+    openMoveFolder,
+    closeMoveFolder,
+  } = useSharedRecipeGroupView({
+    groupId,
+    onEdit,
+  });
 
   useEffect(() => {
     if (!initialRecipeId) return;
 
     setViewingRecipeId(initialRecipeId);
     onInitialRecipeOpened?.();
-  }, [initialRecipeId, onInitialRecipeOpened]);
-
-  useEffect(() => {
-    function handleDocumentMouseDown(event: MouseEvent) {
-      if (!folderMenuOpenId) return;
-
-      const target = event.target as Node;
-
-      if (
-        folderMenuRef.current &&
-        !folderMenuRef.current.contains(target)
-      ) {
-        setFolderMenuOpenId(null);
-      }
-    }
-
-    document.addEventListener(
-      "mousedown",
-      handleDocumentMouseDown
-    );
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleDocumentMouseDown
-      );
-    };
-  }, [folderMenuOpenId]);
+  }, [
+    initialRecipeId,
+    onInitialRecipeOpened,
+    setViewingRecipeId,
+  ]);
 
   useEffect(() => {
     const previousOverflow =
@@ -152,79 +123,6 @@ export function SharedRecipeGroupDesktopView({
     };
   }, [moveFolderOpen]);
 
-  async function handleRenameFolder(folderId: string) {
-    await renameFolder(folderId);
-    setFolderMenuOpenId(null);
-  }
-
-  async function handleDeleteFolder(folderId: string) {
-    await deleteFolder(folderId);
-    setFolderMenuOpenId(null);
-  }
-
-  async function handleToggleFavorite(
-    recipeId: string,
-    isFavorite: boolean,
-    event: ReactMouseEvent
-  ) {
-    event.stopPropagation();
-    await toggleFavorite(recipeId, isFavorite);
-  }
-
-  async function handleSelectMoveFolder(
-    folderId: string | null
-  ) {
-    if (!moveRecipe) return;
-
-    await handleMoveToFolder(moveRecipe.id, folderId);
-    setMoveFolderOpen(false);
-    setMoveRecipe(null);
-  }
-
-  async function handleRemoveFromGroup(
-    recipeId: string,
-    event: ReactMouseEvent
-  ) {
-    event.stopPropagation();
-    await removeFromGroup(recipeId);
-  }
-
-  async function handleRemoveFromFolder(
-    recipeId: string,
-    event?: ReactMouseEvent
-  ) {
-    event?.stopPropagation();
-    await removeFromFolder(recipeId);
-  }
-
-  async function handleDrop(
-    folderId: string | null,
-    event: DragEvent
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!draggedRecipe || !canManageFolders) return;
-
-    await handleMoveToFolder(draggedRecipe, folderId);
-    setDraggedRecipe(null);
-  }
-
-  function handleEdit(
-    recipeId: string,
-    event?: ReactMouseEvent
-  ) {
-    event?.stopPropagation();
-
-    if (!canEdit) return;
-
-    if (onEdit) {
-      onEdit(recipeId);
-      return;
-    }
-
-    setViewingRecipeId(recipeId);
-  }  
   if (viewingRecipeId) {
     return (
       <RecipeDisplay
@@ -347,7 +245,7 @@ export function SharedRecipeGroupDesktopView({
                   }
                   onDrop={(e) => {
                     e.currentTarget.classList.remove("ring-2", "ring-amber-400/25");
-                    void handleDrop(folder.id, e as unknown as DragEvent);
+                    void handleDrop(folder.id, e);
                   }}
                   className={cn(
                     "w-full text-left px-3 py-2.5 rounded-2xl mb-2 flex items-center gap-2 transition-all duration-200 cursor-pointer",
@@ -585,8 +483,7 @@ export function SharedRecipeGroupDesktopView({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setMoveRecipe(recipe);
-                                  setMoveFolderOpen(true);
+                                  openMoveFolder(recipe);
                                 }}
                                 className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
                                 title="Déplacer dans un dossier"
@@ -600,8 +497,7 @@ export function SharedRecipeGroupDesktopView({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setActiveRecipeId(recipe.id);
-                                  setShowGroupsModal(true);
+                                  openGroupsModal(recipe.id);
                                 }}
                                 className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-white/50 hover:text-white transition-colors"
                                 title="Partager à un autre groupe"
@@ -649,10 +545,7 @@ export function SharedRecipeGroupDesktopView({
           <div className="fixed inset-0 z-[140]">
             <div
               className="absolute inset-0 bg-black/60"
-              onClick={() => {
-                setMoveFolderOpen(false);
-                setMoveRecipe(null);
-              }}
+              onClick={closeMoveFolder}
             />
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <div className="w-full max-w-[520px] rounded-[28px] bg-[#0B1020] ring-1 ring-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-5">
@@ -668,10 +561,7 @@ export function SharedRecipeGroupDesktopView({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setMoveFolderOpen(false);
-                      setMoveRecipe(null);
-                    }}
+                    onClick={closeMoveFolder}
                     className="h-10 w-10 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
                   >
                     <Plus className="w-5 h-5 text-slate-100 rotate-45" />
@@ -731,10 +621,7 @@ export function SharedRecipeGroupDesktopView({
         <RecipeGroupsModal
           open={showGroupsModal}
           recipeId={activeRecipeId}
-          onClose={() => {
-            setShowGroupsModal(false);
-            setActiveRecipeId(null);
-          }}
+          onClose={closeGroupsModal}
         />
       )}
       </div>

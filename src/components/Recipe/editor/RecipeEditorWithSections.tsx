@@ -1,4 +1,4 @@
-import { useIsDesktop } from "../../../features/recipe/hooks/useMediaQuery";
+import { useIsDesktop } from "../../../hooks/useMediaQuery";
 import { RecipeEditorDesktop } from "./RecipeEditorDesktop";
 import { RecipeEditorMobile } from "./RecipeEditorMobile";
 

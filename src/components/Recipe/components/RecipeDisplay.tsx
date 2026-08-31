@@ -1,4 +1,4 @@
-import { useIsDesktop } from "../../../features/recipe/hooks/useMediaQuery";
+import { useIsDesktop } from "../../../hooks/useMediaQuery";
 import RecipeDisplayDesktop from "./RecipeDisplayDesktop";
 import RecipeDisplayMobile from "./RecipeDisplayMobile";
 

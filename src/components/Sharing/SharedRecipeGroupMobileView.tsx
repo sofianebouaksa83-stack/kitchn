@@ -1,9 +1,7 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type DragEvent,
   type ReactNode,
 } from "react";
 import {
@@ -28,7 +26,7 @@ import {
   Check,
   ArrowLeft,
 } from "lucide-react";
-import { useSharedRecipeGroup } from "../../features/sharing/hooks/useSharedRecipeGroup";
+import { useSharedRecipeGroupView } from "../../features/sharing/hooks/useSharedRecipeGroupView";
 import type { RecipeRow } from "../../features/sharing/types/sharing.types";
 import {
   cn,
@@ -171,21 +169,38 @@ export function SharedRecipeGroupMobileView({
     filteredRecipes,
 
     handleCreateFolder,
-    handleRenameFolder: renameFolder,
-    handleDeleteFolder: deleteFolder,
+    handleRenameFolder,
+    handleDeleteFolder,
     handleToggleFavorite,
-    handleMoveToFolder,
+    handleSelectMoveFolder,
     handleRemoveFromGroup,
     handleRemoveFromFolder,
-  } = useSharedRecipeGroup({ groupId });
+    handleDrop,
+    handleEdit,
 
-  const [draggedRecipe, setDraggedRecipe] =
-    useState<string | null>(null);
+    viewingRecipeId,
+    setViewingRecipeId,
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+    showGroupsModal,
+    activeRecipeId,
+    openGroupsModal,
+    closeGroupsModal,
 
-  const [viewingRecipeId, setViewingRecipeId] =
-    useState<string | null>(null);
+    folderMenuOpenId,
+    setFolderMenuOpenId,
+    folderMenuRef,
+
+    moveFolderOpen,
+    moveRecipe,
+    openMoveFolder,
+    closeMoveFolder,
+  } = useSharedRecipeGroupView({
+    groupId,
+    onEdit,
+  });
+
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false);
 
   const [openedRecipeId, setOpenedRecipeId] =
     useState<string | null>(null);
@@ -199,17 +214,6 @@ export function SharedRecipeGroupMobileView({
   const recipeDragControls = useDragControls();
   const foldersDragControls = useDragControls();
 
-  const [showGroupsModal, setShowGroupsModal] =
-    useState(false);
-
-  const [activeRecipeId, setActiveRecipeId] =
-    useState<string | null>(null);
-
-  const [folderMenuOpenId, setFolderMenuOpenId] =
-    useState<string | null>(null);
-
-  const folderMenuRef = useRef<HTMLDivElement>(null);
-
   const [sheetRecipe, setSheetRecipe] =
     useState<RecipeRow | null>(null);
 
@@ -218,12 +222,6 @@ export function SharedRecipeGroupMobileView({
   const closeSheet = () => {
     setSheetRecipe(null);
   };
-
-  const [moveFolderOpen, setMoveFolderOpen] =
-    useState(false);
-
-  const [moveRecipe, setMoveRecipe] =
-    useState<RecipeRow | null>(null);
 
   useEffect(() => {
     if (!initialRecipeId) return;
@@ -296,33 +294,6 @@ export function SharedRecipeGroupMobileView({
   }, [groupId]);
 
   useEffect(() => {
-    function handleDocumentMouseDown(event: MouseEvent) {
-      if (!folderMenuOpenId) return;
-
-      const target = event.target as Node;
-
-      if (
-        folderMenuRef.current &&
-        !folderMenuRef.current.contains(target)
-      ) {
-        setFolderMenuOpenId(null);
-      }
-    }
-
-    document.addEventListener(
-      "mousedown",
-      handleDocumentMouseDown
-    );
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleDocumentMouseDown
-      );
-    };
-  }, [folderMenuOpenId]);
-
-  useEffect(() => {
     const shouldLock =
       sidebarOpen ||
       recipeSheetOpen ||
@@ -368,8 +339,7 @@ export function SharedRecipeGroupMobileView({
       setSidebarOpen(false);
       setOpenedRecipeId(null);
       setSheetRecipe(null);
-      setMoveFolderOpen(false);
-      setMoveRecipe(null);
+      closeMoveFolder();
     };
 
     window.addEventListener("keydown", handleEscape);
@@ -385,51 +355,8 @@ export function SharedRecipeGroupMobileView({
     recipeSheetOpen,
     sheetOpen,
     moveFolderOpen,
+    closeMoveFolder,
   ]);
-
-  async function handleRenameFolder(folderId: string) {
-    await renameFolder(folderId);
-    setFolderMenuOpenId(null);
-  }
-
-  async function handleDeleteFolder(folderId: string) {
-    await deleteFolder(folderId);
-    setFolderMenuOpenId(null);
-  }
-
-  async function handleSelectMoveFolder(
-    folderId: string | null
-  ) {
-    if (!moveRecipe) return;
-
-    await handleMoveToFolder(moveRecipe.id, folderId);
-    setMoveFolderOpen(false);
-    setMoveRecipe(null);
-  }
-
-  async function handleDrop(
-    folderId: string | null,
-    event: DragEvent
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!draggedRecipe || !canManageFolders) return;
-
-    await handleMoveToFolder(draggedRecipe, folderId);
-    setDraggedRecipe(null);
-  }
-
-  function handleEdit(recipeId: string) {
-    if (!canEdit) return;
-
-    if (onEdit) {
-      onEdit(recipeId);
-      return;
-    }
-
-    setViewingRecipeId(recipeId);
-  }
 
   const headerLabel = useMemo(() => {
     if (selectedFolder && !searchTerm.trim()) {
@@ -603,8 +530,7 @@ export function SharedRecipeGroupMobileView({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveRecipeId(r.id);
-                            setShowGroupsModal(true);
+                            openGroupsModal(r.id);
                           }}
                           className="h-10 w-10 rounded-full hover:bg-white/[0.05] transition inline-flex items-center justify-center hover:text-white"
                           title="Partager"
@@ -810,8 +736,7 @@ export function SharedRecipeGroupMobileView({
                     icon={<Share2 className="w-5 h-5" />}
                     label="Partager à un groupe"
                     onClick={() => {
-                      setActiveRecipeId(sheetRecipe.id);
-                      setShowGroupsModal(true);
+                      openGroupsModal(sheetRecipe.id);
                       closeSheet();
                     }}
                   />
@@ -838,8 +763,7 @@ export function SharedRecipeGroupMobileView({
                     icon={<Folder className="w-5 h-5" />}
                     label="Déplacer dans un dossier"
                     onClick={() => {
-                      setMoveRecipe(sheetRecipe);
-                      setMoveFolderOpen(true);
+                      openMoveFolder(sheetRecipe);
                       closeSheet();
                     }}
                   />
@@ -874,10 +798,7 @@ export function SharedRecipeGroupMobileView({
         <div className="fixed inset-0 z-[150]">
           <div
             className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]"
-            onClick={() => {
-              setMoveFolderOpen(false);
-              setMoveRecipe(null);
-            }}
+            onClick={closeMoveFolder}
           />
           <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
             <div className="mx-auto max-w-[520px] rounded-[28px] border border-amber-300/10 bg-gradient-to-b from-[#0E1736] to-[#0B1020] ring-1 ring-amber-400/15 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
@@ -892,10 +813,7 @@ export function SharedRecipeGroupMobileView({
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setMoveFolderOpen(false);
-                    setMoveRecipe(null);
-                  }}
+                  onClick={closeMoveFolder}
                   className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
                   aria-label="Fermer"
                 >
@@ -1055,7 +973,7 @@ export function SharedRecipeGroupMobileView({
                               setSidebarOpen(false);
                             }
                           }}
-                          onDrop={(e) => handleDrop(folder.id, e as unknown as DragEvent)}
+                          onDrop={(e) => handleDrop(folder.id, e)}
                           onDragOver={(e) => {
                             if (!canManageFolders) return;
                             e.preventDefault();
@@ -1171,10 +1089,7 @@ export function SharedRecipeGroupMobileView({
         <RecipeGroupsModal
           open={showGroupsModal}
           recipeId={activeRecipeId}
-          onClose={() => {
-            setShowGroupsModal(false);
-            setActiveRecipeId(null);
-          }}
+          onClose={closeGroupsModal}
         />
       )}
     </div>

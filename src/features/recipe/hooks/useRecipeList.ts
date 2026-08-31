@@ -22,7 +22,7 @@ import type {
   RecipeFolder,
   RecipeListItem,
 } from "../types/recipe.types";
-import { useIsDesktop } from "./useMediaQuery";
+import { useIsDesktop } from "../../../hooks/useMediaQuery";
 
 type UseRecipeListArgs = {
   recipeToOpenId?: string | null;
