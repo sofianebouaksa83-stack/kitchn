@@ -11,9 +11,9 @@ export function Footer({ onStart }: FooterProps) {
           {/* Marque */}
           <div>
             <img
-            src="/Logo_kitchn_horizontal.svg"
+            src="/logo_kitchn.PNG"
             alt="kitch'n"
-            className="h-8 w-auto object-contain"
+            className="h-20 w-auto object-contain"
           />
             <div className="mt-3 text-sm text-white/55">
               © {new Date().getFullYear()} KITCH&apos;N

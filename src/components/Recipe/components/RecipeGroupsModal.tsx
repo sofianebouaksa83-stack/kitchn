@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../../lib/supabase";
-import { X, Users, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Users,
+  X,
+} from "lucide-react";
 import { ui } from "../../../styles/ui";
-
-type GroupMini = { id: string; name: string };
+import { useRecipeGroupsModal } from "../../../features/recipe/hooks/useRecipeGroupsModal";
 
 type Props = {
   open: boolean;
@@ -11,146 +13,16 @@ type Props = {
   onClose: () => void;
 };
 
-type MembershipRow = {
-  work_group_id: string;
-  work_groups: GroupMini | null;
-};
-
-export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
-  const [loading, setLoading] = useState(false);
-  const [groups, setGroups] = useState<GroupMini[]>([]);
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [message, setMessage] = useState<string>("");
-
-  useEffect(() => {
-    if (!open) return;
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, recipeId]);
-
-  async function load() {
-    setLoading(true);
-    setStatus("idle");
-    setMessage("");
-
-    try {
-      const { data: auth } = await supabase.auth.getUser();
-      const userId = auth.user?.id;
-      if (!userId) throw new Error("Non connecté");
-
-      // 1) Groupes où je suis membre (via group_members)
-      const { data: membershipData, error: mErr } = await supabase
-        .from("group_members")
-        .select("work_group_id, work_groups:work_groups(id,name)")
-        .eq("user_id", userId);
-
-      if (mErr) throw mErr;
-
-      // 2) Fallback : groupes que j’ai créés (owner)
-      const { data: ownedGroups, error: oErr } = await supabase
-        .from("work_groups")
-        .select("id,name")
-        .eq("created_by", userId);
-
-      if (oErr) throw oErr;
-
-      // Fusion + déduplication
-      const map = new Map<string, GroupMini>();
-
-      const list = (membershipData ?? []) as MembershipRow[];
-      for (const row of list) {
-        if (row.work_groups?.id) {
-          map.set(row.work_groups.id, row.work_groups);
-        } else if (row.work_group_id) {
-          // si jamais l'embed ne remonte pas (FK/RLS), on garde l'id au moins
-          map.set(String(row.work_group_id), {
-            id: String(row.work_group_id),
-            name: "Groupe",
-          });
-        }
-      }
-
-      for (const g of (ownedGroups ?? []) as GroupMini[]) {
-        if (g?.id) map.set(g.id, g);
-      }
-
-      const g = Array.from(map.values()).sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? "")
-      );
-      setGroups(g);
-
-      // 3) Déjà partagée à quels groupes ?
-      // ✅ FIX: colonne = work_group_id (pas group_id)
-      const { data: links, error: lErr } = await supabase
-        .from("work_group_recipes")
-        .select("group_id")
-        .eq("recipe_id", recipeId);
-
-      if (lErr) throw lErr;
-
-      const sel: Record<string, boolean> = {};
-      for (const grp of g) sel[grp.id] = false;
-
-      for (const row of links ?? []) {
-        const gid = String((row as any).group_id);
-        if (gid) sel[gid] = true;
-      }
-
-      setSelected(sel);
-    } catch (e: any) {
-      setGroups([]);
-      setSelected({});
-      setStatus("error");
-      setMessage(e?.message ?? "Erreur");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const selectedIds = useMemo(
-    () => Object.keys(selected).filter((id) => selected[id]),
-    [selected]
-  );
-
-  async function save() {
-    setLoading(true);
-    setStatus("idle");
-    setMessage("");
-
-    try {
-      // stratégie simple : remplacer les liens
-      const { error: delErr } = await supabase
-        .from("work_group_recipes")
-        .delete()
-        .eq("recipe_id", recipeId);
-
-      if (delErr) throw delErr;
-
-      if (selectedIds.length) {
-        // ✅ FIX: work_group_id
-        const payload = selectedIds.map((groupId) => ({
-          recipe_id: recipeId,
-          group_id: groupId,
-        }));
-
-        const { error: insErr } = await supabase
-          .from("work_group_recipes")
-          .insert(payload);
-
-        if (insErr) throw insErr;
-      }
-
-      setStatus("success");
-      setMessage("Partage mis à jour.");
-      setTimeout(() => onClose(), 800);
-    } catch (e: any) {
-      setStatus("error");
-      setMessage(e?.message ?? "Erreur lors de la sauvegarde");
-    } finally {
-      setLoading(false);
-    }
-  }
+export function RecipeGroupsModal({
+  open,
+  recipeId,
+  onClose,
+}: Props) {
+  const groupsModal = useRecipeGroupsModal({
+    open,
+    recipeId,
+    onClose,
+  });
 
   if (!open) return null;
 
@@ -175,6 +47,7 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
                 </span>
                 Partager à un groupe
               </div>
+
               <div className="text-xs text-slate-300/70 mt-1">
                 Coche les groupes qui doivent voir cette recette.
               </div>
@@ -191,42 +64,54 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
           </div>
 
           <div className="relative p-5 space-y-4">
-            {status === "success" && (
+            {groupsModal.status === "success" ? (
               <div className="rounded-3xl bg-emerald-500/10 ring-1 ring-emerald-400/20 p-4 flex gap-3">
                 <CheckCircle className="text-emerald-300" />
-                <p className="text-emerald-200">{message}</p>
+                <p className="text-emerald-200">
+                  {groupsModal.message}
+                </p>
               </div>
-            )}
+            ) : null}
 
-            {status === "error" && (
+            {groupsModal.status === "error" ? (
               <div className="rounded-3xl bg-red-500/10 ring-1 ring-red-500/20 p-4 flex gap-3">
                 <AlertCircle className="text-red-300" />
-                <p className="text-red-200">{message}</p>
+                <p className="text-red-200">
+                  {groupsModal.message}
+                </p>
               </div>
-            )}
+            ) : null}
 
             <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4">
-              {groups.length === 0 ? (
+              {groupsModal.groups.length === 0 ? (
                 <div className="text-sm text-slate-300/70">
-                  Aucun groupe trouvé. Crée un groupe dans l’onglet <b>Groupes</b>{" "}
-                  puis reviens ici pour partager ta recette.
+                  Aucun groupe trouvé. Crée un groupe dans
+                  l’onglet <b>Groupes</b> puis reviens ici pour
+                  partager ta recette.
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {groups.map((g) => (
+                  {groupsModal.groups.map((group) => (
                     <label
-                      key={g.id}
+                      key={group.id}
                       className="flex items-center justify-between gap-3 rounded-2xl px-3 py-2 hover:bg-white/[0.05] transition cursor-pointer"
                     >
-                      <div className="text-slate-100">{g.name}</div>
+                      <div className="text-slate-100">
+                        {group.name}
+                      </div>
+
                       <input
                         type="checkbox"
-                        checked={!!selected[g.id]}
-                        onChange={(e) =>
-                          setSelected((prev) => ({
-                            ...prev,
-                            [g.id]: e.target.checked,
-                          }))
+                        checked={
+                          !!groupsModal.selected[group.id]
+                        }
+                        onChange={(event) =>
+                          groupsModal.setSelected(
+                            (previousSelected) => ({
+                              ...previousSelected,
+                              [group.id]: event.target.checked,
+                            })
+                          )
                         }
                         className="h-4 w-4 rounded border-white/20 bg-white/10"
                       />
@@ -237,16 +122,26 @@ export function RecipeGroupsModal({ open, recipeId, onClose }: Props) {
             </div>
 
             <div className="flex justify-end gap-2">
-              <button onClick={onClose} className={ui.btnGhost} type="button">
-                Annuler
-              </button>
               <button
-                onClick={save}
-                className={ui.btnPrimary}
-                disabled={loading || groups.length === 0}
+                onClick={onClose}
+                className={ui.btnGhost}
                 type="button"
               >
-                {loading ? "Sauvegarde…" : "Enregistrer"}
+                Annuler
+              </button>
+
+              <button
+                onClick={groupsModal.save}
+                className={ui.btnPrimary}
+                disabled={
+                  groupsModal.loading ||
+                  groupsModal.groups.length === 0
+                }
+                type="button"
+              >
+                {groupsModal.loading
+                  ? "Sauvegarde…"
+                  : "Enregistrer"}
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 import { LandingPage } from "./components/Landing/";
@@ -7,7 +7,6 @@ import { LoginForm } from "./components/Auth/LoginForm";
 import { RegisterForm } from "./components/Auth/RegisterForm";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 import { AuthCallback } from "./components/Auth/AuthCallback";
-import HomePage from "./components/HomePage/HomePage";
 
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
@@ -16,182 +15,49 @@ import InvitationPage from "./pages/InvitationPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 
 import { Navbar } from "./components/Layout/";
-import { RecipeList, RecipeEditorWithSections } from "./components/Recipe";
-
-import { SharedRecipes } from "./components/Sharing/";
-import { WorkGroups } from "./components/Groups/";
-import { RecipeImportAI } from "./components/Import/";
-import { TeamManagement } from "./components/Team/TeamManagement";
-import { SubscriptionManagement } from "./components/Subscription/SubscriptionManagement";
-import { SubscriptionSuccess } from "./components/Subscription/SubscriptionSuccess";
-import { SubscriptionCancel } from "./components/Subscription/SubscriptionCancel";
-import { SubscriptionCheckoutPage } from "./components/Subscription/SubscriptionCheckoutPage";
-
-import SettingsPage from "./components/Settings/SettingsPage";
 
 import { ui } from "./styles/ui";
 import "./index.css";
 import AddToHomePopup from "./components/AddToHomePopup";
 import { KitchNLoader } from "./components/Loading/KitchNLoader";
 
-type View =
-  | "accueil"
-  | "recipes"
-  | "editor"
-  | "groups"
-  | "shared"
-  | "import-ai"
-  | "team"
-  | "subscription"
-  | "subscription-checkout"
-  | "subscription-success"
-  | "subscription-cancel"
-  | "settings";
+import { VIEW_PATHS, viewFromRoute, type View } from "./app/routes";
+import {
+  cleanPath,
+  normalizeRouteForUrl,
+  getRouteQuery,
+  isStaticPath,
+  isInvitationPath,
+  extractInvitationToken,
+  getCurrentRouteFromUrl,
+} from "./app/navigation";
 
-const VIEW_PATHS: Record<View, string> = {
-  accueil: "/accueil",
-  recipes: "/recipes",
-  editor: "/recipes/edit",
-  groups: "/groups",
-  shared: "/shared",
-  "import-ai": "/import-ai",
-  team: "/team",
-  subscription: "/subscription",
-  "subscription-checkout": "/subscription/checkout",
-  "subscription-success": "/subscription/success",
-  "subscription-cancel": "/subscription/cancel",
-  settings: "/settings",
-};
+const HomePage = lazy(() => import("./pages/HomePage"));
+const RecipesPage = lazy(() => import("./pages/RecipesPage"));
+const RecipesEditorPage = lazy(() => import("./pages/RecipesEditorPage"));
+const GroupsPage = lazy(() => import("./pages/GroupsPage"));
+const SharedRecipesPage = lazy(() => import("./pages/SharedRecipesPage"));
+const ImportPage = lazy(() => import("./pages/ImportPage"));
+const TeamPage = lazy(() => import("./pages/TeamPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
 
-function cleanPath(route: string) {
-  const path = (route || "/").split("?")[0] || "/";
-  return path.length > 1 ? path.replace(/\/+$/, "") : path;
-}
+const SubscriptionSuccess = lazy(() =>
+  import("./components/Subscription/SubscriptionSuccess").then((module) => ({
+    default: module.SubscriptionSuccess,
+  }))
+);
+const SubscriptionCancel = lazy(() =>
+  import("./components/Subscription/SubscriptionCancel").then((module) => ({
+    default: module.SubscriptionCancel,
+  }))
+);
+const SubscriptionCheckoutPage = lazy(() =>
+  import("./components/Subscription/SubscriptionCheckoutPage").then(
+    (module) => ({ default: module.SubscriptionCheckoutPage })
+  )
+);
 
-function normalizeRouteForUrl(route: string) {
-  const withSlash = route.startsWith("/") ? route : `/${route}`;
-  const queryIndex = withSlash.indexOf("?");
-
-  const path = queryIndex >= 0 ? withSlash.slice(0, queryIndex) : withSlash;
-  const query = queryIndex >= 0 ? withSlash.slice(queryIndex) : "";
-
-  return `${cleanPath(path)}${query}`;
-}
-
-function getRouteQuery(route: string) {
-  const queryIndex = route.indexOf("?");
-  const q = queryIndex >= 0 ? route.slice(queryIndex + 1) : "";
-  return new URLSearchParams(q);
-}
-
-function isStaticPath(route: string) {
-  const path = cleanPath(route);
-
-  return (
-    path === "/privacy" ||
-    path === "/terms" ||
-    path === "/legal" ||
-    path === "/assistance" ||
-    path === "/auth/callback"
-  );
-}
-
-function isInvitationPath(route: string) {
-  const path = cleanPath(route);
-  return path.startsWith("/invitation/") || path.startsWith("/invite/");
-}
-
-function extractInvitationToken(route: string) {
-  const path = cleanPath(route);
-
-  if (!isInvitationPath(path)) return null;
-
-  const token = path.startsWith("/invite/")
-    ? path.replace("/invite/", "").trim()
-    : path.replace("/invitation/", "").trim();
-
-  return token.length > 0 ? token : null;
-}
-
-function viewFromRoute(route: string): View | null {
-  const path = cleanPath(route);
-
-  switch (path) {
-    case "/":
-    case "/accueil":
-    case "/home":
-      return "accueil";
-
-    case "/recipes":
-      return "recipes";
-
-    case "/recipes/new":
-    case "/recipes/edit":
-      return "editor";
-
-    case "/groups":
-    case "/work_groups":
-    case "/work-groups":
-      return "groups";
-
-    case "/shared":
-    case "/shared-recipes":
-      return "shared";
-
-    case "/import-ai":
-    case "/import":
-      return "import-ai";
-
-    case "/team":
-      return "team";
-
-    case "/subscription":
-      return "subscription";
-
-    case "/subscription/checkout":
-    case "/subscription-checkout":
-      return "subscription-checkout";
-
-    case "/subscription/success":
-    case "/subscription-success":
-      return "subscription-success";
-
-    case "/subscription/cancel":
-    case "/subscription-cancel":
-      return "subscription-cancel";
-
-    case "/settings":
-      return "settings";
-
-    default:
-      return null;
-  }
-}
-
-function getCurrentRouteFromUrl() {
-  const rawHash = window.location.hash.slice(1);
-
-  // Supabase reset password peut mettre les infos dans le hash
-  if (rawHash.includes("type=recovery")) {
-    return "/reset-password";
-  }
-
-  // Ancien routing en #/... => conversion automatique en vraie URL
-  if (rawHash.startsWith("/")) {
-    const target = normalizeRouteForUrl(rawHash || "/");
-    const current = `${window.location.pathname || "/"}${
-      window.location.search || ""
-    }`;
-
-    if (current !== target || window.location.hash) {
-      window.history.replaceState({}, "", target);
-    }
-
-    return target;
-  }
-
-  return `${window.location.pathname || "/"}${window.location.search || ""}`;
-}
 
 function MainApp() {
   const { user } = useAuth();
@@ -409,37 +275,38 @@ function MainApp() {
       <Navbar currentView={currentView} onViewChange={handleViewChange} />
 
       <main className={`${ui.container} ${ui.page} pb-20 lg:pb-0`}>
-        {currentView === "accueil" && (
-          <HomePage
-            navigateTo={navigateTo}
-            openRecipe={(recipeId) => {
-              setRecipeToOpenId(recipeId);
-              setSharedRecipeToOpen(null);
-              setCurrentView("recipes");
-              navigateTo("/recipes");
-            }}
-            openSharedRecipe={(recipeId, groupId) => {
-              setSharedRecipeToOpen({ recipeId, groupId });
-              setRecipeToOpenId(null);
-              sessionStorage.setItem("selectedSharedRecipeId", recipeId);
-              sessionStorage.setItem("selectedWorkGroupId", groupId);
-              setCurrentView("shared");
-              navigateTo("/shared");
-            }}
-          />
-        )}
+        <Suspense fallback={<KitchNLoader className="kitchn-loader--compact" />}>
+          {currentView === "accueil" && (
+            <HomePage
+              navigateTo={navigateTo}
+              openRecipe={(recipeId) => {
+                setRecipeToOpenId(recipeId);
+                setSharedRecipeToOpen(null);
+                setCurrentView("recipes");
+                navigateTo("/recipes");
+              }}
+              openSharedRecipe={(recipeId, groupId) => {
+                setSharedRecipeToOpen({ recipeId, groupId });
+                setRecipeToOpenId(null);
+                sessionStorage.setItem("selectedSharedRecipeId", recipeId);
+                sessionStorage.setItem("selectedWorkGroupId", groupId);
+                setCurrentView("shared");
+                navigateTo("/shared");
+              }}
+            />
+          )}
 
-        {currentView === "recipes" && (
-          <RecipeList
+          {currentView === "recipes" && (
+          <RecipesPage
             onCreateNew={handleCreateNew}
             onEdit={handleEdit}
             recipeToOpenId={recipeToOpenId}
             onRecipeOpened={() => setRecipeToOpenId(null)}
           />
-        )}
+          )}
 
-        {currentView === "editor" && (
-          <RecipeEditorWithSections
+          {currentView === "editor" && (
+          <RecipesEditorPage
             recipeId={editingRecipeId}
             onBack={handleBackFromEditor}
             onSave={handleSaveComplete}
@@ -449,38 +316,39 @@ function MainApp() {
               navigateTo("/recipes/edit");
             }}
           />
-        )}
+          )}
 
-        {currentView === "shared" && (
-          <SharedRecipes
+          {currentView === "shared" && (
+          <SharedRecipesPage
             recipeToOpen={sharedRecipeToOpen}
             onRecipeOpened={() => setSharedRecipeToOpen(null)}
           />
-        )}
+          )}
 
-        {currentView === "groups" && (
-          <WorkGroups onViewChange={handleViewChange} />
-        )}
+          {currentView === "groups" && (
+          <GroupsPage onViewChange={handleViewChange} />
+          )}
 
-        {currentView === "import-ai" && <RecipeImportAI />}
+          {currentView === "import-ai" && <ImportPage />}
 
-        {currentView === "team" && <TeamManagement />}
+          {currentView === "team" && <TeamPage />}
 
-        {currentView === "subscription" && <SubscriptionManagement />}
+          {currentView === "subscription" && <SubscriptionPage />}
 
-        {currentView === "subscription-checkout" && (
+          {currentView === "subscription-checkout" && (
           <SubscriptionCheckoutPage
             onBack={() => handleViewChange("subscription")}
           />
-        )}
+          )}
 
-        {currentView === "subscription-success" && <SubscriptionSuccess />}
+          {currentView === "subscription-success" && <SubscriptionSuccess />}
 
-        {currentView === "subscription-cancel" && <SubscriptionCancel />}
+          {currentView === "subscription-cancel" && <SubscriptionCancel />}
 
-        {currentView === "settings" && (
+          {currentView === "settings" && (
           <SettingsPage onViewChange={handleViewChange} />
-        )}
+          )}
+        </Suspense>
       </main>
     </div>
   );

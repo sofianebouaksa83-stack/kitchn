@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Share, Plus, X, ChefHat } from "lucide-react";
 
 type BeforeInstallPromptEvent = Event & {

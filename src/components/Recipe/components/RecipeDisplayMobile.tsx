@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../../lib/supabase";
+import { useState } from "react";
 import {
   ArrowLeft,
   AlertCircle,
@@ -7,9 +6,8 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { PageShell } from "../../Layout/PageShell";
+import { KitchNLoader } from "../../Loading/KitchNLoader";
 import { ui } from "../../../styles/ui";
-
-// ✅ Dropdown custom (shadcn/radix)
 import {
   Select,
   SelectContent,
@@ -17,8 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../styles/ui/select";
+import { useRecipeDisplay } from "../../../features/recipe/hooks/useRecipeDisplay";
+import {
+  CROSS_MANUAL_VALUE,
+  fmtQty,
+  formatCoefficient,
+  formatQtyDisplay,
+  isQS,
+  normUnit,
+} from "../../../features/recipe/utils/recipeHelpers";
 
-import { KitchNLoader } from "../../Loading/KitchNLoader";
 type Props = {
   recipeId: string;
   onBack: () => void;
@@ -27,131 +33,6 @@ type Props = {
   hideBackButton?: boolean;
 };
 
-type IngredientRow = {
-  id: string;
-  quantity: number | null;
-  unit: string | null;
-  designation: string | null;
-  order_index: number | null;
-};
-
-type RecipeSectionRow = {
-  id: string;
-  title: string | null;
-  instructions: string | null;
-  order_index: number | null;
-};
-
-type SectionIngredientRow = {
-  section_id: string;
-  ingredient_id: string;
-  order_index: number | null;
-};
-
-type RecipeRow = {
-  id: string;
-  title: string | null;
-  category: string | null;
-  servings: number | null;
-  prep_time: number | null;
-  cook_time: number | null;
-  notes: string | null;
-  allergens: unknown | null;
-  image_url: string | null;
-  image_urls: string[] | null;
-  created_at: string | null;
-  recipe_sections?: RecipeSectionRow[] | null;
-};
-
-function fmtQty(q: number | null) {
-  if (q === null || Number.isNaN(q)) return "—";
-  const v = Math.round(q * 100) / 100;
-  const s = String(v);
-  return s.endsWith(".0") ? s.slice(0, -2) : s;
-}
-
-function normUnit(u: string | null) {
-  return (u ?? "").trim();
-}
-
-function isQS(unit: string | null) {
-  const u = normUnit(unit).toLowerCase();
-  return u === "qs" || u === "q.s" || u === "q.s." || u === "quantité suffisante";
-}
-
-function formatQtyDisplay(qtyScaled: number | null, unit: string | null) {
-  const u = normUnit(unit);
-  if (isQS(unit)) return "QS";
-  if (qtyScaled === null) return u ? u : "—";
-  if (qtyScaled === 0) return "";
-  return `${fmtQty(qtyScaled)}${u ? ` ${u}` : ""}`.trim();
-}
-
-function ingredientLabel(i: IngredientRow) {
-  const label = ((i.designation ?? "—").trim() || "—").toString();
-  const u = normUnit(i.unit);
-  const q = i.quantity ?? null;
-  return q !== null && Number.isFinite(q)
-    ? `${label} (${fmtQty(q)}${u ? ` ${u}` : ""})`
-    : label;
-}
-
-const CROSS_MANUAL_VALUE = "__manual__";
-
-function getRecipeImageUrls(recipe: RecipeRow | null) {
-  if (!recipe) return [];
-
-  const urls = [
-    ...(Array.isArray(recipe.image_urls) ? recipe.image_urls : []),
-    recipe.image_url ?? "",
-  ]
-    .map((url) => String(url ?? "").trim())
-    .filter(Boolean);
-
-  return Array.from(new Set(urls));
-}
-
-
-function formatCoefficient(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return "1";
-
-  const rounded = Math.round(value * 100) / 100;
-  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
-}
-
-function safeText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-
-  if (typeof value === "string") return value.trim();
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => safeText(item))
-      .filter(Boolean)
-      .join(", ");
-  }
-
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>);
-    const checkedKeys = entries
-      .filter(([, entryValue]) => entryValue === true)
-      .map(([key]) => key);
-
-    if (checkedKeys.length > 0) return checkedKeys.join(", ");
-
-    return entries
-      .map(([key, entryValue]) => {
-        const text = safeText(entryValue);
-        return text ? `${key}: ${text}` : "";
-      })
-      .filter(Boolean)
-      .join(", ");
-  }
-
-  return String(value).trim();
-}
-
 export default function RecipeDisplayMobile({
   recipeId,
   onBack,
@@ -159,296 +40,50 @@ export default function RecipeDisplayMobile({
   embedded = false,
   hideBackButton = false,
 }: Props) {
-  const [recipe, setRecipe] = useState<RecipeRow | null>(null);
-  const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
-  const [sections, setSections] = useState<RecipeSectionRow[]>([]);
-  const [links, setLinks] = useState<SectionIngredientRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // ✅ Multiplication inline
-  const [servings, setServings] = useState<number>(4);
-
-  // ✅ Outils repliables
   const [openTools, setOpenTools] = useState(false);
 
-  // Produit en croix
-  const [crossRefIngredientId, setCrossRefIngredientId] = useState<string>("");
-  const [crossBase, setCrossBase] = useState<number>(500);
-  const [crossHave, setCrossHave] = useState<string>("");
+  const {
+    recipe,
+    ingredients,
+    sections,
+    loading,
+    error,
+    recipeImages,
+    subtitle,
+    allergensText,
 
-  // ✅ Mes notes (privées)
-  const [myNote, setMyNote] = useState<string>("");
-  const [noteLoading, setNoteLoading] = useState<boolean>(true);
-  const [noteSaving, setNoteSaving] = useState<boolean>(false);
-  const [noteSavedAt, setNoteSavedAt] = useState<string | null>(null);
+    coefficient,
+    crossRatio,
 
-  // ✅ sections accordion (ouvertes par défaut sur mobile pour une lecture rapide)
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+    crossRefIngredientId,
+    setCrossRefIngredientId,
+    crossBase,
+    setCrossBase,
+    crossHave,
+    setCrossHave,
 
-  const recipeImages = useMemo(() => getRecipeImageUrls(recipe), [recipe]);
+    refIngredient,
+    refBaseQty,
+    refUnit,
+    crossSelectableIngredients,
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recipeId]);
+    increaseMultiplier,
+    decreaseMultiplier,
+    resetMultiplier,
 
-  async function load() {
-    setLoading(true);
-    setError(null);
+    sectionIngredients,
+    openSections,
+    toggleSection,
 
-    try {
-      const { data, error: rErr } = await supabase
-        .from("recipes")
-        .select(
-          `
-          id,
-          title,
-          category,
-          servings,
-          prep_time,
-          cook_time,
-          notes,
-          allergens,
-          image_url,
-          image_urls,
-          created_at,
-          recipe_sections (
-            id,
-            title,
-            instructions,
-            order_index
-          )
-        `
-        )
-        .eq("id", recipeId)
-        .maybeSingle();
-
-      if (rErr) throw rErr;
-      if (!data) throw new Error("Recette introuvable");
-
-      const r = data as RecipeRow;
-      setRecipe(r);
-
-      const sortedSections = (r.recipe_sections ?? [])
-        .slice()
-        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
-      setSections(sortedSections);
-
-      // ✅ sections ouvertes par défaut : la bottom sheet devient la fiche rapide de service
-      const opened: Record<string, boolean> = {};
-      for (const s of sortedSections) opened[s.id] = true;
-      setOpenSections(opened);
-
-      // ✅ reset servings sur la base
-      const base = Math.max(1, Number(r.servings ?? 1));
-      setServings(base);
-
-      const { data: ing, error: iErr } = await supabase
-        .from("ingredients")
-        .select("id, quantity, unit, designation, order_index")
-        .eq("recipe_id", recipeId)
-        .order("order_index", { ascending: true });
-
-      if (iErr) throw iErr;
-      setIngredients((ing ?? []) as IngredientRow[]);
-
-      // ✅ liens section -> ingrédients
-      const sectionIds = sortedSections.map((s) => s.id);
-
-      if (sectionIds.length > 0) {
-        const { data: lnk, error: lErr } = await supabase
-          .from("section_ingredients")
-          .select("section_id, ingredient_id, order_index")
-          .in("section_id", sectionIds)
-          .order("order_index", { ascending: true });
-
-        if (lErr) throw lErr;
-        setLinks((lnk ?? []) as SectionIngredientRow[]);
-      } else {
-        setLinks([]);
-      }
-
-      // ✅ charger "ma note"
-      setNoteLoading(true);
-      const { data: authData, error: authErr } = await supabase.auth.getUser();
-      if (authErr) throw authErr;
-
-      const uid = authData.user?.id;
-      if (uid) {
-        const { data: noteRow, error: nErr } = await supabase
-          .from("recipe_user_notes")
-          .select("content, updated_at")
-          .eq("recipe_id", recipeId)
-          .eq("user_id", uid)
-          .maybeSingle();
-
-        if (!nErr) {
-          setMyNote(noteRow?.content ?? "");
-          setNoteSavedAt(noteRow?.updated_at ?? null);
-        }
-      }
-      setNoteLoading(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Erreur");
-      setRecipe(null);
-      setIngredients([]);
-      setSections([]);
-      setLinks([]);
-
-      setMyNote("");
-      setNoteSavedAt(null);
-      setNoteLoading(false);
-      setOpenSections({});
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const baseServings = useMemo(
-    () => Math.max(1, Number(recipe?.servings ?? 1)),
-    [recipe?.servings]
-  );
-
-  const ratio = useMemo(() => servings / baseServings, [servings, baseServings]);
-
-  const refIngredient = useMemo(() => {
-    if (!crossRefIngredientId) return null;
-    return ingredients.find((i) => i.id === crossRefIngredientId) ?? null;
-  }, [crossRefIngredientId, ingredients]);
-
-  const refBaseQty = refIngredient?.quantity ?? null;
-  const refUnit = refIngredient?.unit ?? null;
-
-  const crossRatio = useMemo(() => {
-    const haveStr = crossHave.trim();
-    if (!haveStr) return null;
-
-    const have = Number(haveStr);
-    if (!Number.isFinite(have) || have <= 0) return null;
-
-    if (refIngredient) {
-      if (isQS(refUnit)) return null;
-      if (refBaseQty === null || !Number.isFinite(refBaseQty) || refBaseQty <= 0) {
-        return null;
-      }
-      return have / refBaseQty;
-    }
-
-    if (!Number.isFinite(crossBase) || crossBase <= 0) return null;
-    return have / crossBase;
-  }, [crossHave, crossBase, refIngredient, refBaseQty, refUnit]);
-
-  const coefficient = crossRatio ?? ratio;
-
-  function increaseMultiplier() {
-    const currentMultiplier = Math.max(1, Math.round(coefficient || 1));
-    setCrossHave("");
-    setServings(baseServings * (currentMultiplier + 1));
-  }
-
-  function decreaseMultiplier() {
-    const currentMultiplier = Math.max(1, Math.round(coefficient || 1));
-    setCrossHave("");
-    setServings(baseServings * Math.max(1, currentMultiplier - 1));
-  }
-
-  function resetMultiplier() {
-    setServings(baseServings);
-    setCrossHave("");
-    setCrossBase(500);
-    setCrossRefIngredientId("");
-  }
-
-  const subtitle = useMemo(() => {
-    if (!recipe) return null;
-
-    const cat = recipe.category || "Sans catégorie";
-    const prep = recipe.prep_time ?? 0;
-    const cook = recipe.cook_time ?? 0;
-    const parts = [cat];
-
-    if (prep > 0) parts.push(`Préparation : ${prep} min`);
-    if (cook > 0) parts.push(`Cuisson : ${cook} min`);
-    if (recipe.servings && recipe.servings > 0) {
-      parts.push(`${recipe.servings} portion${recipe.servings > 1 ? "s" : ""}`);
-    }
-
-    return parts.join(" · ");
-  }, [recipe]);
-
-  const allergensText = useMemo(() => safeText(recipe?.allergens), [recipe?.allergens]);
-
-  const ingredientsById = useMemo(() => {
-    const m = new Map<string, IngredientRow>();
-    for (const i of ingredients) m.set(i.id, i);
-    return m;
-  }, [ingredients]);
-
-  const sectionIngredients = useMemo(() => {
-    const map = new Map<string, IngredientRow[]>();
-    const sortedLinks = [...links].sort(
-      (a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)
-    );
-
-    for (const l of sortedLinks) {
-      const ing = ingredientsById.get(l.ingredient_id);
-      if (!ing) continue;
-      if (!map.has(l.section_id)) map.set(l.section_id, []);
-      map.get(l.section_id)!.push(ing);
-    }
-
-    return map;
-  }, [links, ingredientsById]);
-
-  const unlinkedIngredients = useMemo(() => {
-    const linkedIds = new Set(links.map((link) => link.ingredient_id));
-    return ingredients.filter((ingredient) => !linkedIds.has(ingredient.id));
-  }, [ingredients, links]);
-
-  const crossSelectableIngredients = useMemo(() => {
-    return ingredients
-      .filter((i) => i.quantity !== null && i.quantity > 0 && !isQS(i.unit))
-      .map((i) => ({
-        id: i.id,
-        label: ingredientLabel(i),
-      }));
-  }, [ingredients]);
-
-  // ✅ auto-save notes (debounce)
-  useEffect(() => {
-    if (loading) return;
-    if (noteLoading) return;
-
-    const t = setTimeout(async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      const uid = authData?.user?.id;
-      if (!uid) return;
-
-      setNoteSaving(true);
-
-      const { data, error: upErr } = await supabase
-        .from("recipe_user_notes")
-        .upsert(
-          { recipe_id: recipeId, user_id: uid, content: myNote },
-          { onConflict: "recipe_id,user_id" }
-        )
-        .select("updated_at")
-        .maybeSingle();
-
-      setNoteSaving(false);
-
-      if (!upErr) {
-        setNoteSavedAt(data?.updated_at ?? new Date().toISOString());
-      }
-    }, 500);
-
-    return () => clearTimeout(t);
-  }, [myNote, recipeId, loading, noteLoading]);
-
-  function toggleSection(id: string) {
-    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
-  }
+    myNote,
+    setMyNote,
+    noteLoading,
+    noteSaving,
+    noteSavedAt,
+  } = useRecipeDisplay({
+    recipeId,
+    sectionsInitiallyOpen: true,
+  });
 
   const content = (
     <>

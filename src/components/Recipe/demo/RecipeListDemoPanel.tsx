@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -46,7 +46,6 @@ function cn(...classes: Array<string | undefined | false>) {
 export function RecipeListDemoPanel({
   onCreateNew,
   onOpenRecipe,
-  autoDemo = false,
   highlightedRecipeId,
 }: RecipeListDemoPanelProps) {
   const recipes = useMemo<DemoRecipe[]>(

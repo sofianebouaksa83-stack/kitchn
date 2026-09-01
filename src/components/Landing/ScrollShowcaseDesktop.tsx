@@ -1,4 +1,4 @@
-import React, {
+import {
   useEffect,
   useMemo,
   useRef,
@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ui } from "../../styles/ui";
+import { cn } from "../../utils/cn";
 
 import { WorkGroupsDemoPanel } from "../Groups/";
 import { RecipeImportAIDemoPanel } from "../Import/";
@@ -26,13 +27,9 @@ type Step = {
   body: string;
   bullets: string[];
   align: "left" | "right";
-  demo: React.ReactNode;
+  demo: ReactNode;
   bg: string;
 };
-
-function cn(...classes: Array<string | undefined | false>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 function AutoFitDemo({
   children,
@@ -354,12 +351,17 @@ function RecipeStepDemoInteractive() {
         initial={false}
         animate={view === "list" ? "open" : "closed"}
         variants={{
-          open: { opacity: 1, x: 0, scale: 1, pointerEvents: "auto" as any },
+          open: {
+            opacity: 1,
+            x: 0,
+            scale: 1,
+            pointerEvents: "auto" as const,
+          },
           closed: {
             opacity: 0,
             x: -18,
             scale: 0.985,
-            pointerEvents: "none" as any,
+            pointerEvents: "none" as const,
           },
         }}
         transition={{ duration: 0.45, ease: "easeInOut" }}
@@ -382,12 +384,17 @@ function RecipeStepDemoInteractive() {
         initial={false}
         animate={view === "detail" ? "open" : "closed"}
         variants={{
-          open: { opacity: 1, x: 0, scale: 1, pointerEvents: "auto" as any },
+          open: {
+            opacity: 1,
+            x: 0,
+            scale: 1,
+            pointerEvents: "auto" as const,
+          },
           closed: {
             opacity: 0,
             x: 18,
             scale: 0.985,
-            pointerEvents: "none" as any,
+            pointerEvents: "none" as const,
           },
         }}
         transition={{ duration: 0.45, ease: "easeInOut" }}

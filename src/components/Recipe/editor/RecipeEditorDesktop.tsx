@@ -1,20 +1,14 @@
-import React from "react";
-import { PageShell } from "../../Layout/PageShell";
-import { ui } from "../../../styles/ui";
 import {
+  AlertCircle,
   ArrowLeft,
   Loader2,
-  AlertCircle,
   Save,
-  Plus,
-  X,
-  ChevronDown,
-  ChevronUp,
   Tag,
-  ImagePlus,
-  Trash2,
 } from "lucide-react";
-import { useRecipeEditor, UNITS, CATEGORIES } from "./hooks/useRecipeEditor";
+import { PageShell } from "../../Layout/PageShell";
+import { ui } from "../../../styles/ui";
+import { useRecipeEditor } from "../../../features/recipe/hooks/useRecipeEditor";
+import { RecipeEditorForm } from "./RecipeEditorForm";
 
 type Props = {
   recipeId?: string | null;
@@ -23,36 +17,20 @@ type Props = {
   onCreated?: (id: string) => void;
 };
 
-const labelCls = "block text-[12px] font-medium text-slate-200/90 mb-2";
-const hintCls = "text-xs text-slate-300/60";
-
-const inputBase =
-  "w-full bg-white/[0.045] border border-white/10 text-slate-100 outline-none " +
-  "placeholder:text-slate-400/50 focus:border-amber-300/30 focus:ring-2 focus:ring-amber-300/20";
-
-const inputCls = `${inputBase} h-10 rounded-xl px-3 text-sm`;
-const inputNumCls = `${inputBase} h-10 rounded-xl px-3 text-sm`;
-const selectCls = `${inputBase} h-10 rounded-xl px-2 text-sm`;
-
-const textareaCls =
-  "w-full rounded-2xl bg-white/[0.045] border border-white/10 px-4 py-3 text-sm text-slate-100 outline-none " +
-  "placeholder:text-slate-400/50 focus:border-amber-300/30 focus:ring-2 focus:ring-amber-300/20 resize-none";
-
-const sectionTitleCls =
-  "text-[11px] uppercase tracking-wider text-slate-200/70 font-semibold";
-
-const dividerCls = "border-b border-white/10";
-
 export function RecipeEditorDesktop({
   recipeId,
   onBack,
   onSave,
   onCreated,
 }: Props) {
-  const editor = useRecipeEditor({ recipeId, onSave, onCreated });
+  const editor = useRecipeEditor({
+    recipeId,
+    onSave,
+    onCreated,
+  });
 
   const title = editor.isEdit
-    ? editor.title?.trim() || "Modifier la recette"
+    ? editor.title.trim() || "Modifier la recette"
     : "Nouvelle recette";
 
   return (
@@ -63,7 +41,11 @@ export function RecipeEditorDesktop({
       icon={<Tag className="w-5 h-5 text-amber-200" />}
       actions={
         <div className="flex items-center gap-2">
-          <button onClick={() => onBack?.()} className={ui.btnGhost} type="button">
+          <button
+            onClick={() => onBack?.()}
+            className={ui.btnGhost}
+            type="button"
+          >
             <ArrowLeft className="w-4 h-4" />
             Retour
           </button>
@@ -87,353 +69,17 @@ export function RecipeEditorDesktop({
         </div>
       ) : (
         <div className="mx-auto w-full max-w-5xl">
-          {editor.errorMsg && (
+          {editor.errorMsg ? (
             <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
               {editor.errorMsg}
             </div>
-          )}
+          ) : null}
 
-          {/* ===== INFOS (sans gros container) ===== */}
-          <div className={`pb-8 ${dividerCls}`}>
-            <div className={sectionTitleCls}>Informations</div>
-            <div className={`mt-1 ${hintCls}`}>
-              Titre, catégorie et photos
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className={labelCls}>Titre de la recette *</label>
-                <input
-                  value={editor.title}
-                  onChange={(e) => editor.setTitle(e.target.value)}
-                  placeholder="Ex: Langoustine, bisque, pickles…"
-                  className={`${inputBase} h-11 rounded-2xl px-4`}
-                />
-              </div>
-
-              <div>
-                <label className={labelCls}>Catégorie</label>
-                <select
-                  value={editor.category}
-                  onChange={(e) => editor.setCategory(e.target.value)}
-                  className={`${inputBase} h-11 rounded-2xl px-3`}
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c} className="bg-[#0B1020]">
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <div className="flex items-center justify-between gap-3">
-                  <label className={labelCls}>Photos de la recette</label>
-                  {editor.recipeImages.length > 0 ? (
-                    <span className="text-[11px] text-slate-300/50">
-                      {editor.recipeImages.length} photo{editor.recipeImages.length > 1 ? "s" : ""}
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="rounded-[24px] bg-white/[0.025] ring-1 ring-white/10 p-3">
-                  {editor.recipeImages.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {editor.recipeImages.map((image, index) => (
-                        <div
-                          key={image.localId}
-                          className="relative overflow-hidden rounded-[18px] bg-white/[0.03] ring-1 ring-white/10"
-                        >
-                          <img
-                            src={image.url}
-                            alt={`Photo ${index + 1} de la recette`}
-                            className="h-40 w-full object-contain"
-                          />
-
-                          {index === 0 ? (
-                            <div className="absolute bottom-2 left-2 rounded-full bg-black/45 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">
-                              Principale
-                            </div>
-                          ) : null}
-
-                          <button
-                            type="button"
-                            onClick={() => editor.removeRecipeImage(image.localId)}
-                            className="absolute right-2 top-2 h-8 w-8 rounded-full bg-black/45 text-red-100 backdrop-blur-md ring-1 ring-white/10 hover:bg-red-500/30 inline-flex items-center justify-center"
-                            title="Supprimer cette photo"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="h-44 w-full flex flex-col items-center justify-center gap-2 rounded-[18px] bg-white/[0.035] text-slate-300/70">
-                      <ImagePlus className="h-8 w-8 text-amber-200/80" />
-                      <span className="text-sm">Aucune photo ajoutée</span>
-                      <span className="text-[11px] text-slate-400/60">JPG, PNG ou WebP · max 8 Mo/photo</span>
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <label className="flex-1 h-10 cursor-pointer inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-300/10 text-amber-200 ring-1 ring-amber-300/20 hover:bg-amber-300/15 text-sm font-medium">
-                      <ImagePlus className="w-4 h-4" />
-                      Ajouter des photos
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          editor.handleRecipeImagesChange(e.currentTarget.files);
-                          e.currentTarget.value = "";
-                        }}
-                      />
-                    </label>
-
-                    {editor.recipeImages.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={editor.clearAllRecipeImages}
-                        className="h-10 w-10 rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200/90 inline-flex items-center justify-center"
-                        title="Supprimer toutes les photos"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ===== SECTIONS ===== */}
-          <div className={`mt-8 pb-8 ${dividerCls}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className={sectionTitleCls}>Sections</div>
-                <div className={`mt-1 ${hintCls}`}>
-                  Sous-recettes / éléments de la recette
-                </div>
-              </div>
-
-              <button
-                onClick={editor.addSection}
-                className="inline-flex items-center gap-2 h-9 px-3 rounded-xl bg-amber-300/10 text-amber-200 ring-1 ring-amber-300/20 hover:bg-amber-300/15 text-sm"
-                type="button"
-              >
-                <Plus className="w-4 h-4" /> Ajouter
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-6">
-              {editor.sections.map((s, idx) => {
-                const ingList = editor.sectionIngredients[s.localId] ?? [];
-                const isOnlySection = editor.sections.length === 1;
-
-                return (
-                  <div key={s.localId} className="pt-1">
-                    {/* header */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-xl bg-white/5 ring-1 ring-white/10 flex items-center justify-center text-slate-200 font-semibold text-sm">
-                        {idx + 1}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <input
-                          value={s.title}
-                          onChange={(e) =>
-                            editor.setSections((prev) =>
-                              prev.map((x) =>
-                                x.localId === s.localId
-                                  ? { ...x, title: e.target.value }
-                                  : x
-                              )
-                            )
-                          }
-                          placeholder="Nom de la section"
-                          className={inputCls}
-                        />
-                      </div>
-
-                      <button
-                        onClick={() => editor.toggleCollapse(s.localId)}
-                        className="h-9 w-9 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-slate-200 inline-flex items-center justify-center"
-                        type="button"
-                        title={s.collapsed ? "Déplier" : "Replier"}
-                      >
-                        {s.collapsed ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronUp className="w-4 h-4" />
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => editor.removeSection(s.localId)}
-                        disabled={isOnlySection}
-                        className="h-9 w-9 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200/90 inline-flex items-center justify-center disabled:opacity-40"
-                        type="button"
-                        title="Supprimer la section"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {!s.collapsed && (
-                      <div className="mt-5 space-y-6">
-                        {/* Ingredients */}
-                        <div>
-                          <div className="text-[12px] text-slate-200 font-medium mb-3">
-                            Ingrédients
-                          </div>
-
-                          <div className="space-y-2">
-                            {ingList.map((ing, ingIdx) => {
-                              const isOnlyIng = ingList.length === 1;
-
-                              return (
-                                <div
-                                  key={ing.localId}
-                                  className="grid grid-cols-[86px_96px_1fr_40px] gap-2 items-center rounded-2xl bg-white/[0.02] ring-1 ring-white/10 p-2"
-                                >
-                                  <input
-                                    type="number"
-                                    step="0.001"
-                                    min="0"
-                                    value={ing.quantity}
-                                    onChange={(e) =>
-                                      editor.updateIngredient(
-                                        s.localId,
-                                        ingIdx,
-                                        "quantity",
-                                        e.target.value
-                                      )
-                                    }
-                                    className={inputNumCls}
-                                    placeholder="Qté"
-                                  />
-
-                                  <select
-                                    value={ing.unit}
-                                    onChange={(e) =>
-                                      editor.updateIngredient(
-                                        s.localId,
-                                        ingIdx,
-                                        "unit",
-                                        e.target.value
-                                      )
-                                    }
-                                    className={selectCls}
-                                  >
-                                    {UNITS.map((u) => (
-                                      <option
-                                        key={u}
-                                        value={u}
-                                        className="bg-[#0B1020]"
-                                      >
-                                        {u}
-                                      </option>
-                                    ))}
-                                  </select>
-
-                                  <input
-                                    value={ing.designation}
-                                    onChange={(e) =>
-                                      editor.updateIngredient(
-                                        s.localId,
-                                        ingIdx,
-                                        "designation",
-                                        e.target.value
-                                      )
-                                    }
-                                    className={`${inputCls} min-w-0`}
-                                    placeholder="Ingrédient"
-                                  />
-
-                                  <button
-                                    onClick={() =>
-                                      editor.removeIngredient(s.localId, ingIdx)
-                                    }
-                                    disabled={isOnlyIng}
-                                    className="h-10 w-10 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-red-200/90 inline-flex items-center justify-center disabled:opacity-40"
-                                    type="button"
-                                    title="Supprimer"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          <button
-                            onClick={() => editor.addIngredient(s.localId)}
-                            className="mt-3 inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 text-sm font-medium"
-                            type="button"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Ajouter un ingrédient
-                          </button>
-                        </div>
-
-                        {/* Instructions */}
-                        <div>
-                          <div className="text-[12px] text-slate-200 font-medium mb-2">
-                            Instructions
-                          </div>
-                          <textarea
-                            value={s.instructions}
-                            onChange={(e) =>
-                              editor.setSections((prev) =>
-                                prev.map((x) =>
-                                  x.localId === s.localId
-                                    ? { ...x, instructions: e.target.value }
-                                    : x
-                                )
-                              )
-                            }
-                            rows={5}
-                            placeholder="Étapes / cuisson / dressage…"
-                            className={textareaCls}
-                          />
-                        </div>
-
-                        <div className="pt-1 border-b border-white/10" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ===== Instructions générales ===== */}
-          <div className="mt-8">
-            <div className={sectionTitleCls}>Instructions générales</div>
-            <div className={`mt-1 ${hintCls}`}>(optionnel)</div>
-
-            <textarea
-              value={editor.generalInstructions}
-              onChange={(e) => editor.setGeneralInstructions(e.target.value)}
-              rows={6}
-              placeholder="Notes globales / timing / organisation…"
-              className={`mt-4 ${textareaCls}`}
-            />
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={editor.handleSave}
-                disabled={editor.saving}
-                className={ui.btnPrimary}
-                type="button"
-              >
-                <Save className="w-4 h-4" />
-                {editor.saving ? "Enregistrement…" : "Enregistrer"}
-              </button>
-            </div>
-          </div>
+          <RecipeEditorForm
+            editor={editor}
+            variant="desktop"
+          />
         </div>
       )}
     </PageShell>

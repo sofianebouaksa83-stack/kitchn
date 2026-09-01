@@ -1,12 +1,14 @@
-import React, {
+import {
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ui } from "../../styles/ui";
+import { cn } from "../../utils/cn";
 import { AnimatedSection } from "./AnimatedSection";
 
 import { WorkGroupsDemoPanel } from "../Groups/";
@@ -21,18 +23,14 @@ type Step = {
   title: string;
   body: string;
   bullets: string[];
-  demo: React.ReactNode;
+  demo: ReactNode;
   bg: string;
   demoBaseWidth?: number;
   demoBaseHeight?: number;
-  demoHeightClass?: "h-[760px] sm:h-[840px]";
+  demoHeightClass?: string;
   demoOffsetY?: number;
   demoMaxScale?: number;
 };
-
-function cn(...classes: Array<string | undefined | false>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 function AutoFitDemoMobile({
   children,
@@ -44,7 +42,7 @@ function AutoFitDemoMobile({
   maxScale = 1,
   cropTop = 24,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   baseWidth?: number;
   baseHeight?: number;
@@ -370,8 +368,16 @@ function RecipeStepDemoInteractiveMobile() {
         initial={false}
         animate={view === "list" ? "open" : "closed"}
         variants={{
-          open: { opacity: 1, x: 0, pointerEvents: "auto" as any },
-          closed: { opacity: 0, x: -24, pointerEvents: "none" as any },
+          open: {
+            opacity: 1,
+            x: 0,
+            pointerEvents: "auto" as const,
+          },
+          closed: {
+            opacity: 0,
+            x: -24,
+            pointerEvents: "none" as const,
+          },
         }}
         transition={{ duration: 0.28, ease: "easeInOut" }}
         className="absolute inset-0 z-10"
@@ -393,8 +399,16 @@ function RecipeStepDemoInteractiveMobile() {
         initial={false}
         animate={view === "detail" ? "open" : "closed"}
         variants={{
-          open: { opacity: 1, x: 0, pointerEvents: "auto" as any },
-          closed: { opacity: 0, x: 24, pointerEvents: "none" as any },
+          open: {
+            opacity: 1,
+            x: 0,
+            pointerEvents: "auto" as const,
+          },
+          closed: {
+            opacity: 0,
+            x: 24,
+            pointerEvents: "none" as const,
+          },
         }}
         transition={{ duration: 0.28, ease: "easeInOut" }}
         className="absolute inset-0 z-20"
@@ -414,7 +428,7 @@ function MobilePhoneFrame({
   children,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (

@@ -1,147 +1,57 @@
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabase";
 import { Share2, Folder } from "lucide-react";
+import { useSharedRecipes } from "../../features/sharing/hooks/useSharedRecipes";
+import type { SharedRecipeOpen } from "../../features/sharing/types/sharing.types";
 import { ui } from "../../styles/ui";
-import { SharedRecipeGroupDesktop } from "./SharedRecipeGroupDesktop";
+import { SharedRecipeGroup } from "./SharedRecipeGroup";
 import { KitchNLoader } from "../Loading/KitchNLoader";
-type GroupMini = { id: string; name: string };
 
-type MembershipRow = {
-  work_group_id: string;
-  work_groups: GroupMini | null;
-};
-
-type SharedRecipesDesktopProps = {
-  recipeToOpen?: {
-    recipeId: string;
-    groupId: string;
-  } | null;
+type Props = {
+  recipeToOpen?: SharedRecipeOpen | null;
   onRecipeOpened?: () => void;
 };
-
-function getPendingSharedOpen() {
-  return {
-    groupId:
-      sessionStorage.getItem("selectedWorkGroupId") ||
-      sessionStorage.getItem("selectedSharedGroupId"),
-    recipeId: sessionStorage.getItem("selectedSharedRecipeId"),
-  };
-}
 
 export function SharedRecipesDesktop({
   recipeToOpen,
   onRecipeOpened,
-}: SharedRecipesDesktopProps) {
-  const [loading, setLoading] = useState(true);
+}: Props) {
+  const {
+    loading,
+    groups,
+    selectedGroupId,
+    recipeToOpenId,
+    selectedGroup,
+    openGroup,
+    closeGroup,
+    handleInitialRecipeOpened,
+  } = useSharedRecipes({
+    recipeToOpen,
+    onRecipeOpened,
+    autoSelectSingleGroup: true,
+  });
 
-  const [userGroups, setUserGroups] = useState<GroupMini[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [recipeToOpenId, setRecipeToOpenId] = useState<string | null>(null);
-
-  useEffect(() => {
-    void loadGroups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!recipeToOpen) return;
-
-    setSelectedGroupId(recipeToOpen.groupId);
-    setRecipeToOpenId(recipeToOpen.recipeId);
-  }, [recipeToOpen]);
-
-  async function loadGroups() {
-    setLoading(true);
-
-    try {
-      // 1) user
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-
-      const userId = authData.user?.id;
-      if (!userId) {
-        setUserGroups([]);
-        setSelectedGroupId(null);
-        return;
-      }
-
-      // 2) groupes de l'utilisateur
-      // ✅ FIX: work_group_id au lieu de group_id
-      const { data: membershipsData, error: membershipsError } = await supabase
-        .from("group_members")
-        .select("work_group_id, work_groups:work_groups(id,name)")
-        .eq("user_id", userId);
-
-      if (membershipsError) throw membershipsError;
-
-      const memberships = (membershipsData ?? []) as MembershipRow[];
-
-      const groups = memberships
-        .map((row) => row.work_groups)
-        .filter((g): g is GroupMini => Boolean(g?.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      setUserGroups(groups);
-
-      const pending = recipeToOpen
-        ? { groupId: recipeToOpen.groupId, recipeId: recipeToOpen.recipeId }
-        : getPendingSharedOpen();
-
-      if (pending.groupId) {
-        setSelectedGroupId(pending.groupId);
-        setRecipeToOpenId(pending.recipeId);
-      } else if (groups.length === 1) {
-        setSelectedGroupId(groups[0].id);
-        setRecipeToOpenId(null);
-      } else {
-        setSelectedGroupId(null);
-        setRecipeToOpenId(null);
-      }
-    } catch (err: any) {
-      console.error("[SharedRecipes] Error loading groups:", err);
-      setUserGroups([]);
-      setSelectedGroupId(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const selectedGroup = useMemo(
-    () =>
-      selectedGroupId
-        ? userGroups.find((g) => g.id === selectedGroupId) ?? null
-        : null,
-    [selectedGroupId, userGroups]
-  );
-
-  // ✅ Vue “dans un groupe”
   if (!loading && selectedGroupId) {
     return (
-      <SharedRecipeGroupDesktop
+      <SharedRecipeGroup
+        variant="desktop"
         groupId={selectedGroupId}
         groupName={selectedGroup?.name ?? "Groupe"}
         initialRecipeId={recipeToOpenId}
-        onInitialRecipeOpened={() => {
-          setRecipeToOpenId(null);
-          sessionStorage.removeItem("selectedSharedRecipeId");
-          sessionStorage.removeItem("selectedWorkGroupId");
-          sessionStorage.removeItem("selectedSharedGroupId");
-          onRecipeOpened?.();
-        }}
-        onBack={() => {
-          setSelectedGroupId(null);
-          setRecipeToOpenId(null);
-        }}
+        onInitialRecipeOpened={
+          handleInitialRecipeOpened
+        }
+        onBack={closeGroup}
       />
     );
   }
 
-  const emptyState = !loading && userGroups.length === 0;
+  const emptyState =
+    !loading && groups.length === 0;
 
   return (
     <div className={ui.dashboardBg}>
-      <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>
-        {/* Header (plein écran) */}
+      <div
+        className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}
+      >
         <div className="max-w-6xl mx-auto">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center">
@@ -152,40 +62,40 @@ export function SharedRecipesDesktop({
               <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
                 Partagées
               </h1>
+
               <p className="text-sm text-slate-300/70 mt-1">
                 Recettes visibles via tes groupes de travail
               </p>
             </div>
           </div>
 
-          {/* Loading */}
           {loading && (
             <div className="mt-8 flex items-center justify-center h-64">
               <KitchNLoader className="kitchn-loader--compact" />
             </div>
           )}
 
-          {/* Empty state */}
           {!loading && emptyState && (
             <div className="mt-8 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center shadow-[0_18px_60px_rgba(0,0,0,0.25)] backdrop-blur-md">
               <Share2 className="w-14 h-14 text-slate-500 mx-auto mb-4" />
+
               <p className="text-slate-200 text-lg font-semibold">
                 Tu n’es dans aucun groupe pour le moment
               </p>
+
               <p className="text-sm text-slate-300/70 mt-2">
                 Demande une invitation ou crée un groupe.
               </p>
             </div>
           )}
 
-          {/* List */}
           {!loading && !emptyState && (
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {userGroups.map((g) => (
+              {groups.map((group) => (
                 <button
-                  key={g.id}
-                  onClick={() => { setSelectedGroupId(g.id); setRecipeToOpenId(null); }}
-                  title={`Ouvrir ${g.name}`}
+                  key={group.id}
+                  onClick={() => openGroup(group.id)}
+                  title={`Ouvrir ${group.name}`}
                   type="button"
                   className={[
                     "text-left",
@@ -203,8 +113,9 @@ export function SharedRecipesDesktop({
 
                       <div className="min-w-0">
                         <div className="text-lg font-semibold text-slate-100 truncate">
-                          {g.name}
+                          {group.name}
                         </div>
+
                         <div className="text-sm text-slate-300/70">
                           Ouvrir le groupe
                         </div>

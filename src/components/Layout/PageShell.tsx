@@ -13,6 +13,9 @@ type PageShellProps = {
   panelClassName?: string;
   /** if false, won't render the glass panel wrapper */
   withPanel?: boolean;
+  /** legacy layout hints kept for compatible callers */
+  maxWidth?: string;
+  centerHeader?: boolean;
 };
 
 export function PageShell({

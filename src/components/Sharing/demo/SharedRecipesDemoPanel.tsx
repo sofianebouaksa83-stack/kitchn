@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Share2,
   Folder,
   Eye,
   Heart,
   Filter,
-  X,
   ArrowLeft,
   MoreVertical,
   Trash2,
@@ -13,12 +12,10 @@ import {
   Plus,
   AlertCircle,
   Tag,
-  Pencil,
   Check,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { ui } from "../../../styles/ui";
 import {
   demoFoldersByGroup,
   demoGroups,
@@ -133,16 +130,7 @@ export function SharedRecipesDemoPanel() {
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  const [draggedRecipe, setDraggedRecipe] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const [folderMenuOpenId, setFolderMenuOpenId] = useState<string | null>(null);
-  const [moveFolderOpen, setMoveFolderOpen] = useState(false);
-  const [moveRecipe, setMoveRecipe] = useState<DemoRecipe | null>(null);
-
-  const [showGroupsModal, setShowGroupsModal] = useState(false);
-  const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
-  const [sheetRecipe, setSheetRecipe] = useState<DemoRecipe | null>(null);
 
   const [cursor, setCursor] = useState<CursorState>({
     x: 80,
@@ -172,10 +160,7 @@ export function SharedRecipesDemoPanel() {
     setNewFolderName("");
     setViewingRecipeId(null);
     setMultiplier(1);
-    setSidebarOpen(false);
     setFolderMenuOpenId(null);
-    setMoveFolderOpen(false);
-    setMoveRecipe(null);
     setSelectedBase("Manuel (pas d'ingrédient)");
     setBaseValue("500");
     setHaveValue("");
@@ -195,14 +180,6 @@ export function SharedRecipesDemoPanel() {
     document.addEventListener("mousedown", onDocDown);
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [folderMenuOpenId]);
-
-  useEffect(() => {
-    const prev = document.documentElement.style.overflow;
-    if (moveFolderOpen) document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = prev;
-    };
-  }, [moveFolderOpen]);
 
   const selectedGroupName = selectedGroupId
     ? userGroups.find((g) => g.id === selectedGroupId)?.name ?? "Groupe"
@@ -251,13 +228,6 @@ export function SharedRecipesDemoPanel() {
     );
   }
 
-  function handleSelectMoveFolder(folderId: string | null) {
-    if (!moveRecipe) return;
-    handleMoveToFolder(moveRecipe.id, folderId);
-    setMoveFolderOpen(false);
-    setMoveRecipe(null);
-  }
-
   function handleRemoveFromGroup(recipeId: string) {
     setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
     if (viewingRecipeId === recipeId) setViewingRecipeId(null);
@@ -281,44 +251,6 @@ export function SharedRecipesDemoPanel() {
     setShowNewFolderInput(false);
   }
 
-  function handleRenameFolder(folderId: string) {
-    const current = folders.find((f) => f.id === folderId)?.name ?? "";
-    const next = prompt("Nouveau nom :", current)?.trim();
-    if (!next) return;
-
-    setFolders((prev) =>
-      prev
-        .map((f) => (f.id === folderId ? { ...f, name: next } : f))
-        .sort((a, b) => a.name.localeCompare(b.name))
-    );
-    setFolderMenuOpenId(null);
-  }
-
-  function handleDeleteFolder(folderId: string) {
-    const ok = confirm("Supprimer ce dossier ? Les recettes seront retirées du dossier.");
-    if (!ok) return;
-
-    setRecipes((prev) =>
-      prev.map((r) => (r.folder_id === folderId ? { ...r, folder_id: null } : r))
-    );
-    setFolders((prev) => prev.filter((f) => f.id !== folderId));
-
-    if (selectedFolder === folderId) setSelectedFolder(null);
-    setFolderMenuOpenId(null);
-  }
-
-  function handleDragStart(recipeId: string, e: DragEvent) {
-    setDraggedRecipe(recipeId);
-    e.dataTransfer.effectAllowed = "move";
-  }
-
-  function handleDrop(folderId: string | null, e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!draggedRecipe) return;
-    handleMoveToFolder(draggedRecipe, folderId);
-    setDraggedRecipe(null);
-  }
 
   function wait(ms: number) {
     return new Promise<void>((resolve) => {
@@ -1048,7 +980,6 @@ export function SharedRecipesDemoPanel() {
 
               <button
                 type="button"
-                onClick={() => setSidebarOpen(true)}
                 className="h-12 w-12 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
                 aria-label="Ouvrir les filtres"
               >
@@ -1156,10 +1087,7 @@ export function SharedRecipesDemoPanel() {
 
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSheetRecipe(recipe);
-                            }}
+                            onClick={(event) => event.stopPropagation()}
                             className="h-10 w-10 rounded-full bg-white/[0.04] ring-1 ring-white/10 inline-flex items-center justify-center text-white/60"
                             aria-label="Actions"
                           >
@@ -1170,11 +1098,7 @@ export function SharedRecipesDemoPanel() {
                         <div className="mt-3 flex items-center gap-3 text-white/60">
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveRecipeId(recipe.id);
-                              setShowGroupsModal(true);
-                            }}
+                            onClick={(event) => event.stopPropagation()}
                             className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center"
                             title="Partager"
                           >
@@ -1483,10 +1407,6 @@ export function SharedRecipesDemoPanel() {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => {
-                                setActiveRecipeId(recipe.id);
-                                setShowGroupsModal(true);
-                              }}
                               className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center text-slate-300"
                             >
                               <Share2 className="w-4 h-4" />

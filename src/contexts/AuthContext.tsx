@@ -88,8 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hydratingUserId = nextUser.id
 
       if (active) {
-        setLoading(true)
         setUser(nextUser)
+        // La session suffit pour afficher l'application. Le profil enrichit
+        // ensuite l'UI, mais ne doit pas prolonger le loader global.
+        setLoading(false)
       }
 
       try {
@@ -108,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         if (active && version === hydrationVersion) {
           hydratingUserId = null
-          setLoading(false)
         }
       }
     }

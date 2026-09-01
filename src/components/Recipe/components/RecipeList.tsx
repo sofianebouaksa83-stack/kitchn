@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { useAuth } from "../../../contexts/AuthContext";
-import { supabase, type Recipe, type Ingredient } from "../../../lib/supabase";
+import type {
+  DragEvent,
+  MouseEvent,
+} from "react";
 import { Plus } from "lucide-react";
-
-import RecipeDisplay from "./RecipeDisplay";
-import { RecipeGroupsModal } from "./RecipeGroupsModal";
-
-import { RecipeListMobile } from "./RecipeListMobile";
-import { RecipeListDesktop } from "./RecipeListDesktop";
-
+import { useRecipeList } from "../../../features/recipe/hooks/useRecipeList";
 import { ui } from "../../../styles/ui";
 import { KitchNLoader } from "../../Loading/KitchNLoader";
+import RecipeDisplay from "./RecipeDisplay";
+import { RecipeGroupsModal } from "./RecipeGroupsModal";
+import { RecipeListDesktop } from "./RecipeListDesktop";
+import { RecipeListMobile } from "./RecipeListMobile";
 
 type RecipeListProps = {
   onCreateNew: () => void;
@@ -19,615 +18,213 @@ type RecipeListProps = {
   onRecipeOpened?: () => void;
 };
 
-type RecipeWithIngredients = Recipe & {
-  ingredients: Ingredient[];
-  is_visible?: boolean;
-  folder_id?: string | null;
-  is_favorite?: boolean;
-};
-
-type RecipeFolder = {
-  id: string;
-  name: string;
-  created_by: string;
-};
-
 export function RecipeList({
   onCreateNew,
   onEdit,
   recipeToOpenId,
   onRecipeOpened,
 }: RecipeListProps) {
-  const { user } = useAuth();
-
-  const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("Toutes");
-
-  const [viewingRecipe, setViewingRecipe] = useState<string | null>(null);
-
-  const [folders, setFolders] = useState<RecipeFolder[]>([]);
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-
-  const [newFolderName, setNewFolderName] = useState("");
-  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const [showGroupsModal, setShowGroupsModal] = useState(false);
-  const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
-
-  const [folderMenuOpenId, setFolderMenuOpenId] = useState<string | null>(null);
-  const folderMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    function onDocMouseDown(e: globalThis.MouseEvent) {
-      if (!folderMenuOpenId) return;
-      const target = e.target as Node | null;
-      if (!target) return;
-      if (folderMenuRef.current && folderMenuRef.current.contains(target)) return;
-      setFolderMenuOpenId(null);
-    }
-
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [folderMenuOpenId]);
-
-  useEffect(() => {
-    if (!user) return;
-    void loadRecipes();
-    void loadFolders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!recipeToOpenId) return;
-
-    const isDesktop =
-      typeof window !== "undefined" &&
-      window.matchMedia("(min-width: 1024px)").matches;
-
-    if (isDesktop) {
-      setViewingRecipe(recipeToOpenId);
-      onRecipeOpened?.();
-    }
-  }, [recipeToOpenId, onRecipeOpened]);
-
-  async function loadRecipes() {
-    if (!user) {
-      setRecipes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data: recipesData, error: recipesError } = await supabase
-        .from("recipes")
-        .select(
-          `
-          *,
-          favorite_recipes(user_id)
-        `
-        )
-        .eq("created_by", user.id)
-        .order("created_at", { ascending: false });
-
-      if (recipesError) throw recipesError;
-
-      const recipesWithIngredients = await Promise.all(
-        (recipesData || []).map(async (recipe: any) => {
-          const { data: ingredients, error: ingErr } = await supabase
-            .from("ingredients")
-            .select("*")
-            .eq("recipe_id", recipe.id)
-            .order("order_index");
-
-          if (ingErr) {
-            console.error("[RecipeList] ingredients error:", ingErr);
-          }
-
-          const isFav = Array.isArray(recipe.favorite_recipes)
-            ? recipe.favorite_recipes.some((f: any) => f.user_id === user.id)
-            : false;
-
-          return {
-            ...recipe,
-            ingredients: ingredients || [],
-            is_favorite: isFav,
-            folder_id: recipe.folder_id ?? null,
-          } as RecipeWithIngredients;
-        })
-      );
-
-      setRecipes(recipesWithIngredients);
-    } catch (err) {
-      console.error("[RecipeList] Error loading recipes:", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadFolders() {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("recipe_folders")
-      .select("*")
-      .eq("created_by", user.id)
-      .order("name");
-
-    if (error) {
-      console.error("[RecipeList] Error loading folders:", error);
-    }
-
-    setFolders((data || []) as RecipeFolder[]);
-  }
-
-  const filteredRecipes = useMemo(() => {
-    let filtered = recipes;
-
-    if (selectedFolder) {
-      filtered = filtered.filter((r) => r.folder_id === selectedFolder);
-    }
-
-    if (showFavoritesOnly) {
-      filtered = filtered.filter((r) => r.is_favorite);
-    }
-
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (r) =>
-          (r.title || "").toLowerCase().includes(q) ||
-          (r.ingredients || []).some((ing) =>
-            (ing.designation || "").toLowerCase().includes(q)
-          )
-      );
-    }
-
-    if (categoryFilter !== "Toutes") {
-      filtered = filtered.filter(
-        (r) => (r.category || "Sans catégorie") === categoryFilter
-      );
-    }
-
-    return filtered;
-  }, [recipes, selectedFolder, showFavoritesOnly, searchTerm, categoryFilter]);
-
-  const categories = useMemo(
-    () => [
-      "Toutes",
-      ...Array.from(new Set(recipes.map((r) => r.category || "Sans catégorie"))),
-    ],
-    [recipes]
-  );
-
-  async function handleDeleteRecipeHard(recipeId: string) {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette recette ?")) return;
-
-    try {
-      const { error } = await supabase
-        .from("recipes")
-        .delete()
-        .eq("id", recipeId)
-        .eq("created_by", user?.id);
-
-      if (error) throw error;
-
-      setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
-    } catch (err) {
-      console.error("[RecipeList] Error deleting recipe:", err);
-      alert("Impossible de supprimer la recette.");
-    }
-  }
-
-  async function handleTrashClick(recipeId: string, e: MouseEvent) {
-    e.stopPropagation();
-
-    if (selectedFolder) {
-      await handleMoveRecipeToFolder(recipeId, null);
-      return;
-    }
-
-    await handleDeleteRecipeHard(recipeId);
-  }
-
-  async function handleToggleVisibility(
-    recipeId: string,
-    currentVisibility: boolean,
-    e: MouseEvent
-  ) {
-    e.stopPropagation();
-    const next = !currentVisibility;
-
-    const { error } = await supabase
-      .from("recipes")
-      .update({ is_visible: next })
-      .eq("id", recipeId)
-      .eq("created_by", user?.id);
-
-    if (!error) {
-      setRecipes((prev) =>
-        prev.map((r) => (r.id === recipeId ? { ...r, is_visible: next } : r))
-      );
-    }
-  }
-
-  async function handleToggleFavorite(
-    recipeId: string,
-    isFavorite: boolean,
-    e: MouseEvent
-  ) {
-    e.stopPropagation();
-    if (!user) return;
-
-    try {
-      if (isFavorite) {
-        const { error } = await supabase
-          .from("favorite_recipes")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("recipe_id", recipeId);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("favorite_recipes")
-          .insert({ user_id: user.id, recipe_id: recipeId });
-
-        if (error) throw error;
-      }
-
-      setRecipes((prev) =>
-        prev.map((r) =>
-          r.id === recipeId ? { ...r, is_favorite: !isFavorite } : r
-        )
-      );
-    } catch (err) {
-      console.error("[RecipeList] Error toggling favorite:", err);
-    }
-  }
-
-  async function handleCreateFolder() {
-    const name = newFolderName.trim();
-    if (!name || !user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("recipe_folders")
-        .insert({ name, created_by: user.id })
-        .select("id,name,created_by")
-        .single();
-
-      if (error) throw error;
-      if (!data) throw new Error("Création dossier : aucune donnée retournée.");
-
-      setFolders((prev) => {
-        const exists = prev.some((f) => f.id === (data as any).id);
-        const next = exists ? prev : [...prev, data as RecipeFolder];
-        return next.slice().sort((a, b) => a.name.localeCompare(b.name));
-      });
-
-      setSelectedFolder((data as any).id);
-      setShowFavoritesOnly(false);
-
-      setNewFolderName("");
-      setShowNewFolderInput(false);
-    } catch (err: any) {
-      console.error("[RecipeList] Error creating folder:", err);
-      alert(err?.message ?? "Impossible de créer le dossier.");
-    }
-  }
-
-  async function handleMoveRecipeToFolder(recipeId: string, folderId: string | null) {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from("recipes")
-        .update({ folder_id: folderId })
-        .eq("id", recipeId)
-        .eq("created_by", user.id);
-
-      if (error) throw error;
-
-      setRecipes((prev) =>
-        prev.map((r) => (r.id === recipeId ? { ...r, folder_id: folderId } : r))
-      );
-    } catch (err: any) {
-      console.error("[RecipeList] Error moving recipe to folder:", err);
-      alert(err?.message ?? "Impossible de déplacer la recette dans le dossier.");
-    }
-  }
-
-  async function handleDeleteFolder(folderId: string) {
-    const folderName = folders.find((f) => f.id === folderId)?.name ?? "ce dossier";
-
-    const ok = confirm(
-      `Supprimer "${folderName}" ?\n\nLes recettes ne seront pas supprimées, elles seront juste retirées du dossier.`
-    );
-    if (!ok) return;
-
-    try {
-      const { error: unlinkErr } = await supabase
-        .from("recipes")
-        .update({ folder_id: null })
-        .eq("folder_id", folderId)
-        .eq("created_by", user?.id);
-
-      if (unlinkErr) throw unlinkErr;
-
-      const { error: delErr } = await supabase
-        .from("recipe_folders")
-        .delete()
-        .eq("id", folderId)
-        .eq("created_by", user?.id);
-
-      if (delErr) throw delErr;
-
-      setFolders((prev) => prev.filter((f) => f.id !== folderId));
-      setRecipes((prev) =>
-        prev.map((r) => (r.folder_id === folderId ? { ...r, folder_id: null } : r))
-      );
-
-      if (selectedFolder === folderId) setSelectedFolder(null);
-      setFolderMenuOpenId(null);
-    } catch (err: any) {
-      console.error("[RecipeList] Error deleting folder:", err);
-      alert(err?.message ?? "Impossible de supprimer le dossier.");
-    }
-  }
-
-  async function handleRenameFolder(folderId: string) {
-    const currentName = folders.find((f) => f.id === folderId)?.name ?? "";
-    const next = prompt("Nouveau nom du dossier :", currentName)?.trim();
-    if (!next) return;
-
-    try {
-      const { error } = await supabase
-        .from("recipe_folders")
-        .update({ name: next })
-        .eq("id", folderId)
-        .eq("created_by", user?.id);
-
-      if (error) throw error;
-
-      setFolders((prev) =>
-        prev
-          .map((f) => (f.id === folderId ? { ...f, name: next } : f))
-          .slice()
-          .sort((a, b) => a.name.localeCompare(b.name))
-      );
-
-      setFolderMenuOpenId(null);
-    } catch (err: any) {
-      console.error("[RecipeList] rename folder error:", err);
-      alert(err?.message ?? "Impossible de renommer le dossier");
-    }
-  }
-
-  async function handleDuplicate(recipe: RecipeWithIngredients, e: MouseEvent) {
-    e.stopPropagation();
-    if (!user) return;
-
-    try {
-      const { data: newRecipe, error: recipeError } = await supabase
-        .from("recipes")
-        .insert({
-          created_by: user.id,
-          title: `${recipe.title} (copie)`,
-          category: recipe.category,
-          servings: recipe.servings,
-          prep_time: recipe.prep_time,
-          cook_time: recipe.cook_time,
-          allergens: recipe.allergens,
-          steps: recipe.steps,
-          notes: recipe.notes,
-          is_base_recipe: recipe.is_base_recipe,
-          is_visible: recipe.is_visible,
-          folder_id: recipe.folder_id ?? null,
-        })
-        .select()
-        .single();
-
-      if (recipeError) throw recipeError;
-
-      if (recipe.ingredients.length > 0) {
-        const { error: ingredientsError } = await supabase.from("ingredients").insert(
-          recipe.ingredients.map((ing, index) => ({
-            recipe_id: (newRecipe as any).id,
-            order_index: index,
-            quantity: ing.quantity,
-            unit: ing.unit,
-            designation: ing.designation,
-            sub_recipe_id: ing.sub_recipe_id,
-            cost_per_unit: ing.cost_per_unit,
-          }))
-        );
-
-        if (ingredientsError) throw ingredientsError;
-      }
-
-      void loadRecipes();
-    } catch (err) {
-      console.error("[RecipeList] Error duplicating recipe:", err);
-    }
-  }
-
-  if (loading) {
+  const list = useRecipeList({
+    recipeToOpenId,
+    onRecipeOpened,
+  });
+
+  if (list.loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <KitchNLoader className="kitchn-loader--compact" />
       </div>
     );
   }
 
-  if (viewingRecipe) {
+  if (list.viewingRecipe) {
     return (
       <RecipeDisplay
-        recipeId={viewingRecipe}
-        onBack={() => setViewingRecipe(null)}
+        recipeId={list.viewingRecipe}
+        onBack={() =>
+          list.setViewingRecipe(null)
+        }
       />
     );
   }
 
-  const userExists = !!user;
-  const recipesCount = recipes.length;
-  const filteredCount = filteredRecipes.length;
+  function handleSelectAll() {
+    list.setSelectedFolder(null);
+    list.setShowFavoritesOnly(false);
+  }
 
-  const onSelectAll = () => {
-    setSelectedFolder(null);
-    setShowFavoritesOnly(false);
-  };
+  function handleSelectFavorites() {
+    list.setSelectedFolder(null);
+    list.setShowFavoritesOnly(true);
+  }
 
-  const onSelectFavorites = () => {
-    setSelectedFolder(null);
-    setShowFavoritesOnly(true);
-  };
+  function handleSelectFolder(
+    folderId: string
+  ) {
+    list.setSelectedFolder(folderId);
+    list.setShowFavoritesOnly(false);
+  }
 
-  const onSelectFolder = (folderId: string) => {
-    setSelectedFolder(folderId);
-    setShowFavoritesOnly(false);
-  };
+  function handleShareToGroup(
+    recipeId: string,
+    event: MouseEvent
+  ) {
+    event.stopPropagation();
+    list.setActiveRecipeId(recipeId);
+    list.setShowGroupsModal(true);
+  }
 
-  const onOpenRecipe = (id: string) => {
-    setViewingRecipe(id);
-  };
-
-  const onShareToGroup = (recipeId: string, e: MouseEvent) => {
-    e.stopPropagation();
-    setActiveRecipeId(recipeId);
-    setShowGroupsModal(true);
-  };
-
-  const onEditRecipe = (recipeId: string, e: MouseEvent) => {
-    e.stopPropagation();
+  function handleEditRecipe(
+    recipeId: string,
+    event: MouseEvent
+  ) {
+    event.stopPropagation();
     onEdit(recipeId);
-  };
+  }
 
-  const onDragStartRecipe = (recipeId: string, e: React.DragEvent) => {
-    e.dataTransfer.setData("text/plain", recipeId);
-    e.dataTransfer.effectAllowed = "move";
-  };
+  function handleDragStartRecipe(
+    recipeId: string,
+    event: DragEvent
+  ) {
+    event.dataTransfer.setData(
+      "text/plain",
+      recipeId
+    );
+    event.dataTransfer.effectAllowed = "move";
+  }
 
-  const onDropToFolder = (folderId: string | null, e: React.DragEvent) => {
-    e.preventDefault();
-    const recipeId = e.dataTransfer.getData("text/plain");
+  function handleDropToFolder(
+    folderId: string | null,
+    event: DragEvent
+  ) {
+    event.preventDefault();
+
+    const recipeId =
+      event.dataTransfer.getData("text/plain");
+
     if (!recipeId) return;
-    void handleMoveRecipeToFolder(recipeId, folderId);
+
+    void list.handleMoveRecipeToFolder(
+      recipeId,
+      folderId
+    );
+  }
+
+  const sharedProps = {
+    userExists: list.userExists,
+    recipesCount: list.recipes.length,
+    filteredRecipes: list.filteredRecipes,
+    categories: list.categories,
+    folders: list.folders,
+
+    searchTerm: list.searchTerm,
+    onChangeSearch: list.setSearchTerm,
+
+    categoryFilter: list.categoryFilter,
+    onChangeCategory:
+      list.setCategoryFilter,
+
+    selectedFolder: list.selectedFolder,
+    showFavoritesOnly:
+      list.showFavoritesOnly,
+
+    folderMenuOpenId:
+      list.folderMenuOpenId,
+    setFolderMenuOpenId:
+      list.setFolderMenuOpenId,
+    folderMenuRef: list.folderMenuRef,
+
+    showNewFolderInput:
+      list.showNewFolderInput,
+    setShowNewFolderInput:
+      list.setShowNewFolderInput,
+    newFolderName: list.newFolderName,
+    setNewFolderName:
+      list.setNewFolderName,
+
+    onCreateNew,
+    onOpenRecipe: list.setViewingRecipe,
+
+    onSelectAll: handleSelectAll,
+    onSelectFavorites:
+      handleSelectFavorites,
+    onSelectFolder: handleSelectFolder,
+
+    onDropToFolder: handleDropToFolder,
+    onDragStartRecipe:
+      handleDragStartRecipe,
+
+    onCreateFolder:
+      list.handleCreateFolder,
+    onRenameFolder:
+      list.handleRenameFolder,
+    onDeleteFolder:
+      list.handleDeleteFolder,
+
+    onToggleFavorite:
+      list.handleToggleFavorite,
+    onToggleVisibility:
+      list.handleToggleVisibility,
+
+    onShareToGroup:
+      handleShareToGroup,
+    onDuplicate: list.handleDuplicate,
+    onEdit: handleEditRecipe,
+    onTrash: list.handleTrashClick,
+    onMoveToFolder:
+      list.handleMoveRecipeToFolder,
   };
 
   return (
     <>
-      <div className="lg:hidden">
-        <RecipeListMobile
-          userExists={userExists}
-          recipesCount={recipesCount}
-          filteredCount={filteredCount}
-          filteredRecipes={filteredRecipes}
-          categories={categories}
-          folders={folders}
-          searchTerm={searchTerm}
-          onChangeSearch={setSearchTerm}
-          categoryFilter={categoryFilter}
-          onChangeCategory={setCategoryFilter}
-          selectedFolder={selectedFolder}
-          showFavoritesOnly={showFavoritesOnly}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          folderMenuOpenId={folderMenuOpenId}
-          setFolderMenuOpenId={setFolderMenuOpenId}
-          folderMenuRef={folderMenuRef}
-          showNewFolderInput={showNewFolderInput}
-          setShowNewFolderInput={setShowNewFolderInput}
-          newFolderName={newFolderName}
-          setNewFolderName={setNewFolderName}
-          onCreateNew={onCreateNew}
-          onOpenRecipe={onOpenRecipe}
-          onSelectAll={onSelectAll}
-          onSelectFavorites={onSelectFavorites}
-          onSelectFolder={onSelectFolder}
-          onCreateFolder={handleCreateFolder}
-          onRenameFolder={handleRenameFolder}
-          onDeleteFolder={handleDeleteFolder}
-          onToggleFavorite={handleToggleFavorite}
-          onToggleVisibility={handleToggleVisibility}
-          onShareToGroup={onShareToGroup}
-          onDuplicate={handleDuplicate}
-          onEdit={onEditRecipe}
-          onTrash={handleTrashClick}
-          onMoveToFolder={handleMoveRecipeToFolder}
-          onDropToFolder={onDropToFolder}
-          onDragStartRecipe={onDragStartRecipe}
-          recipeToOpenId={recipeToOpenId}
-          onRecipeOpened={onRecipeOpened}
-        />
-      </div>
-
-      <div className="hidden lg:block">
+      {list.isDesktop ? (
         <div className={ui.dashboardBg}>
-          <div className={`${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`}>
-            {userExists && (
+          <div
+            className={`${ui.containerWide} px-4 py-6 sm:px-6 sm:py-8`}
+          >
+            {list.userExists ? (
               <div className="mb-6 flex justify-end">
-                <button onClick={onCreateNew} className={ui.btnPrimary} type="button">
-                  <Plus className="w-4 h-4" />
+                <button
+                  onClick={onCreateNew}
+                  className={ui.btnPrimary}
+                  type="button"
+                >
+                  <Plus className="h-4 w-4" />
                   Nouvelle recette
                 </button>
               </div>
-            )}
+            ) : null}
 
             <RecipeListDesktop
-              userExists={userExists}
-              recipesCount={recipesCount}
-              filteredRecipes={filteredRecipes}
-              categories={categories}
-              folders={folders}
-              searchTerm={searchTerm}
-              onChangeSearch={setSearchTerm}
-              categoryFilter={categoryFilter}
-              onChangeCategory={setCategoryFilter}
-              selectedFolder={selectedFolder}
-              showFavoritesOnly={showFavoritesOnly}
-              folderMenuOpenId={folderMenuOpenId}
-              setFolderMenuOpenId={setFolderMenuOpenId}
-              folderMenuRef={folderMenuRef}
-              showNewFolderInput={showNewFolderInput}
-              setShowNewFolderInput={setShowNewFolderInput}
-              newFolderName={newFolderName}
-              setNewFolderName={setNewFolderName}
-              onCreateNew={onCreateNew}
-              onOpenRecipe={onOpenRecipe}
-              onSelectAll={onSelectAll}
-              onSelectFavorites={onSelectFavorites}
-              onSelectFolder={onSelectFolder}
-              onCreateFolder={handleCreateFolder}
-              onRenameFolder={handleRenameFolder}
-              onDeleteFolder={handleDeleteFolder}
-              onToggleFavorite={handleToggleFavorite}
-              onToggleVisibility={handleToggleVisibility}
-              onShareToGroup={onShareToGroup}
-              onDuplicate={handleDuplicate}
-              onEdit={onEditRecipe}
-              onTrash={handleTrashClick}
-              onMoveToFolder={handleMoveRecipeToFolder}
-              onDropToFolder={onDropToFolder}
-              onDragStartRecipe={onDragStartRecipe}
+              {...sharedProps}
             />
           </div>
         </div>
-      </div>
+      ) : (
+        <RecipeListMobile
+          {...sharedProps}
+          filteredCount={
+            list.filteredRecipes.length
+          }
+          sidebarOpen={list.sidebarOpen}
+          setSidebarOpen={
+            list.setSidebarOpen
+          }
+          recipeToOpenId={recipeToOpenId}
+          onRecipeOpened={
+            onRecipeOpened
+          }
+        />
+      )}
 
       <RecipeGroupsModal
-        open={showGroupsModal}
-        recipeId={activeRecipeId ?? ""}
+        open={list.showGroupsModal}
+        recipeId={
+          list.activeRecipeId ?? ""
+        }
         onClose={() => {
-          setShowGroupsModal(false);
-          setActiveRecipeId(null);
+          list.setShowGroupsModal(false);
+          list.setActiveRecipeId(null);
         }}
       />
     </>
