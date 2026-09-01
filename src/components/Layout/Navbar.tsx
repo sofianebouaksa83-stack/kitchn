@@ -66,9 +66,9 @@ const openSubscriptionSettings = () => {
               type="button"
             >
               <img
-                src="/Logo_kitchn_horizontal.svg"
+                src="/logo_kitchn.PNG"
                 alt="KITCH'N"
-                className="h-11 sm:h-12 w-auto select-none"
+                className="h-20 sm:h35 w-auto select-none"
                 draggable={false}
               />
             </button>

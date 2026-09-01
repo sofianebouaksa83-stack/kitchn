@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 import { LandingPage } from "./components/Landing/";
@@ -8,16 +8,6 @@ import { RegisterForm } from "./components/Auth/RegisterForm";
 import { ResetPasswordForm } from "./components/Auth/ResetPasswordForm";
 import { AuthCallback } from "./components/Auth/AuthCallback";
 
-import HomePage from "./pages/HomePage";
-import RecipesPage from "./pages/RecipesPage";
-import RecipesEditorPage from "./pages/RecipesEditorPage";
-import GroupsPage from "./pages/GroupsPage";
-import SharedRecipesPage from "./pages/SharedRecipesPage";
-import ImportPage from "./pages/ImportPage";
-import TeamPage from "./pages/TeamPage";
-import SettingsPage from "./pages/SettingsPage";
-import SubscriptionPage from "./pages/SubscriptionPage";
-
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
 import LegalPage from "./pages/Legal";
@@ -25,12 +15,6 @@ import InvitationPage from "./pages/InvitationPage";
 import HelpCenterPage from "./pages/HelpCenterPage";
 
 import { Navbar } from "./components/Layout/";
-
-import { SubscriptionSuccess } from "./components/Subscription/SubscriptionSuccess";
-import { SubscriptionCancel } from "./components/Subscription/SubscriptionCancel";
-import { SubscriptionCheckoutPage } from "./components/Subscription/SubscriptionCheckoutPage";
-
-
 
 import { ui } from "./styles/ui";
 import "./index.css";
@@ -47,6 +31,32 @@ import {
   extractInvitationToken,
   getCurrentRouteFromUrl,
 } from "./app/navigation";
+
+const HomePage = lazy(() => import("./pages/HomePage"));
+const RecipesPage = lazy(() => import("./pages/RecipesPage"));
+const RecipesEditorPage = lazy(() => import("./pages/RecipesEditorPage"));
+const GroupsPage = lazy(() => import("./pages/GroupsPage"));
+const SharedRecipesPage = lazy(() => import("./pages/SharedRecipesPage"));
+const ImportPage = lazy(() => import("./pages/ImportPage"));
+const TeamPage = lazy(() => import("./pages/TeamPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
+
+const SubscriptionSuccess = lazy(() =>
+  import("./components/Subscription/SubscriptionSuccess").then((module) => ({
+    default: module.SubscriptionSuccess,
+  }))
+);
+const SubscriptionCancel = lazy(() =>
+  import("./components/Subscription/SubscriptionCancel").then((module) => ({
+    default: module.SubscriptionCancel,
+  }))
+);
+const SubscriptionCheckoutPage = lazy(() =>
+  import("./components/Subscription/SubscriptionCheckoutPage").then(
+    (module) => ({ default: module.SubscriptionCheckoutPage })
+  )
+);
 
 
 function MainApp() {
@@ -265,36 +275,37 @@ function MainApp() {
       <Navbar currentView={currentView} onViewChange={handleViewChange} />
 
       <main className={`${ui.container} ${ui.page} pb-20 lg:pb-0`}>
-        {currentView === "accueil" && (
-          <HomePage
-            navigateTo={navigateTo}
-            openRecipe={(recipeId) => {
-              setRecipeToOpenId(recipeId);
-              setSharedRecipeToOpen(null);
-              setCurrentView("recipes");
-              navigateTo("/recipes");
-            }}
-            openSharedRecipe={(recipeId, groupId) => {
-              setSharedRecipeToOpen({ recipeId, groupId });
-              setRecipeToOpenId(null);
-              sessionStorage.setItem("selectedSharedRecipeId", recipeId);
-              sessionStorage.setItem("selectedWorkGroupId", groupId);
-              setCurrentView("shared");
-              navigateTo("/shared");
-            }}
-          />
-        )}
+        <Suspense fallback={<KitchNLoader className="kitchn-loader--compact" />}>
+          {currentView === "accueil" && (
+            <HomePage
+              navigateTo={navigateTo}
+              openRecipe={(recipeId) => {
+                setRecipeToOpenId(recipeId);
+                setSharedRecipeToOpen(null);
+                setCurrentView("recipes");
+                navigateTo("/recipes");
+              }}
+              openSharedRecipe={(recipeId, groupId) => {
+                setSharedRecipeToOpen({ recipeId, groupId });
+                setRecipeToOpenId(null);
+                sessionStorage.setItem("selectedSharedRecipeId", recipeId);
+                sessionStorage.setItem("selectedWorkGroupId", groupId);
+                setCurrentView("shared");
+                navigateTo("/shared");
+              }}
+            />
+          )}
 
-        {currentView === "recipes" && (
+          {currentView === "recipes" && (
           <RecipesPage
             onCreateNew={handleCreateNew}
             onEdit={handleEdit}
             recipeToOpenId={recipeToOpenId}
             onRecipeOpened={() => setRecipeToOpenId(null)}
           />
-        )}
+          )}
 
-        {currentView === "editor" && (
+          {currentView === "editor" && (
           <RecipesEditorPage
             recipeId={editingRecipeId}
             onBack={handleBackFromEditor}
@@ -305,38 +316,39 @@ function MainApp() {
               navigateTo("/recipes/edit");
             }}
           />
-        )}
+          )}
 
-        {currentView === "shared" && (
+          {currentView === "shared" && (
           <SharedRecipesPage
             recipeToOpen={sharedRecipeToOpen}
             onRecipeOpened={() => setSharedRecipeToOpen(null)}
           />
-        )}
+          )}
 
-        {currentView === "groups" && (
+          {currentView === "groups" && (
           <GroupsPage onViewChange={handleViewChange} />
-        )}
+          )}
 
-        {currentView === "import-ai" && <ImportPage />}
+          {currentView === "import-ai" && <ImportPage />}
 
-        {currentView === "team" && <TeamPage />}
+          {currentView === "team" && <TeamPage />}
 
-        {currentView === "subscription" && <SubscriptionPage />}
+          {currentView === "subscription" && <SubscriptionPage />}
 
-        {currentView === "subscription-checkout" && (
+          {currentView === "subscription-checkout" && (
           <SubscriptionCheckoutPage
             onBack={() => handleViewChange("subscription")}
           />
-        )}
+          )}
 
-        {currentView === "subscription-success" && <SubscriptionSuccess />}
+          {currentView === "subscription-success" && <SubscriptionSuccess />}
 
-        {currentView === "subscription-cancel" && <SubscriptionCancel />}
+          {currentView === "subscription-cancel" && <SubscriptionCancel />}
 
-        {currentView === "settings" && (
+          {currentView === "settings" && (
           <SettingsPage onViewChange={handleViewChange} />
-        )}
+          )}
+        </Suspense>
       </main>
     </div>
   );

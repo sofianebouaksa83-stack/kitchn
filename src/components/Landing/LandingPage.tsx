@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { LandingBenefits } from "../../features/landing/components/LandingBenefits";
@@ -9,7 +9,12 @@ import { useLandingSubscription } from "../../features/landing/hooks/useLandingS
 import { ui } from "../../styles/ui";
 import { cn } from "../../utils/cn";
 import { Footer } from "../Layout/Footer";
-import { ScrollShowcase } from "./ScrollShowcase";
+
+const ScrollShowcase = lazy(() =>
+  import("./ScrollShowcase").then((module) => ({
+    default: module.ScrollShowcase,
+  }))
+);
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18, filter: "blur(6px)" },
@@ -25,9 +30,9 @@ type LandingPageProps = {
 export function LandingPage({
   brand = (
     <img
-      src="/Logo_kitchn_horizontal.svg"
+      src="/logo_kitchn.PNG"
       alt="KITCH'N"
-      className="h-11 w-auto select-none sm:h-12"
+      className="h-20 w-auto select-none sm:h-35"
       draggable={false}
     />
   ),
@@ -143,8 +148,10 @@ export function LandingPage({
         </div>
       </div>
 
-      <div id="demo">
-        <ScrollShowcase />
+      <div id="demo" className="min-h-[70vh]">
+        <Suspense fallback={null}>
+          <ScrollShowcase />
+        </Suspense>
       </div>
 
       <LandingBenefits />
