@@ -6,6 +6,7 @@ import { useNavbarProfile } from "../../features/navigation/hooks/useNavbarProfi
 import { usePendingInvitationsCount } from "../../features/navigation/hooks/usePendingInvitationsCount";
 import { useNavbarMenus } from "../../features/navigation/hooks/useNavbarMenus";
 import { DesktopNavigation } from "../../features/navigation/components/DesktopNavigation";
+import { navigateToSettingsTab } from "../../features/settings/utils/settingsRoute";
 import { MobileNavigation } from "../../features/navigation/components/MobileNavigation";
 import { MobileAccountSheet } from "../../features/navigation/components/MobileAccountSheet";
 import { DesktopAccountMenu } from "../../features/navigation/components/DesktopAccountMenu";
@@ -27,30 +28,31 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
   // ✅ Profile local pour navbar (fiable)
   const { isPremium } = useSubscription(user?.id ?? null);
 
-
-  const openSettings = () => {
+  const closeAccountMenus = () => {
     setAccountMenuOpen(false);
     setMobileSheetOpen(false);
-    handleViewChange("settings");
+  };
+
+  const openSettings = () => {
+    closeAccountMenus();
+    navigateToSettingsTab("profile");
   };
 
   const openInvitations = () => {
-    setAccountMenuOpen(false);
-    setMobileSheetOpen(false);
-    // ✅ ouvre l’onglet invitations dans SettingsPage
-    window.location.hash = "/settings?tab=invitations";
+    closeAccountMenus();
+    navigateToSettingsTab("invitations");
   };
 
-const openSubscriptionSettings = () => {
-  setAccountMenuOpen(false);
-  setMobileSheetOpen(false);
+  const openSubscriptionSettings = () => {
+    closeAccountMenus();
+    navigateToSettingsTab("subscription");
+  };
 
-  handleViewChange("settings");
-
-  setTimeout(() => {
-    window.location.hash = "/settings?tab=subscription";
-  }, 50);
-};
+  const openAssistance = () => {
+    closeAccountMenus();
+    window.history.pushState({}, "", "/assistance");
+    window.dispatchEvent(new Event("popstate"));
+  };
 
   return (
     <>
@@ -99,11 +101,7 @@ const openSubscriptionSettings = () => {
                 handleViewChange("team");
               }}
               onOpenSubscription={openSubscriptionSettings}
-              onOpenAssistance={() => {
-                setAccountMenuOpen(false);
-                window.history.pushState({}, "", "/assistance");
-                window.dispatchEvent(new Event("popstate"));
-              }}
+              onOpenAssistance={openAssistance}
               onSignOut={() => {
                 setAccountMenuOpen(false);
                 signOut();
@@ -139,6 +137,7 @@ const openSubscriptionSettings = () => {
             handleViewChange("team");
           }}
           onOpenSubscription={openSubscriptionSettings}
+          onOpenAssistance={openAssistance}
           onSignOut={() => {
             setMobileSheetOpen(false);
             signOut();

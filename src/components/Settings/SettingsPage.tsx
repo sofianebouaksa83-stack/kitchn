@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   Loader2,
@@ -28,31 +28,60 @@ import { useSecuritySettings } from "../../features/settings/hooks/useSecuritySe
 import { useAccountSettings } from "../../features/settings/hooks/useAccountSettings";
 
 import { isValidUsername } from "../../features/settings/services/settingsHelpers";
+import {
+  getSettingsTabFromLocation,
+  navigateToSettingsTab,
+} from "../../features/settings/utils/settingsRoute";
 
 import type { SettingsTab, SettingsView } from "../../features/settings/types/settings.types";
 
+type SettingsTabButtonProps = {
+  tab: SettingsTab;
+  label: string;
+  icon: ReactNode;
+  badge?: number;
+  active: boolean;
+  onSelect: (tab: SettingsTab) => void;
+};
 
 type SettingsPageProps = {
   onViewChange?: (view: SettingsView) => void;
 };
 
+function SettingsTabButton({
+  tab,
+  label,
+  icon,
+  badge,
+  active,
+  onSelect,
+}: SettingsTabButtonProps) {
+  const showBadge = typeof badge === "number" && badge > 0;
 
-/** lit #/settings?tab=invitations */
-function getTabFromHash(): SettingsTab | null {
-  const raw = window.location.hash.slice(1); // "/settings?tab=invitations"
-  const qs = raw.split("?")[1] ?? "";
-  const tab = new URLSearchParams(qs).get("tab");
-  if (!tab) return null;
-
-  const allowed: SettingsTab[] = [
-    "profile",
-    "notifications",
-    "invitations",
-    "security",
-    "subscription",
-    "account",
-  ];
-  return allowed.find((allowedTab) => allowedTab === tab) ?? null;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(tab)}
+      aria-pressed={active}
+      className={cn(
+        "flex items-center justify-between gap-3 w-full rounded-2xl px-3 py-2.5 text-sm transition",
+        "ring-1",
+        active
+          ? "bg-amber-500/15 text-amber-200 ring-amber-400/25"
+          : "bg-white/[0.04] text-slate-200/90 ring-white/10 hover:bg-white/[0.07]"
+      )}
+    >
+      <span className="flex items-center gap-2.5 min-w-0">
+        <span className="text-white/75">{icon}</span>
+        <span className="truncate">{label}</span>
+      </span>
+      {showBadge ? (
+        <span className="min-w-[26px] h-6 px-2 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-xs font-bold">
+          {badge}
+        </span>
+      ) : null}
+    </button>
+  );
 }
 
 
@@ -62,7 +91,9 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
   const [ok, setOk] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const [tab, setTab] = useState<SettingsTab>("profile");
+  const [tab, setTab] = useState<SettingsTab>(
+    () => getSettingsTabFromLocation() ?? "profile"
+  );
 
   const profileSettings = useProfileSettings({
     user,
@@ -86,18 +117,26 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
     setSuccess: setOk,
   });
 
-  // ✅ init tab depuis hash + écoute hashchange
   useEffect(() => {
-    const t = getTabFromHash();
-    if (t) setTab(t);
-
-    const onHash = () => {
-      const next = getTabFromHash();
-      if (next) setTab(next);
+    const syncTabFromUrl = () => {
+      const requestedTab = getSettingsTabFromLocation();
+      setTab(requestedTab ?? "profile");
     };
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
+
+    syncTabFromUrl();
+    window.addEventListener("popstate", syncTabFromUrl);
+    window.addEventListener("hashchange", syncTabFromUrl);
+
+    return () => {
+      window.removeEventListener("popstate", syncTabFromUrl);
+      window.removeEventListener("hashchange", syncTabFromUrl);
+    };
   }, []);
+
+  const selectTab = (nextTab: SettingsTab) => {
+    setTab(nextTab);
+    navigateToSettingsTab(nextTab);
+  };
 
   if (!user) {
     return (
@@ -111,46 +150,6 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
       </div>
     );
   }
-
-  const TabBtn = ({
-    k,
-    label,
-    icon,
-    badge,
-  }: {
-    k: SettingsTab;
-    label: string;
-    icon: React.ReactNode;
-    badge?: number;
-  }) => {
-    const active = tab === k;
-    const showBadge = typeof badge === "number" && badge > 0;
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setTab(k);
-        }}
-        className={cn(
-          "flex items-center justify-between gap-3 w-full rounded-2xl px-3 py-2.5 text-sm transition",
-          "ring-1",
-          active
-            ? "bg-amber-500/15 text-amber-200 ring-amber-400/25"
-            : "bg-white/[0.04] text-slate-200/90 ring-white/10 hover:bg-white/[0.07]"
-        )}
-      >
-        <span className="flex items-center gap-2.5 min-w-0">
-          <span className="text-white/75">{icon}</span>
-          <span className="truncate">{label}</span>
-        </span>
-        {showBadge ? (
-          <span className="min-w-[26px] h-6 px-2 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-xs font-bold">
-            {badge}
-          </span>
-        ) : null}
-      </button>
-    );
-  };
 
   return (
     <div className={cn("min-h-screen text-white", ui?.dashboardBg)}>
@@ -247,17 +246,49 @@ export default function SettingsPage({ onViewChange }: SettingsPageProps) {
                 Navigation
               </div>
 
-              <TabBtn k="profile" label="Profil" icon={<User className="h-4 w-4" />} />
-              <TabBtn k="notifications" label="Notifications" icon={<Bell className="h-4 w-4" />} />
-              <TabBtn
-                k="invitations"
+              <SettingsTabButton
+                tab="profile"
+                label="Profil"
+                icon={<User className="h-4 w-4" />}
+                active={tab === "profile"}
+                onSelect={selectTab}
+              />
+              <SettingsTabButton
+                tab="notifications"
+                label="Notifications"
+                icon={<Bell className="h-4 w-4" />}
+                active={tab === "notifications"}
+                onSelect={selectTab}
+              />
+              <SettingsTabButton
+                tab="invitations"
                 label="Invitations"
                 icon={<Mail className="h-4 w-4" />}
                 badge={invitationsSettings.invCount}
+                active={tab === "invitations"}
+                onSelect={selectTab}
               />
-              <TabBtn k="security" label="Sécurité" icon={<Shield className="h-4 w-4" />} />
-              <TabBtn k="subscription" label="abonnement" icon={<CreditCard className="h-4 w-4" />} />              
-              <TabBtn k="account" label="Compte" icon={<Trash2 className="h-4 w-4" />} />
+              <SettingsTabButton
+                tab="security"
+                label="Sécurité"
+                icon={<Shield className="h-4 w-4" />}
+                active={tab === "security"}
+                onSelect={selectTab}
+              />
+              <SettingsTabButton
+                tab="subscription"
+                label="Abonnement"
+                icon={<CreditCard className="h-4 w-4" />}
+                active={tab === "subscription"}
+                onSelect={selectTab}
+              />
+              <SettingsTabButton
+                tab="account"
+                label="Compte"
+                icon={<Trash2 className="h-4 w-4" />}
+                active={tab === "account"}
+                onSelect={selectTab}
+              />
             </div>
           </div>
 

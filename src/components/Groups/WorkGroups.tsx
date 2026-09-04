@@ -8,6 +8,7 @@ import { ManageGroupModal } from "../../features/groups/components/ManageGroupMo
 import { SoloModeCard } from "../../features/groups/components/SoloModeCard";
 import { usePendingInvitation } from "../../features/groups/hooks/usePendingInvitation";
 import { useWorkGroupsData } from "../../features/groups/hooks/useWorkGroupsData";
+import { navigateToSettingsTab } from "../../features/settings/utils/settingsRoute";
 import { useSubscription } from "../../hooks/useSubscription";
 import {
   getGroupEntitlements,
@@ -16,12 +17,6 @@ import {
 import { ui } from "../../styles/ui";
 import { KitchNLoader } from "../Loading/KitchNLoader";
 import { PremiumModal } from "../PremiumModal";
-
-type View = "subscription" | "settings";
-
-type WorkGroupsProps = {
-  onViewChange?: (view: View) => void;
-};
 
 function Toast({
   message,
@@ -44,7 +39,7 @@ function Toast({
   );
 }
 
-export function WorkGroups({ onViewChange }: WorkGroupsProps) {
+export function WorkGroups() {
   const { user, refreshProfile } = useAuth();
   const { isPremium, loading: subscriptionLoading } =
     useSubscription(user?.id ?? null);
@@ -119,8 +114,7 @@ export function WorkGroups({ onViewChange }: WorkGroupsProps) {
 
   const goSubscription = () => {
     setPremiumOpen(false);
-    onViewChange?.("settings");
-    window.location.hash = "/settings?tab=subscription";
+    navigateToSettingsTab("subscription");
   };
 
   const closeToast = useCallback(() => {
