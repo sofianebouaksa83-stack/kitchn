@@ -21,9 +21,10 @@ import {
   demoGroups,
   demoRecipesByGroup,
   type DemoFolder,
-  type DemoGroup,
   type DemoRecipe,
+  type DemoSection,
 } from "./SharedRecipesDemoData";
+import { useIsDesktop } from "../../../hooks/useMediaQuery";
 
 function cn(...classes: Array<string | undefined | false>) {
   return classes.filter(Boolean).join(" ");
@@ -107,14 +108,283 @@ function RecipeSectionCard({
   );
 }
 
+function RecipeSectionDetailsCard({
+    section,
+    multiplier,
+  }: {
+    section: DemoSection;
+    multiplier: number;
+  }) {
+    return (
+      <div className="rounded-[26px] bg-white/[0.05] p-5 ring-1 ring-white/10">
+        <div className="mb-3 font-semibold text-slate-100">
+          {section.title}
+        </div>
+
+        <div className="mb-4 h-px bg-white/10" />
+
+        <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-300/70">
+          Ingrédients
+        </div>
+
+        <div className="mb-5 space-y-2">
+          {section.ingredients.map((ingredient, index) => (
+            <div
+              key={`${section.id}-${ingredient.name}-${index}`}
+              className="flex items-center justify-between gap-3 text-sm text-slate-100"
+            >
+              <span className="truncate">{ingredient.name}</span>
+
+              <span className="shrink-0 text-slate-300/80">
+                {formatQty(
+                  ingredient.qty === null
+                    ? null
+                    : ingredient.qty * multiplier,
+                  ingredient.unit
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-300/70">
+          Étapes
+        </div>
+
+        <div className="whitespace-pre-line text-sm leading-relaxed text-slate-200/90">
+          {section.steps
+            .map((step, index) => `${index + 1}. ${step}`)
+            .join("\n")}
+        </div>
+      </div>
+    );
+  }
+
+function RecipeMultiplierCard({
+  compact = false,
+  open = true,
+  onToggle,
+  multiplier,
+  servingsBase,
+  selectedBase,
+  baseValue,
+  haveValue,
+  onBaseValueChange,
+  onHaveValueChange,
+  onDecrease,
+  onIncrease,
+  onReset,
+}: {
+  compact?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+  multiplier: number;
+  servingsBase: number;
+  selectedBase: string;
+  baseValue: string;
+  haveValue: string;
+  onBaseValueChange: (value: string) => void;
+  onHaveValueChange: (value: string) => void;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  onReset: () => void;
+}) {
+  const showContent = !compact || open;
+
+  return (
+    <div
+      className={cn(
+        compact
+          ? "overflow-hidden rounded-3xl bg-white/[0.06] ring-1 ring-white/10"
+          : "rounded-[26px] bg-white/[0.05] p-5 ring-1 ring-white/10"
+      )}
+    >
+      {compact ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+        >
+          <span className="truncate font-semibold text-slate-100">
+            Multiplicateur
+          </span>
+
+          {open ? (
+            <ChevronUp className="h-5 w-5 text-slate-300/70" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-slate-300/70" />
+          )}
+        </button>
+      ) : (
+        <div className="mb-3 text-sm text-slate-300/80">
+          Multiplier
+        </div>
+      )}
+
+      {showContent ? (
+        <div className={compact ? "px-4 pb-4" : undefined}>
+          {compact ? <div className="mb-4 h-px bg-white/10" /> : null}
+
+          <div
+            className={cn(
+              compact
+                ? "flex items-center justify-between gap-3"
+                : undefined
+            )}
+          >
+            <div className="min-w-0">
+              {compact ? (
+                <div className="text-xs text-slate-300/60">
+                  Multiplier
+                </div>
+              ) : null}
+
+              <div
+                className={cn(
+                  "font-semibold text-slate-100",
+                  compact ? "text-sm" : "text-lg"
+                )}
+              >
+                x{multiplier}
+              </div>
+
+              <div
+                className={cn(
+                  "mt-1 text-slate-300/60",
+                  compact ? "text-[12px]" : "text-sm"
+                )}
+              >
+                {servingsBase * multiplier} couvert(s) (base {servingsBase})
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "flex items-center gap-2",
+                compact ? undefined : "mt-4"
+              )}
+            >
+              <button
+                type="button"
+                onClick={onDecrease}
+                className={cn(
+                  "rounded-2xl bg-white/[0.04] text-slate-100 ring-1 ring-white/10 transition hover:bg-white/[0.07]",
+                  compact ? "h-10 w-10" : "h-11 w-11"
+                )}
+              >
+                –
+              </button>
+
+              <button
+                data-demo-target="multiplier-plus"
+                type="button"
+                onClick={onIncrease}
+                className={cn(
+                  "rounded-2xl bg-amber-500/20 text-amber-100 ring-1 ring-amber-400/30 transition hover:bg-amber-500/25",
+                  compact ? "h-10 w-10" : "h-11 w-11"
+                )}
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="my-5 h-px bg-white/10" />
+
+          <div
+            className={cn(
+              "mb-3 text-slate-300/80",
+              compact ? "text-xs" : "text-sm"
+            )}
+          >
+            Ingrédient de référence
+          </div>
+
+          <div
+            className={cn(
+              "flex items-center justify-between rounded-2xl bg-white/[0.04] px-4 text-slate-100 ring-1 ring-white/10",
+              compact ? "h-11 text-sm" : "h-12"
+            )}
+          >
+            <span className="truncate">{selectedBase}</span>
+            <ChevronDown className="h-4 w-4 text-slate-300/70" />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div>
+              <div
+                className={cn(
+                  "mb-2 text-slate-300/80",
+                  compact ? "text-xs" : "text-sm"
+                )}
+              >
+                Base
+              </div>
+
+              <input
+                type="text"
+                value={baseValue}
+                onChange={(event) =>
+                  onBaseValueChange(event.target.value)
+                }
+                className={cn(
+                  "w-full rounded-2xl bg-white/[0.04] px-4 text-slate-100 outline-none ring-1 ring-white/10",
+                  compact ? "h-11" : "h-12"
+                )}
+              />
+            </div>
+
+            <div>
+              <div
+                className={cn(
+                  "mb-2 text-slate-300/80",
+                  compact ? "text-xs" : "text-sm"
+                )}
+              >
+                J’ai
+              </div>
+
+              <input
+                type="text"
+                value={haveValue}
+                onChange={(event) =>
+                  onHaveValueChange(event.target.value)
+                }
+                placeholder="ex: 350"
+                className={cn(
+                  "w-full rounded-2xl bg-white/[0.04] px-4 text-slate-100 outline-none ring-1 ring-white/10 placeholder:text-slate-400/70",
+                  compact ? "h-11" : "h-12"
+                )}
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onReset}
+            className={cn(
+              "mt-4 w-full rounded-2xl bg-white/[0.04] text-slate-100 ring-1 ring-white/10 transition hover:bg-white/[0.06]",
+              compact ? "py-3 text-sm" : "h-12"
+            )}
+          >
+            Reset
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function SharedRecipesDemoPanel() {
-  const userGroups = useMemo<DemoGroup[]>(() => demoGroups, []);
+  const isDesktop = useIsDesktop();
+  const userGroups = demoGroups;
+  const selectedBase = "Manuel (pas d'ingrédient)";
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [viewingRecipeId, setViewingRecipeId] = useState<string | null>(null);
 
   const [multiplier, setMultiplier] = useState(1);
-  const [selectedBase, setSelectedBase] = useState("Manuel (pas d'ingrédient)");
   const [baseValue, setBaseValue] = useState("500");
   const [haveValue, setHaveValue] = useState("");
   const [demoNote, setDemoNote] = useState("");
@@ -130,7 +400,7 @@ export function SharedRecipesDemoPanel() {
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  const [folderMenuOpenId, setFolderMenuOpenId] = useState<string | null>(null);
+
 
   const [cursor, setCursor] = useState<CursorState>({
     x: 80,
@@ -139,7 +409,7 @@ export function SharedRecipesDemoPanel() {
     clicking: false,
   });
 
-  const menuRootRef = useRef<HTMLDivElement | null>(null);
+
   const loopRef = useRef<number>(0);
   const cancelRef = useRef(false);
 
@@ -160,26 +430,13 @@ export function SharedRecipesDemoPanel() {
     setNewFolderName("");
     setViewingRecipeId(null);
     setMultiplier(1);
-    setFolderMenuOpenId(null);
-    setSelectedBase("Manuel (pas d'ingrédient)");
     setBaseValue("500");
     setHaveValue("");
     setDemoNote("");
     setOpenTools(true);
   }, [selectedGroupId]);
 
-  useEffect(() => {
-    function onDocDown(e: MouseEvent) {
-      if (!folderMenuOpenId) return;
-      const t = e.target as Node | null;
-      if (!t) return;
-      if (menuRootRef.current && menuRootRef.current.contains(t)) return;
-      setFolderMenuOpenId(null);
-    }
 
-    document.addEventListener("mousedown", onDocDown);
-    return () => document.removeEventListener("mousedown", onDocDown);
-  }, [folderMenuOpenId]);
 
   const selectedGroupName = selectedGroupId
     ? userGroups.find((g) => g.id === selectedGroupId)?.name ?? "Groupe"
@@ -400,546 +657,254 @@ export function SharedRecipesDemoPanel() {
   }, []);
 
   if (!selectedGroupId) {
-    const emptyState = userGroups.length === 0;
+  const emptyState = userGroups.length === 0;
 
-    return (
-      <>
-        {/* MOBILE */}
-        <div className="lg:hidden h-full w-full bg-transparent overflow-hidden">
-          <div className="h-full min-h-0 bg-[#0B1332]/95 px-0 pt-0 pb-0">
-            <div className="h-full min-h-0 px-4 pt-4 pb-6">
-              <h1 className="text-xl font-semibold text-slate-100">Partagées</h1>
+  return (
+    <>
+      <div
+        className={cn(
+          "h-full min-h-0 w-full overflow-hidden bg-[#0B1332]/95 px-4 pb-6 pt-4",
+          "lg:h-auto lg:overflow-visible lg:rounded-[28px] lg:bg-white/[0.06] lg:p-7",
+          "lg:ring-1 lg:ring-white/10 lg:shadow-[0_18px_70px_rgba(0,0,0,0.35)] lg:backdrop-blur-md"
+        )}
+      >
+        <div className="lg:hidden">
+          <h1 className="text-xl font-semibold text-slate-100">
+            Partagées
+          </h1>
+
+          <p className="mt-1 text-sm text-slate-300/70">
+            Recettes visibles via tes groupes
+          </p>
+        </div>
+
+        <div className="mb-6 hidden items-start justify-between gap-4 lg:flex">
+          <div className="flex items-start gap-4">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25">
+              <Share2 className="h-5 w-5 text-amber-200" />
+            </span>
+
+            <div>
+              <h1 className="text-lg font-semibold text-slate-100 sm:text-xl">
+                Partager
+              </h1>
+
               <p className="mt-1 text-sm text-slate-300/70">
-                Recettes visibles via tes groupes
+                Recettes visibles via tes groupes de travail
               </p>
 
-              {emptyState ? (
-                <div className="mt-6 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-8 text-center">
-                  <Share2 className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                  <p className="text-slate-200 text-lg font-semibold">
-                    Tu n’es dans aucun groupe pour le moment
-                  </p>
-                  <p className="text-sm text-slate-300/70 mt-2">
-                    Demande une invitation ou crée un groupe.
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  {userGroups.map((g) => (
-                    <button
-                      key={g.id}
-                      data-demo-target={g.id === "bistro" ? "group-bistro" : undefined}
-                      onClick={() => setSelectedGroupId(g.id)}
-                      type="button"
-                      className="w-full rounded-3xl bg-white/[0.06] ring-1 ring-white/10 p-5 text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-2xl bg-black/10 ring-1 ring-white/10 grid place-items-center">
-                          <Folder className="w-5 h-5 text-amber-200" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-lg font-semibold text-slate-100 truncate">
-                            {g.name}
-                          </div>
-                          <div className="text-sm text-slate-300/70">
-                            Ouvrir le groupe
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <p className="mt-2 text-xs text-slate-400">
+                Démo animée automatique
+              </p>
             </div>
           </div>
         </div>
 
-        {/* DESKTOP — inchangé */}
-        <div className="hidden lg:block rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.35)] backdrop-blur-md p-5 sm:p-7">
-          <div className="flex items-start justify-between gap-4 mb-6">
-            <div className="flex items-start gap-4">
-              <span className="h-12 w-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center">
-                <Share2 className="w-5 h-5 text-amber-200" />
-              </span>
-              <div>
-                <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
-                  Partager
-                </h1>
-                <p className="text-sm text-slate-300/70 mt-1">
-                  Recettes visibles via tes groupes de travail
-                </p>
-                <p className="text-xs text-slate-400 mt-2">
-                  Démo animée automatique
-                </p>
-              </div>
-            </div>
-          </div>
+        {emptyState ? (
+          <div className="mt-6 rounded-3xl bg-white/[0.04] p-8 text-center ring-1 ring-white/10 lg:mt-0 lg:p-10">
+            <Share2 className="mx-auto mb-4 h-12 w-12 text-slate-500 lg:h-14 lg:w-14" />
 
-          {emptyState ? (
-            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
-              <Share2 className="w-14 h-14 text-slate-500 mx-auto mb-4" />
-              <p className="text-slate-200 text-lg font-semibold">
-                Tu n’es dans aucun groupe pour le moment
-              </p>
-              <p className="text-sm text-slate-300/70 mt-2">
-                Demande une invitation ou crée un groupe.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {userGroups.map((g) => (
-                <button
-                  key={g.id}
-                  data-demo-target={g.id === "bistro" ? "group-bistro" : undefined}
-                  onClick={() => setSelectedGroupId(g.id)}
-                  type="button"
-                  className={[
-                    "text-left relative rounded-3xl border ring-1 overflow-hidden",
-                    "border-white/10 ring-white/10 bg-white/[0.06]",
-                    "shadow-[0_18px_60px_rgba(0,0,0,0.30)]",
-                    "transition-transform duration-200 hover:-translate-y-1 active:scale-[0.99] hover:bg-white/[0.08]",
-                  ].join(" ")}
-                >
-                  <div className="p-5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="h-10 w-10 rounded-2xl bg-black/10 ring-1 ring-white/10 grid place-items-center">
-                        <Folder className="w-5 h-5 text-amber-200" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-lg font-semibold text-slate-100 truncate">
-                          {g.name}
-                        </div>
-                        <div className="text-sm text-slate-300/70">
-                          Ouvrir le groupe
-                        </div>
-                      </div>
-                    </div>
+            <p className="text-lg font-semibold text-slate-200">
+              Tu n’es dans aucun groupe pour le moment
+            </p>
+
+            <p className="mt-2 text-sm text-slate-300/70">
+              Demande une invitation ou crée un groupe.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-4 lg:mt-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0">
+            {userGroups.map((group) => (
+              <button
+                key={group.id}
+                data-demo-target={
+                  group.id === "bistro" ? "group-bistro" : undefined
+                }
+                onClick={() => setSelectedGroupId(group.id)}
+                type="button"
+                className={cn(
+                  "relative w-full rounded-3xl bg-white/[0.06] p-5 text-left ring-1 ring-white/10",
+                  "lg:overflow-hidden lg:border lg:border-white/10",
+                  "lg:shadow-[0_18px_60px_rgba(0,0,0,0.30)]",
+                  "lg:transition-transform lg:duration-200",
+                  "lg:hover:-translate-y-1 lg:hover:bg-white/[0.08] lg:active:scale-[0.99]"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-black/10 ring-1 ring-white/10">
+                    <Folder className="h-5 w-5 text-amber-200" />
                   </div>
 
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-60" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-lg font-semibold text-slate-100">
+                      {group.name}
+                    </div>
 
-        <FakeMouse {...cursor} />
-      </>
-    );
-  }
+                    <div className="text-sm text-slate-300/70">
+                      Ouvrir le groupe
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-b from-white/5 to-transparent opacity-60 lg:block" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <FakeMouse {...cursor} />
+    </>
+  );
+}
 
   if (viewingRecipeId) {
-    const recipe = recipes.find((x) => x.id === viewingRecipeId);
+    const recipe = recipes.find((item) => item.id === viewingRecipeId);
     const details = recipe?.details;
-    const primarySection = details?.sections?.[0];
-    const secondarySection = details?.sections?.[1];
+    const sections = details?.sections.slice(0, 2) ?? [];
     const servingsBase = recipe?.servings ?? 4;
+    const hasAllergens = Boolean(details?.allergens?.length);
+
+    const closeRecipe = () => {
+      setViewingRecipeId(null);
+      setMultiplier(1);
+
+      if (!isDesktop) {
+        setDemoNote("");
+        setOpenTools(true);
+      }
+    };
+
+    const resetMultiplier = () => {
+      setMultiplier(1);
+      setBaseValue("500");
+      setHaveValue("");
+    };
 
     return (
       <>
-        {/* MOBILE */}
-        <div className="lg:hidden h-full w-full bg-transparent overflow-hidden">
-          <div className="h-full min-h-0 bg-[#0B1332]/95 px-0 pt-0 pb-0">
-            <div className="h-full min-h-0 px-4 pt-4 pb-4">
-              <div className="mb-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h1 className="text-[18px] font-semibold text-slate-100 truncate">
-                      {recipe?.title ?? "Recette"}
-                    </h1>
+        <div className="h-full w-full overflow-hidden bg-transparent lg:h-auto lg:overflow-visible lg:rounded-[28px]">
+          <div className="h-full min-h-0 bg-[#0B1332]/95 px-4 pb-4 pt-4 lg:bg-transparent lg:p-0">
+            <div className="mb-5 lg:mb-6">
+              <div className="flex items-start gap-4">
+                <span className="hidden h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 lg:grid">
+                  <Tag className="h-5 w-5 text-amber-200" />
+                </span>
 
-                    <p className="mt-1 text-sm text-slate-300/70 truncate">
-                      {(recipe?.category ?? "Autre")} · Prép {recipe?.prep_time ?? 0}min ·
-                      Cuisson {recipe?.cook_time ?? 0}min
-                    </p>
-                  </div>
-                </div>
+                <div className="min-w-0">
+                  <h1 className="truncate text-[18px] font-semibold tracking-tight text-slate-100 lg:text-[28px]">
+                    {recipe?.title ?? "Recette"}
+                  </h1>
 
-                <button
-                  data-demo-target="recipe-back-button"
-                  type="button"
-                  onClick={() => {
-                    setViewingRecipeId(null);
-                    setMultiplier(1);
-                    setDemoNote("");
-                    setOpenTools(true);
-                  }}
-                  className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Retour
-                </button>
-              </div>
+                  <p className="mt-1 truncate text-sm text-slate-300/70 lg:mt-2 lg:whitespace-normal lg:text-base">
+                    {recipe?.category ?? "Autre"} · Prép{" "}
+                    {recipe?.prep_time ?? 0}min · Cuisson{" "}
+                    {recipe?.cook_time ?? 0}min
+                  </p>
 
-              <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar space-y-4">
-                <div className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 overflow-hidden">
                   <button
+                    data-demo-target="recipe-back-button"
                     type="button"
-                    onClick={() => setOpenTools((prev) => !prev)}
-                    className="w-full px-4 py-4 flex items-center justify-between gap-3 text-left"
+                    onClick={closeRecipe}
+                    className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 transition hover:text-white lg:text-base lg:text-slate-200"
                   >
-                    <div className="min-w-0">
-                      <div className="text-slate-100 font-semibold truncate">
-                        Multiplicateur
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 text-slate-300/70">
-                      {openTools ? (
-                        <ChevronUp className="w-5 h-5" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5" />
-                      )}
-                    </div>
+                    <ArrowLeft className="h-4 w-4" />
+                    Retour
                   </button>
-
-                  {openTools ? (
-                    <div className="px-4 pb-4">
-                      <div className="h-px bg-white/10 mb-4" />
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-xs text-slate-300/60">Multiplier</div>
-                            <div className="text-sm text-slate-100 font-semibold">
-                              x{multiplier}
-                            </div>
-                            <div className="mt-0.5 text-[12px] text-slate-300/55">
-                              {servingsBase * multiplier} couvert(s) (base {servingsBase})
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setMultiplier((m) => Math.max(1, m - 1))}
-                              className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition inline-flex items-center justify-center"
-                              type="button"
-                            >
-                              –
-                            </button>
-
-                            <button
-                              data-demo-target="multiplier-plus"
-                              onClick={() => setMultiplier((m) => m + 1)}
-                              className="h-10 w-10 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 hover:bg-amber-500/20 transition inline-flex items-center justify-center text-amber-100"
-                              type="button"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="h-px bg-white/10" />
-
-                        <div>
-                          <div className="text-xs text-slate-300/60 mb-2">
-                            Ingrédient de référence
-                          </div>
-
-                          <div className="w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-sm text-slate-100 flex items-center justify-between">
-                            <span className="truncate">{selectedBase}</span>
-                            <ChevronDown className="w-4 h-4 text-slate-300/70" />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <div className="text-xs text-slate-300/60">Base</div>
-                            <input
-                              type="text"
-                              value={baseValue}
-                              onChange={(e) => setBaseValue(e.target.value)}
-                              className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <div className="text-xs text-slate-300/60">J’ai</div>
-                            <input
-                              type="text"
-                              value={haveValue}
-                              onChange={(e) => setHaveValue(e.target.value)}
-                              placeholder="ex: 350"
-                              className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 placeholder:text-slate-300/40 outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            setMultiplier(1);
-                            setBaseValue("500");
-                            setHaveValue("");
-                          }}
-                          className="w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/[0.06] transition"
-                          type="button"
-                        >
-                          Reset
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                {details?.allergens && details.allergens.length > 0 ? (
-                  <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4">
-                    <div className="text-slate-100 font-semibold mb-2">Allergènes</div>
-                    <div className="text-sm text-slate-300/80">
-                      {details.allergens.join(" · ")}
-                    </div>
-                  </div>
-                ) : null}
-
-                {primarySection ? (
-                  <RecipeSectionCard
-                    title={primarySection.title}
-                    subtitle={`${primarySection.ingredients.length} ingrédient(s) · Étapes`}
-                  />
-                ) : null}
-
-                {secondarySection ? (
-                  <RecipeSectionCard
-                    title={secondarySection.title}
-                    subtitle={`${secondarySection.ingredients.length} ingrédient(s) · Étapes`}
-                  />
-                ) : null}
-
-                <div
-                  data-demo-target="recipe-notes"
-                  className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-slate-100 font-semibold">Mes notes</div>
-                    <div className="text-xs text-slate-300/60">Enregistré</div>
-                  </div>
-
-                  <textarea
-                    value={demoNote}
-                    onChange={(e) => setDemoNote(e.target.value)}
-                    placeholder="Écris tes notes ici..."
-                    className="mt-3 min-h-[140px] w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none resize-none"
-                  />
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* DESKTOP — inchangé */}
-        <div className="hidden lg:block rounded-[28px] bg-transparent">
-          <div className="mb-6">
-            <div className="flex items-start gap-4">
-              <span className="h-12 w-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center shrink-0">
-                <Tag className="w-5 h-5 text-amber-200" />
-              </span>
+            <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar lg:overflow-visible">
+              <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[320px_1fr] xl:gap-6">
+                <div className="space-y-4 lg:space-y-5">
+                  <RecipeMultiplierCard
+                    compact={!isDesktop}
+                    open={openTools}
+                    onToggle={() =>
+                      setOpenTools((current) => !current)
+                    }
+                    multiplier={multiplier}
+                    servingsBase={servingsBase}
+                    selectedBase={selectedBase}
+                    baseValue={baseValue}
+                    haveValue={haveValue}
+                    onBaseValueChange={setBaseValue}
+                    onHaveValueChange={setHaveValue}
+                    onDecrease={() =>
+                      setMultiplier((current) =>
+                        Math.max(1, current - 1)
+                      )
+                    }
+                    onIncrease={() =>
+                      setMultiplier((current) => current + 1)
+                    }
+                    onReset={resetMultiplier}
+                  />
 
-              <div className="min-w-0">
-                <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-slate-100 truncate">
-                  {recipe?.title ?? "Recette"}
-                </h1>
-                <p className="text-sm sm:text-base text-slate-300/70 mt-2">
-                  {(recipe?.category ?? "Autre")} · Prép {recipe?.prep_time ?? 0}min ·
-                  Cuisson {recipe?.cook_time ?? 0}min
-                </p>
-
-                <button
-                  data-demo-target="recipe-back-button"
-                  type="button"
-                  onClick={() => {
-                    setViewingRecipeId(null);
-                    setMultiplier(1);
-                  }}
-                  className="mt-4 inline-flex items-center gap-2 text-slate-200 hover:text-white transition"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Retour
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6 items-start">
-            <div className="space-y-5">
-              <div className="rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-5">
-                <div className="text-sm text-slate-300/80 mb-3">Multiplier</div>
-
-                <div className="text-slate-100 font-semibold text-lg">x{multiplier}</div>
-                <div className="text-sm text-slate-300/60 mt-1">
-                  {servingsBase * multiplier} couvert(s) (base {servingsBase})
-                </div>
-
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMultiplier((m) => Math.max(1, m - 1))}
-                    className="h-11 w-11 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 text-slate-100 hover:bg-white/[0.07] transition"
+                  <div
+                    className={cn(
+                      "rounded-3xl bg-white/[0.04] p-4 ring-1 ring-white/10",
+                      "lg:rounded-[26px] lg:bg-white/[0.05] lg:p-5",
+                      !hasAllergens && "hidden lg:block"
+                    )}
                   >
-                    –
-                  </button>
-                  <button
-                    data-demo-target="multiplier-plus"
-                    type="button"
-                    onClick={() => setMultiplier((m) => m + 1)}
-                    className="h-11 w-11 rounded-2xl bg-amber-500/20 ring-1 ring-amber-400/30 text-amber-100 hover:bg-amber-500/25 transition"
+                    <div className="mb-2 font-semibold text-slate-100 lg:text-lg">
+                      Allergènes
+                    </div>
+
+                    <div className="text-sm text-slate-300/80 lg:mt-3 lg:text-slate-300/70">
+                      {hasAllergens
+                        ? details?.allergens?.join(" · ")
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {sections.map((section) => (
+                    <RecipeSectionCard
+                      key={section.id}
+                      title={section.title}
+                      subtitle={`${section.ingredients.length} ingrédient(s) · Étapes`}
+                    />
+                  ))}
+
+                  <div
+                    data-demo-target="recipe-notes"
+                    className="rounded-3xl bg-white/[0.04] p-4 ring-1 ring-white/10 lg:rounded-[28px] lg:bg-white/[0.06] lg:p-5"
                   >
-                    +
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-semibold text-slate-100 lg:text-[26px] lg:tracking-tight">
+                        Mes notes
+                      </div>
 
-                <div className="h-px bg-white/10 my-5" />
+                      <div className="text-xs text-slate-300/60 lg:text-sm">
+                        Enregistré
+                      </div>
+                    </div>
 
-                <div className="text-sm text-slate-300/80 mb-3">Ingrédient de référence</div>
-                <div className="h-12 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 px-4 flex items-center justify-between text-slate-100">
-                  <span className="truncate">{selectedBase}</span>
-                  <ChevronDown className="w-4 h-4 text-slate-300/70" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <div>
-                    <div className="text-sm text-slate-300/80 mb-2">Base</div>
-                    <input
-                      value={baseValue}
-                      onChange={(e) => setBaseValue(e.target.value)}
-                      className="w-full h-12 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 px-4 text-slate-100 outline-none"
+                    <textarea
+                      value={demoNote}
+                      onChange={(event) =>
+                        setDemoNote(event.target.value)
+                      }
+                      placeholder="Écris tes notes ici..."
+                      className="mt-3 min-h-[140px] w-full resize-none rounded-2xl bg-white/[0.03] px-4 py-3 text-sm text-slate-100 outline-none ring-1 ring-white/10 placeholder:text-slate-400/70 lg:mt-4 lg:min-h-[170px] lg:rounded-[18px] lg:py-4 lg:text-base"
                     />
                   </div>
-                  <div>
-                    <div className="text-sm text-slate-300/80 mb-2">J’ai</div>
-                    <input
-                      value={haveValue}
-                      onChange={(e) => setHaveValue(e.target.value)}
-                      placeholder="ex: 350"
-                      className="w-full h-12 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 px-4 text-slate-100 placeholder:text-slate-400/70 outline-none"
-                    />
-                  </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMultiplier(1);
-                    setBaseValue("500");
-                    setHaveValue("");
-                  }}
-                  className="mt-4 h-12 w-full rounded-2xl bg-white/[0.04] ring-1 ring-white/10 text-slate-100 hover:bg-white/[0.06] transition"
-                >
-                  Reset
-                </button>
-              </div>
-
-              <div className="rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-5">
-                <div className="text-lg font-semibold text-slate-100">Allergènes</div>
-                <div className="mt-3 text-sm text-slate-300/70">
-                  {details?.allergens && details.allergens.length > 0
-                    ? details.allergens.join(" · ")
-                    : "—"}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {primarySection && (
-                <RecipeSectionCard
-                  title={primarySection.title}
-                  subtitle={`${primarySection.ingredients.length} ingrédient(s) · Étapes`}
-                />
-              )}
-
-              {secondarySection && (
-                <RecipeSectionCard
-                  title={secondarySection.title}
-                  subtitle={`${secondarySection.ingredients.length} ingrédient(s) · Étapes`}
-                />
-              )}
-
-              <div
-                data-demo-target="recipe-notes"
-                className="rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 p-5"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[26px] font-semibold tracking-tight text-slate-100">
-                    Mes notes
-                  </div>
-                  <div className="text-sm text-slate-300/60">Enregistré</div>
-                </div>
-
-                <textarea
-                  value={demoNote}
-                  onChange={(e) => setDemoNote(e.target.value)}
-                  placeholder="Écris tes notes ici..."
-                  className="mt-4 min-h-[170px] w-full rounded-[18px] bg-white/[0.03] ring-1 ring-white/10 px-4 py-4 text-slate-100 placeholder:text-slate-400/70 outline-none resize-none"
-                />
-              </div>
-
-              {primarySection && (
-                <div className="rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-5">
-                  <div className="text-slate-100 font-semibold mb-3">
-                    {primarySection.title}
-                  </div>
-                  <div className="h-px bg-white/10 mb-4" />
-
-                  <div className="text-xs font-semibold tracking-wider text-slate-300/70 uppercase mb-3">
-                    Ingrédients
-                  </div>
-
-                  <div className="space-y-2 mb-5">
-                    {primarySection.ingredients.map((ing, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between gap-3 text-sm text-slate-100"
-                      >
-                        <span className="truncate">{ing.name}</span>
-                        <span className="shrink-0 text-slate-300/80">
-                          {formatQty(ing.qty ? ing.qty * multiplier : ing.qty, ing.unit)}
-                        </span>
-                      </div>
+                  <div className="hidden space-y-4 lg:block">
+                    {sections.map((section) => (
+                      <RecipeSectionDetailsCard
+                        key={section.id}
+                        section={section}
+                        multiplier={multiplier}
+                      />
                     ))}
                   </div>
-
-                  <div className="text-xs font-semibold tracking-wider text-slate-300/70 uppercase mb-3">
-                    Étapes
-                  </div>
-
-                  <div className="text-sm text-slate-200/90 whitespace-pre-line leading-relaxed">
-                    {primarySection.steps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
-                  </div>
                 </div>
-              )}
-
-              {secondarySection && (
-                <div className="rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-5">
-                  <div className="text-slate-100 font-semibold mb-3">
-                    {secondarySection.title}
-                  </div>
-                  <div className="h-px bg-white/10 mb-4" />
-
-                  <div className="text-xs font-semibold tracking-wider text-slate-300/70 uppercase mb-3">
-                    Ingrédients
-                  </div>
-
-                  <div className="space-y-2 mb-5">
-                    {secondarySection.ingredients.map((ing, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between gap-3 text-sm text-slate-100"
-                      >
-                        <span className="truncate">{ing.name}</span>
-                        <span className="shrink-0 text-slate-300/80">
-                          {formatQty(ing.qty ? ing.qty * multiplier : ing.qty, ing.unit)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="text-xs font-semibold tracking-wider text-slate-300/70 uppercase mb-3">
-                    Étapes
-                  </div>
-
-                  <div className="text-sm text-slate-200/90 whitespace-pre-line leading-relaxed">
-                    {secondarySection.steps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -953,169 +918,367 @@ export function SharedRecipesDemoPanel() {
   const emptyStateFiltered = filteredRecipes.length === 0 && !emptyStateRecipes;
 
   return (
-    <>
-      {/* MOBILE */}
-      <div className="lg:hidden h-full w-full bg-transparent overflow-hidden">
-        <div className="h-full min-h-0 bg-[#0B1332]/95 px-0 pt-0 pb-0">
-          <div className="h-full min-h-0 px-4 pt-4 pb-24">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xl font-semibold text-slate-100 tracking-tight">
-                  Partager
-                </div>
-                <div className="mt-1 text-sm text-slate-300/80">
-                  {selectedGroupName ?? "Groupe"} ·{" "}
-                  <span className="text-slate-100 font-semibold">
-                    {filteredRecipes.length}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedGroupId(null)}
-                  className="mt-2 text-sm text-slate-300 hover:text-slate-100 transition"
-                >
-                  ← Retour
-                </button>
+  <>
+    <div
+      className={cn(
+        "h-full min-h-0 w-full overflow-hidden bg-[#0B1332]/95 px-4 pb-24 pt-4",
+        "lg:h-auto lg:overflow-visible lg:rounded-[28px] lg:bg-white/[0.06] lg:p-7",
+        "lg:ring-1 lg:ring-white/10 lg:shadow-[0_18px_70px_rgba(0,0,0,0.35)] lg:backdrop-blur-md"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3 lg:mb-6">
+        <div className="flex items-start gap-4">
+          <span className="hidden h-12 w-12 place-items-center rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 lg:grid">
+            <Share2 className="h-5 w-5 text-amber-200" />
+          </span>
+
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-100">
+              Partager
+            </h1>
+
+            <div className="mt-1 text-sm text-slate-300/80 lg:hidden">
+              {selectedGroupName ?? "Groupe"} ·{" "}
+              <span className="font-semibold text-slate-100">
+                {filteredRecipes.length}
+              </span>
+            </div>
+
+            <p className="mt-1 hidden text-sm text-slate-300/70 lg:block">
+              Groupe :{" "}
+              <span className="font-semibold text-slate-100">
+                {selectedGroupName}
+              </span>
+            </p>
+
+            <p className="mt-2 hidden text-xs text-slate-400 lg:block">
+              Démo animée automatique
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setSelectedGroupId(null)}
+              className="mt-2 text-sm text-slate-300 transition hover:text-slate-100 lg:hidden"
+            >
+              ← Retour
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] ring-1 ring-white/10 transition hover:bg-white/[0.08] lg:hidden"
+          aria-label="Ouvrir les filtres"
+        >
+          <Filter className="h-5 w-5 text-slate-100" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedGroupId(null)}
+          className="hidden h-11 rounded-2xl bg-white/[0.05] px-4 text-slate-100 ring-1 ring-white/10 transition hover:bg-white/[0.08] lg:block"
+        >
+          Retour aux groupes
+        </button>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-6 lg:mt-0 xl:grid-cols-[280px_1fr]">
+        <aside className="space-y-4">
+          <div className="lg:rounded-[26px] lg:bg-white/[0.05] lg:p-4 lg:ring-1 lg:ring-white/10">
+            <div
+              data-demo-target="search-input"
+              className="relative"
+            >
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-300/70 lg:h-4 lg:w-4" />
+
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) =>
+                  setSearchTerm(event.target.value)
+                }
+                placeholder="Rechercher par nom…"
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] pl-12 pr-4 text-slate-100 outline-none ring-1 ring-white/10 placeholder:text-slate-400/70 focus:ring-2 focus:ring-amber-400/25 lg:h-11 lg:bg-white/[0.04] lg:pl-11"
+              />
+            </div>
+
+            <div className="mt-3 hidden items-center justify-between gap-2 lg:flex">
+              <button
+                type="button"
+                onClick={() =>
+                  setShowFavoritesOnly((current) => !current)
+                }
+                className={cn(
+                  "h-10 rounded-2xl px-4 text-sm ring-1 transition",
+                  showFavoritesOnly
+                    ? "bg-red-500/15 text-red-200 ring-red-400/25"
+                    : "bg-white/[0.04] text-slate-200 ring-white/10"
+                )}
+              >
+                Favoris
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFolder(null);
+                  setCategoryFilter("Toutes");
+                }}
+                className="h-10 rounded-2xl bg-white/[0.04] px-4 text-sm text-slate-200 ring-1 ring-white/10"
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+
+          <div className="hidden rounded-[26px] bg-white/[0.05] p-4 ring-1 ring-white/10 lg:block">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-slate-100">
+                Dossiers
               </div>
 
               <button
                 type="button"
-                className="h-12 w-12 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 hover:bg-white/[0.08] transition inline-flex items-center justify-center"
-                aria-label="Ouvrir les filtres"
+                onClick={() =>
+                  setShowNewFolderInput((current) => !current)
+                }
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04] text-slate-100 ring-1 ring-white/10"
+                aria-label="Créer un dossier"
               >
-                <Filter className="w-5 h-5 text-slate-100" />
+                <Plus className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="mt-5 relative" data-demo-target="search-input">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/70 pointer-events-none" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Rechercher par nom…"
-                className="w-full h-12 pl-12 pr-4 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
-              />
-            </div>
+            {showNewFolderInput ? (
+              <div className="mb-3 flex items-center gap-2">
+                <input
+                  value={newFolderName}
+                  onChange={(event) =>
+                    setNewFolderName(event.target.value)
+                  }
+                  placeholder="Nouveau dossier"
+                  className="h-10 flex-1 rounded-2xl bg-white/[0.04] px-4 text-sm text-slate-100 outline-none ring-1 ring-white/10 placeholder:text-slate-400/70"
+                />
 
-            <div className="mt-4">
-              <div className="overflow-x-auto [-webkit-overflow-scrolling:touch] no-scrollbar">
-                <div className="flex items-center gap-2 min-w-max pr-2">
-                  {categories.map((cat) => {
-                    const active = categoryFilter === cat;
-                    return (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setCategoryFilter(cat)}
-                        className={cn(
-                          "h-10 px-4 rounded-full text-sm font-medium whitespace-nowrap ring-1 transition",
-                          active
-                            ? "bg-amber-400/20 ring-amber-300/30 text-amber-100"
-                            : "bg-white/[0.05] ring-white/10 text-slate-200 hover:bg-white/[0.07]"
-                        )}
-                      >
-                        {cat}
-                      </button>
-                    );
-                  })}
-                </div>
+                <button
+                  type="button"
+                  onClick={handleCreateFolder}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-400/25"
+                  aria-label="Valider le dossier"
+                >
+                  <Check className="h-4 w-4" />
+                </button>
               </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setSelectedFolder(null)}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm transition",
+                  selectedFolder === null
+                    ? "bg-white/[0.08] text-white ring-1 ring-white/10"
+                    : "text-slate-300 hover:bg-white/[0.04]"
+                )}
+              >
+                <span>Toutes</span>
+                <span className="text-slate-400">
+                  {recipes.length}
+                </span>
+              </button>
+
+              {folders.map((folder) => (
+                <div key={folder.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFolder(folder.id)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition",
+                      selectedFolder === folder.id
+                        ? "bg-white/[0.08] text-white ring-1 ring-white/10"
+                        : "text-slate-300 hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <Folder className="h-4 w-4 text-amber-200" />
+
+                    <span className="flex-1 truncate">
+                      {folder.name}
+                    </span>
+
+                    <span className="text-slate-400">
+                      {
+                        recipes.filter(
+                          (recipe) =>
+                            recipe.folder_id === folder.id
+                        ).length
+                      }
+                    </span>
+                  </button>
+                </div>
+              ))}
             </div>
+          </div>
+        </aside>
 
-            <div className="mt-6">
-              {emptyStateRecipes ? (
-                <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-8 text-center">
-                  <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                  <p className="text-slate-200 text-lg font-semibold">
-                    Aucune recette partagée dans ce groupe
-                  </p>
-                  <p className="text-sm text-slate-300/70 mt-2">
-                    Les recettes apparaissent ici quand quelqu’un partage.
-                  </p>
-                </div>
-              ) : emptyStateFiltered ? (
-                <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-8 text-center">
-                  <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                  <p className="text-slate-200 text-lg font-semibold">
-                    Aucune recette trouvée
-                  </p>
-                  <p className="text-sm text-slate-300/70 mt-2">
-                    Change tes filtres ou ton dossier.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-white/10">
-                  {filteredRecipes.map((recipe) => {
-                    const folderName = recipe.folder_id
-                      ? folders.find((f) => f.id === recipe.folder_id)?.name
-                      : null;
+        <main>
+          <div className="overflow-x-auto no-scrollbar lg:overflow-visible">
+            <div className="flex min-w-max items-center gap-2 pr-2 lg:mb-4 lg:min-w-0 lg:flex-wrap lg:pr-0">
+              {categories.map((category) => {
+                const active = categoryFilter === category;
 
-                    return (
-                      <div
-                        key={recipe.id}
-                        data-demo-target={recipe.id === "r1" ? "recipe-row-r1" : undefined}
-                        className="py-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setViewingRecipeId(recipe.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                setViewingRecipeId(recipe.id);
-                              }
-                            }}
-                            className="min-w-0 flex-1 outline-none"
-                          >
-                            <div className="text-[15px] font-medium tracking-tight text-white truncate">
-                              {recipe.title || "Sans titre"}
-                            </div>
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    data-demo-target={
+                      category === "Toutes" ? "all-recipes-button" : undefined
+                    }
+                    onClick={() =>
+                      setCategoryFilter(category)
+                    }
+                    className={cn(
+                      "h-10 whitespace-nowrap rounded-full px-4 text-sm font-medium ring-1 transition",
+                      active
+                        ? "bg-amber-400/20 text-amber-100 ring-amber-300/30"
+                        : "bg-white/[0.05] text-slate-200 ring-white/10 hover:bg-white/[0.07] lg:bg-white/[0.04]"
+                    )}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-                            <div className="mt-1 text-xs text-white/50 flex items-center gap-2">
-                              <Tag className="w-3.5 h-3.5 text-white/40" />
-                              {recipe.category || "Autre"}
-                            </div>
+          <div className="mt-6 lg:mt-0">
+            {emptyStateRecipes || emptyStateFiltered ? (
+              <div className="rounded-3xl bg-white/[0.04] p-8 text-center ring-1 ring-white/10 lg:rounded-[28px] lg:p-10">
+                <AlertCircle className="mx-auto mb-4 h-12 w-12 text-slate-500 lg:h-14 lg:w-14" />
 
-                            {searchTerm.trim() && folderName && (
-                              <div className="mt-1 text-[11px] text-white/40">
-                                Dossier : {folderName}
-                              </div>
-                            )}
+                <p className="text-lg font-semibold text-slate-200">
+                  {emptyStateRecipes
+                    ? "Aucune recette partagée dans ce groupe"
+                    : "Aucune recette trouvée"}
+                </p>
+
+                <p className="mt-2 text-sm text-slate-300/70">
+                  {emptyStateRecipes
+                    ? "Les recettes apparaissent ici quand quelqu’un partage."
+                    : "Change tes filtres ou ton dossier."}
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/10 lg:overflow-hidden lg:rounded-[28px] lg:bg-white/[0.04] lg:ring-1 lg:ring-white/10">
+                {filteredRecipes.map((recipe) => {
+                  const folderName = recipe.folder_id
+                    ? folders.find(
+                        (folder) =>
+                          folder.id === recipe.folder_id
+                      )?.name
+                    : null;
+
+                  return (
+                    <div
+                      key={recipe.id}
+                      data-demo-target={
+                        recipe.id === "r1"
+                          ? "recipe-row-r1"
+                          : undefined
+                      }
+                      className="py-4 lg:px-5 lg:py-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3 lg:gap-4">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() =>
+                            setViewingRecipeId(recipe.id)
+                          }
+                          onKeyDown={(event) => {
+                            if (
+                              event.key === "Enter" ||
+                              event.key === " "
+                            ) {
+                              setViewingRecipeId(recipe.id);
+                            }
+                          }}
+                          className="min-w-0 flex-1 outline-none"
+                        >
+                          <div className="truncate text-[15px] font-medium tracking-tight text-white lg:font-semibold lg:text-slate-100">
+                            {recipe.title || "Sans titre"}
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={(event) => event.stopPropagation()}
-                            className="h-10 w-10 rounded-full bg-white/[0.04] ring-1 ring-white/10 inline-flex items-center justify-center text-white/60"
-                            aria-label="Actions"
-                          >
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-white/50 lg:hidden">
+                            <Tag className="h-3.5 w-3.5 text-white/40" />
+                            {recipe.category || "Autre"}
+                          </div>
+
+                          {searchTerm.trim() && folderName ? (
+                            <div className="mt-1 text-[11px] text-white/40 lg:hidden">
+                              Dossier : {folderName}
+                            </div>
+                          ) : null}
+
+                          <div className="mt-1 hidden text-sm text-slate-300/70 lg:block">
+                            Prép {recipe.prep_time ?? 0}min ·
+                            Cuisson {recipe.cook_time ?? 0}min ·{" "}
+                            {recipe.servings ?? 0} couverts
+                          </div>
+
+                          <div className="mt-2 hidden items-center gap-2 text-xs text-slate-400 lg:flex">
+                            <Tag className="h-3.5 w-3.5" />
+                            <span>
+                              {recipe.category || "Autre"}
+                            </span>
+
+                            {searchTerm.trim() && folderName ? (
+                              <>
+                                <span>•</span>
+                                <span>
+                                  Dossier : {folderName}
+                                </span>
+                              </>
+                            ) : null}
+                          </div>
                         </div>
 
-                        <div className="mt-3 flex items-center gap-3 text-white/60">
+                        <button
+                          type="button"
+                          onClick={(event) =>
+                            event.stopPropagation()
+                          }
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.04] text-white/60 ring-1 ring-white/10 lg:hidden"
+                          aria-label="Actions"
+                        >
+                          <MoreVertical className="h-5 w-5" />
+                        </button>
+
+                        <div className="flex basis-full items-center gap-3 text-white/60 lg:basis-auto lg:gap-2 lg:text-slate-300">
                           <button
                             type="button"
-                            onClick={(event) => event.stopPropagation()}
-                            className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center"
+                            onClick={(event) =>
+                              event.stopPropagation()
+                            }
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white/[0.06]"
                             title="Partager"
                           >
-                            <Share2 className="w-5 h-5" />
+                            <Share2 className="h-5 w-5 lg:h-4 lg:w-4" />
                           </button>
 
                           <button
                             type="button"
                             data-demo-target={
-                              recipe.id === "r1" ? "favorites-button" : undefined
+                              recipe.id === "r1"
+                                ? "favorites-button"
+                                : undefined
                             }
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               handleToggleFavorite(recipe.id);
                             }}
                             className={cn(
-                              "h-10 w-10 rounded-full transition inline-flex items-center justify-center",
+                              "inline-flex h-10 w-10 items-center justify-center rounded-full transition",
                               recipe.is_favorite
                                 ? "text-red-500"
                                 : "hover:bg-white/[0.06] hover:text-white"
@@ -1124,346 +1287,62 @@ export function SharedRecipesDemoPanel() {
                           >
                             <Heart
                               className={cn(
-                                "w-5 h-5",
-                                recipe.is_favorite && "fill-current"
+                                "h-5 w-5 lg:h-4 lg:w-4",
+                                recipe.is_favorite &&
+                                  "fill-current"
                               )}
                             />
                           </button>
 
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.stopPropagation();
                               setViewingRecipeId(recipe.id);
                             }}
-                            className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white/[0.06]"
                             title="Voir"
                           >
-                            <Eye className="w-5 h-5" />
+                            <Eye className="h-5 w-5 lg:h-4 lg:w-4" />
                           </button>
-
-                          <div className="flex-1" />
 
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedFolder && recipe.folder_id === selectedFolder) {
+                            onClick={(event) => {
+                              event.stopPropagation();
+
+                              if (
+                                selectedFolder &&
+                                recipe.folder_id ===
+                                  selectedFolder
+                              ) {
                                 handleRemoveFromFolder(recipe.id);
                               } else if (recipe.is_owner) {
                                 handleRemoveFromGroup(recipe.id);
                               }
                             }}
-                            className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
-                            title={selectedFolder ? "Retirer du dossier" : "Retirer du groupe"}
+                            className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full text-white/60 transition hover:bg-red-500/10 hover:text-red-200 lg:ml-0 lg:text-slate-300"
+                            title={
+                              selectedFolder
+                                ? "Retirer du dossier"
+                                : "Retirer du groupe"
+                            }
                           >
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 className="h-5 w-5 lg:h-4 lg:w-4" />
                           </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* DESKTOP — inchangé */}
-      <div
-        ref={menuRootRef}
-        className="hidden lg:block rounded-[28px] bg-white/[0.06] ring-1 ring-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.35)] backdrop-blur-md p-5 sm:p-7"
-      >
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div className="flex items-start gap-4">
-            <span className="h-12 w-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center">
-              <Share2 className="w-5 h-5 text-amber-200" />
-            </span>
-            <div>
-              <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
-                Partager
-              </h1>
-              <p className="text-sm text-slate-300/70 mt-1">
-                Groupe : <span className="font-semibold text-slate-100">{selectedGroupName}</span>
-              </p>
-              <p className="text-xs text-slate-400 mt-2">
-                Démo animée automatique
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setSelectedGroupId(null)}
-            className="h-11 px-4 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 text-slate-100 hover:bg-white/[0.08] transition"
-          >
-            Retour aux groupes
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-6">
-          <aside className="space-y-4">
-            <div className="rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-4">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300/70 pointer-events-none" />
-                <input
-                  data-demo-target="search-input"
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Rechercher par nom..."
-                  className="w-full h-11 pl-11 pr-4 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 border border-white/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
-                />
-              </div>
-
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowFavoritesOnly((v) => !v)}
-                  className={cn(
-                    "h-10 px-4 rounded-2xl ring-1 text-sm transition",
-                    showFavoritesOnly
-                      ? "bg-red-500/15 ring-red-400/25 text-red-200"
-                      : "bg-white/[0.04] ring-white/10 text-slate-200"
-                  )}
-                >
-                  Favoris
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedFolder(null);
-                    setCategoryFilter("Toutes");
-                  }}
-                  className="h-10 px-4 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 text-slate-200 text-sm"
-                >
-                  Réinitialiser
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-[26px] bg-white/[0.05] ring-1 ring-white/10 p-4">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div className="text-sm font-semibold text-slate-100">Dossiers</div>
-                <button
-                  type="button"
-                  onClick={() => setShowNewFolderInput((v) => !v)}
-                  className="h-9 w-9 rounded-xl bg-white/[0.04] ring-1 ring-white/10 inline-flex items-center justify-center text-slate-100"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              {showNewFolderInput && (
-                <div className="mb-3 flex items-center gap-2">
-                  <input
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    placeholder="Nouveau dossier"
-                    className="flex-1 h-10 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 px-4 text-sm text-slate-100 placeholder:text-slate-400/70 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCreateFolder}
-                    className="h-10 w-10 rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-400/25 text-emerald-200 inline-flex items-center justify-center"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedFolder(null)}
-                  className={cn(
-                    "w-full flex items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm transition",
-                    selectedFolder === null
-                      ? "bg-white/[0.08] ring-1 ring-white/10 text-white"
-                      : "text-slate-300 hover:bg-white/[0.04]"
-                  )}
-                >
-                  <span>Toutes</span>
-                  <span className="text-slate-400">{recipes.length}</span>
-                </button>
-
-                {folders.map((folder) => (
-                  <div key={folder.id} className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFolder(folder.id)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setFolderMenuOpenId((prev) => (prev === folder.id ? null : folder.id));
-                      }}
-                      className={cn(
-                        "w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition",
-                        selectedFolder === folder.id
-                          ? "bg-white/[0.08] ring-1 ring-white/10 text-white"
-                          : "text-slate-300 hover:bg-white/[0.04]"
-                      )}
-                    >
-                      <Folder className="w-4 h-4 text-amber-200" />
-                      <span className="flex-1 truncate">{folder.name}</span>
-                      <span className="text-slate-400">
-                        {recipes.filter((r) => r.folder_id === folder.id).length}
-                      </span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-
-          <main>
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              {categories.map((cat) => {
-                const active = categoryFilter === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategoryFilter(cat)}
-                    className={cn(
-                      "h-10 px-4 rounded-full text-sm font-medium ring-1 transition",
-                      active
-                        ? "bg-amber-400/20 ring-amber-300/30 text-amber-100"
-                        : "bg-white/[0.04] ring-white/10 text-slate-200 hover:bg-white/[0.06]"
-                    )}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-
-            {emptyStateRecipes ? (
-              <div className="rounded-[28px] bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
-                <AlertCircle className="w-14 h-14 text-slate-500 mx-auto mb-4" />
-                <p className="text-slate-200 text-lg font-semibold">
-                  Aucune recette partagée dans ce groupe
-                </p>
-                <p className="text-sm text-slate-300/70 mt-2">
-                  Les recettes apparaissent ici quand quelqu’un partage.
-                </p>
-              </div>
-            ) : emptyStateFiltered ? (
-              <div className="rounded-[28px] bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
-                <AlertCircle className="w-14 h-14 text-slate-500 mx-auto mb-4" />
-                <p className="text-slate-200 text-lg font-semibold">
-                  Aucune recette trouvée
-                </p>
-                <p className="text-sm text-slate-300/70 mt-2">
-                  Change tes filtres ou ton dossier.
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-[28px] bg-white/[0.04] ring-1 ring-white/10 overflow-hidden">
-                <div className="divide-y divide-white/10">
-                  {filteredRecipes.map((recipe) => {
-                    const folderName = recipe.folder_id
-                      ? folders.find((f) => f.id === recipe.folder_id)?.name
-                      : null;
-
-                    return (
-                      <div
-                        key={recipe.id}
-                        data-demo-target={recipe.id === "r1" ? "recipe-row-r1" : undefined}
-                        className="px-5 py-5"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setViewingRecipeId(recipe.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                setViewingRecipeId(recipe.id);
-                              }
-                            }}
-                            className="min-w-0 flex-1"
-                          >
-                            <div className="text-slate-100 font-semibold truncate">
-                              {recipe.title || "Sans titre"}
-                            </div>
-                            <div className="mt-1 text-sm text-slate-300/70">
-                              Prép {recipe.prep_time ?? 0}min · Cuisson {recipe.cook_time ?? 0}min ·{" "}
-                              {recipe.servings ?? 0} couverts
-                            </div>
-                            <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                              <Tag className="w-3.5 h-3.5" />
-                              <span>{recipe.category || "Autre"}</span>
-                              {searchTerm.trim() && folderName ? (
-                                <>
-                                  <span>•</span>
-                                  <span>Dossier : {folderName}</span>
-                                </>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center text-slate-300"
-                            >
-                              <Share2 className="w-4 h-4" />
-                            </button>
-
-                            <button
-                              type="button"
-                              data-demo-target={
-                                recipe.id === "r1" ? "favorites-button" : undefined
-                              }
-                              onClick={() => handleToggleFavorite(recipe.id)}
-                              className={cn(
-                                "h-10 w-10 rounded-full transition inline-flex items-center justify-center",
-                                recipe.is_favorite
-                                  ? "text-red-500"
-                                  : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
-                              )}
-                            >
-                              <Heart
-                                className={cn("w-4 h-4", recipe.is_favorite && "fill-current")}
-                              />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setViewingRecipeId(recipe.id)}
-                              className="h-10 w-10 rounded-full hover:bg-white/[0.06] transition inline-flex items-center justify-center text-slate-300"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (selectedFolder && recipe.folder_id === selectedFolder) {
-                                  handleRemoveFromFolder(recipe.id);
-                                } else if (recipe.is_owner) {
-                                  handleRemoveFromGroup(recipe.id);
-                                }
-                              }}
-                              className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-slate-300 hover:text-red-200"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
+    </div>
 
-      <FakeMouse {...cursor} />
-    </>
-  );
+    <FakeMouse {...cursor} />
+  </>
+);
 }
