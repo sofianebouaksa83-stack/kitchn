@@ -1,4 +1,7 @@
-import { AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  Shield,
+} from "lucide-react";
 
 type TeamAccessDeniedProps = {
   groupName?: string;
@@ -8,28 +11,88 @@ export function TeamAccessDenied({
   groupName,
 }: TeamAccessDeniedProps) {
   return (
-    <div className="mt-8 rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-10 text-center">
-      <AlertCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
+    <div
+      className="
+        mt-5
+        rounded-[28px]
+        border border-[#C05C56]/15
+        bg-[#FBFAF6]
+        p-7
+        text-center
+        shadow-[0_8px_24px_rgba(23,62,49,0.04)]
+        sm:p-10
+      "
+    >
+      <div
+        className="
+          mx-auto
+          grid h-14 w-14
+          place-items-center
+          rounded-[20px]
+          bg-[#F8EAE7]
+          text-[#A54C48]
+        "
+      >
+        <AlertCircle className="h-6 w-6" />
+      </div>
 
-      <h2 className="text-lg font-semibold text-slate-100 mb-2">
-        Accès refusé
+      <h2
+        className="
+          mt-5
+          font-serif
+          text-xl
+          font-semibold
+          text-[#173E31]
+        "
+      >
+        Accès limité
       </h2>
 
-      <p className="text-sm text-slate-300/70">
+      <p
+        className="
+          mx-auto
+          mt-2
+          max-w-lg
+          text-sm
+          leading-relaxed
+          text-[#718078]
+        "
+      >
         Seuls le{" "}
-        <span className="text-slate-200">
+        <strong className="text-[#173E31]">
           Chef
-        </span>{" "}
-        (créateur du groupe) ou le{" "}
-        <span className="text-slate-200">
+        </strong>{" "}
+        du groupe ou son{" "}
+        <strong className="text-[#173E31]">
           Second
-        </span>{" "}
-        peuvent gérer l’équipe de{" "}
-        <span className="text-slate-200">
-          {groupName ?? "ce groupe"}
-        </span>
+        </strong>{" "}
+        peuvent gérer les membres et
+        les invitations de{" "}
+        <strong className="text-[#173E31]">
+          {groupName ??
+            "ce groupe"}
+        </strong>
         .
       </p>
+
+      <div
+        className="
+          mx-auto
+          mt-5
+          inline-flex
+          items-center
+          gap-2
+          rounded-full
+          bg-[#F0F2EC]
+          px-3 py-1.5
+          text-xs
+          font-medium
+          text-[#617168]
+        "
+      >
+        <Shield className="h-3.5 w-3.5" />
+        Gestion réservée
+      </div>
     </div>
   );
 }

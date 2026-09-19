@@ -2,9 +2,12 @@ import type {
   DragEvent,
   MouseEvent,
 } from "react";
+
 import { Plus } from "lucide-react";
+
 import { useRecipeList } from "../../../features/recipe/hooks/useRecipeList";
 import { ui } from "../../../styles/ui";
+
 import { KitchNLoader } from "../../Loading/KitchNLoader";
 import RecipeDisplay from "./RecipeDisplay";
 import { RecipeGroupsModal } from "./RecipeGroupsModal";
@@ -59,7 +62,7 @@ export function RecipeList({
   }
 
   function handleSelectFolder(
-    folderId: string
+    folderId: string,
   ) {
     list.setSelectedFolder(folderId);
     list.setShowFavoritesOnly(false);
@@ -67,7 +70,7 @@ export function RecipeList({
 
   function handleShareToGroup(
     recipeId: string,
-    event: MouseEvent
+    event: MouseEvent,
   ) {
     event.stopPropagation();
     list.setActiveRecipeId(recipeId);
@@ -76,7 +79,7 @@ export function RecipeList({
 
   function handleEditRecipe(
     recipeId: string,
-    event: MouseEvent
+    event: MouseEvent,
   ) {
     event.stopPropagation();
     onEdit(recipeId);
@@ -84,93 +87,127 @@ export function RecipeList({
 
   function handleDragStartRecipe(
     recipeId: string,
-    event: DragEvent
+    event: DragEvent,
   ) {
     event.dataTransfer.setData(
       "text/plain",
-      recipeId
+      recipeId,
     );
-    event.dataTransfer.effectAllowed = "move";
+
+    event.dataTransfer.effectAllowed =
+      "move";
   }
 
   function handleDropToFolder(
     folderId: string | null,
-    event: DragEvent
+    event: DragEvent,
   ) {
     event.preventDefault();
 
     const recipeId =
-      event.dataTransfer.getData("text/plain");
+      event.dataTransfer.getData(
+        "text/plain",
+      );
 
     if (!recipeId) return;
 
     void list.handleMoveRecipeToFolder(
       recipeId,
-      folderId
+      folderId,
     );
   }
 
   const sharedProps = {
     userExists: list.userExists,
     recipesCount: list.recipes.length,
-    filteredRecipes: list.filteredRecipes,
+    filteredRecipes:
+      list.filteredRecipes,
     categories: list.categories,
     folders: list.folders,
 
     searchTerm: list.searchTerm,
-    onChangeSearch: list.setSearchTerm,
+    onChangeSearch:
+      list.setSearchTerm,
 
-    categoryFilter: list.categoryFilter,
+    categoryFilter:
+      list.categoryFilter,
     onChangeCategory:
       list.setCategoryFilter,
 
-    selectedFolder: list.selectedFolder,
+    selectedFolder:
+      list.selectedFolder,
+
     showFavoritesOnly:
       list.showFavoritesOnly,
 
     folderMenuOpenId:
       list.folderMenuOpenId,
+
     setFolderMenuOpenId:
       list.setFolderMenuOpenId,
-    folderMenuRef: list.folderMenuRef,
+
+    folderMenuRef:
+      list.folderMenuRef,
 
     showNewFolderInput:
       list.showNewFolderInput,
+
     setShowNewFolderInput:
       list.setShowNewFolderInput,
-    newFolderName: list.newFolderName,
+
+    newFolderName:
+      list.newFolderName,
+
     setNewFolderName:
       list.setNewFolderName,
 
     onCreateNew,
-    onOpenRecipe: list.setViewingRecipe,
 
-    onSelectAll: handleSelectAll,
+    onOpenRecipe:
+      list.setViewingRecipe,
+
+    onSelectAll:
+      handleSelectAll,
+
     onSelectFavorites:
       handleSelectFavorites,
-    onSelectFolder: handleSelectFolder,
 
-    onDropToFolder: handleDropToFolder,
+    onSelectFolder:
+      handleSelectFolder,
+
+    onDropToFolder:
+      handleDropToFolder,
+
     onDragStartRecipe:
       handleDragStartRecipe,
 
     onCreateFolder:
       list.handleCreateFolder,
+
     onRenameFolder:
       list.handleRenameFolder,
+
     onDeleteFolder:
       list.handleDeleteFolder,
 
     onToggleFavorite:
       list.handleToggleFavorite,
+
     onToggleVisibility:
       list.handleToggleVisibility,
 
     onShareToGroup:
       handleShareToGroup,
-    onDuplicate: list.handleDuplicate,
-    onEdit: handleEditRecipe,
-    onTrash: list.handleTrashClick,
+
+    onDuplicate:
+      list.handleDuplicate,
+
+    onEdit:
+      handleEditRecipe,
+
+    onTrash:
+      list.handleTrashClick,
+
     onMoveToFolder:
       list.handleMoveRecipeToFolder,
   };
@@ -180,10 +217,61 @@ export function RecipeList({
       {list.isDesktop ? (
         <div className={ui.dashboardBg}>
           <div
-            className={`${ui.containerWide} px-4 py-6 sm:px-6 sm:py-8`}
+            className={`
+              ${ui.containerWide}
+              px-4 py-8
+              sm:px-6
+            `}
           >
-            {list.userExists ? (
-              <div className="mb-6 flex justify-end">
+            {/* PAGE HEADER */}
+            <div
+              className="
+                mb-8
+                flex items-end
+                justify-between
+                gap-5
+              "
+            >
+              <div>
+                <p
+                  className="
+                    mb-2
+                    text-xs font-semibold
+                    uppercase
+                    tracking-[0.18em]
+                    text-[#A8833E]
+                  "
+                >
+                  Bibliothèque
+                </p>
+
+                <h1
+                  className="
+                    font-serif
+                    text-4xl
+                    font-medium
+                    leading-none
+                    text-[#173E31]
+                  "
+                >
+                  Mes recettes
+                </h1>
+
+                <p
+                  className="
+                    mt-3
+                    text-sm
+                    text-[#718078]
+                  "
+                >
+                  {list.recipes.length} recette
+                  {list.recipes.length !== 1
+                    ? "s"
+                    : ""}
+                </p>
+              </div>
+
+              {list.userExists ? (
                 <button
                   onClick={onCreateNew}
                   className={ui.btnPrimary}
@@ -192,8 +280,8 @@ export function RecipeList({
                   <Plus className="h-4 w-4" />
                   Nouvelle recette
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
 
             <RecipeListDesktop
               {...sharedProps}
@@ -206,11 +294,15 @@ export function RecipeList({
           filteredCount={
             list.filteredRecipes.length
           }
-          sidebarOpen={list.sidebarOpen}
+          sidebarOpen={
+            list.sidebarOpen
+          }
           setSidebarOpen={
             list.setSidebarOpen
           }
-          recipeToOpenId={recipeToOpenId}
+          recipeToOpenId={
+            recipeToOpenId
+          }
           onRecipeOpened={
             onRecipeOpened
           }
@@ -223,7 +315,9 @@ export function RecipeList({
           list.activeRecipeId ?? ""
         }
         onClose={() => {
-          list.setShowGroupsModal(false);
+          list.setShowGroupsModal(
+            false,
+          );
           list.setActiveRecipeId(null);
         }}
       />

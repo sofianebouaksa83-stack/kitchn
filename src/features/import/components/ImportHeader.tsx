@@ -2,22 +2,29 @@ import {
   Loader,
   Sparkles,
 } from "lucide-react";
+
 import type { AiImportQuota } from "../../../services/aiImportQuota";
+
 import { ui } from "../../../styles/ui";
+
 import { clamp } from "../utils/importHelpers";
 
 type ImportHeaderProps = {
   quota: AiImportQuota | null;
   quotaLoading: boolean;
+
   queueLength: number;
+
   overall: {
     done: number;
     total: number;
     pct: number;
   };
+
   busy: boolean;
   canAnalyze: boolean;
   canClear: boolean;
+
   onAnalyze: () => void | Promise<void>;
   onClear: () => void;
 };
@@ -34,79 +41,188 @@ export function ImportHeader({
   onClear,
 }: ImportHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 max-w-full">
-      <div className="flex items-start gap-3 min-w-0 max-w-full">
-        <div className="w-10 h-10 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center shrink-0">
-          <Sparkles className="w-5 h-5 text-amber-200" />
+    <div
+      className="
+        flex max-w-full
+        flex-col gap-5
+        sm:flex-row
+        sm:items-start
+        sm:justify-between
+      "
+    >
+      <div className="flex min-w-0 max-w-full items-start gap-3">
+        <div
+          className="
+            grid h-11 w-11
+            shrink-0
+            place-items-center
+            rounded-2xl
+            bg-[#E7EEE8]
+            text-[#184C3A]
+            ring-1 ring-[#173E31]/8
+          "
+        >
+          <Sparkles className="h-5 w-5" />
         </div>
 
         <div className="min-w-0 max-w-full">
-          <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
+          <p
+            className="
+              text-[11px]
+              font-semibold
+              uppercase
+              tracking-[0.18em]
+              text-[#A8833E]
+            "
+          >
+            Intelligence artificielle
+          </p>
+
+          <h1
+            className="
+              mt-1
+              font-serif
+              text-3xl
+              font-semibold
+              text-[#173E31]
+              sm:text-4xl
+            "
+          >
             Import IA
           </h1>
 
-          <p className="text-sm text-slate-300/70 mt-1 truncate">
-            Dépose des fichiers, Kitch’n structure
+          <p
+            className="
+              mt-2
+              max-w-xl
+              text-sm
+              leading-relaxed
+              text-[#718078]
+            "
+          >
+            Dépose tes fichiers, Kitch’n
+            analyse le contenu et structure
             automatiquement la recette.
           </p>
 
-          <div className="mt-2">
+          {/* QUOTA */}
+          <div className="mt-3">
             {quotaLoading ? (
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#718078]">
                 Chargement du quota IA…
               </p>
             ) : quota ? (
               quota.plan === "premium" ? (
-                <p className="text-xs text-emerald-300">
-                  Premium • imports IA illimités
-                </p>
+                <span
+                  className="
+                    inline-flex
+                    rounded-full
+                    bg-[#E7EEE8]
+                    px-3 py-1
+                    text-xs
+                    font-semibold
+                    text-[#184C3A]
+                  "
+                >
+                  Premium · imports IA illimités
+                </span>
               ) : quota.can_import ? (
-                <p className="text-xs text-slate-300">
-                  Il vous reste{" "}
-                  <span className="font-semibold text-white">
+                <p className="text-xs text-[#718078]">
+                  Il te reste{" "}
+                  <span className="font-semibold text-[#173E31]">
                     {quota.remaining}
                   </span>{" "}
-                  imports IA ce mois-ci
+                  import
+                  {quota.remaining !== 1 ? "s" : ""} IA
+                  ce mois-ci
                 </p>
               ) : (
-                <p className="text-xs text-amber-300 font-medium">
-                  Limite atteinte, passez à Premium
-                </p>
+                <span
+                  className="
+                    inline-flex
+                    rounded-full
+                    bg-[#F5ECD9]
+                    px-3 py-1
+                    text-xs
+                    font-semibold
+                    text-[#8B6C32]
+                  "
+                >
+                  Limite atteinte · passe à Premium
+                </span>
               )
             ) : null}
           </div>
 
+          {/* PROGRESS */}
           {queueLength > 0 ? (
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-slate-300/80 gap-3 min-w-0">
+            <div
+              className="
+                mt-5
+                max-w-xl
+                rounded-2xl
+                border border-[#173E31]/8
+                bg-[#FBFAF6]
+                px-4 py-3
+              "
+            >
+              <div
+                className="
+                  flex min-w-0
+                  items-center
+                  justify-between
+                  gap-3
+                  text-xs
+                "
+              >
                 <div className="min-w-0 truncate">
-                  <span className="font-semibold text-slate-100">
+                  <span className="font-semibold text-[#29493E]">
                     Progression
                   </span>
 
-                  <span className="text-slate-400">
-                    {" "}
-                    •{" "}
+                  <span className="text-[#9AA49F]">
+                    {" "}·{" "}
                   </span>
 
-                  <span className="text-slate-300">
-                    {overall.done}/{overall.total} terminé(s)
+                  <span className="text-[#718078]">
+                    {overall.done}/{overall.total} terminé
+                    {overall.done !== 1 ? "s" : ""}
                   </span>
                 </div>
 
-                <div className="tabular-nums shrink-0">
+                <div
+                  className="
+                    shrink-0
+                    font-semibold
+                    tabular-nums
+                    text-[#A8833E]
+                  "
+                >
                   {overall.pct}%
                 </div>
               </div>
 
-              <div className="mt-2 h-2.5 rounded-full bg-black/20 ring-1 ring-white/10 overflow-hidden">
+              <div
+                className="
+                  mt-2
+                  h-2
+                  overflow-hidden
+                  rounded-full
+                  bg-[#E7EEE8]
+                "
+              >
                 <div
-                  className="h-full bg-amber-400/80 rounded-full"
+                  className="
+                    h-full
+                    rounded-full
+                    bg-[#C7A45D]
+                    transition-all
+                  "
                   style={{
                     width: `${clamp(
                       overall.pct,
                       0,
-                      100
+                      100,
                     )}%`,
                   }}
                 />
@@ -116,21 +232,22 @@ export function ImportHeader({
         </div>
       </div>
 
-      <div className="hidden sm:flex gap-2 items-center shrink-0">
+      {/* DESKTOP ACTIONS */}
+      <div className="hidden shrink-0 items-center gap-2 sm:flex">
         <button
           type="button"
           onClick={onAnalyze}
           disabled={busy || !canAnalyze}
-          className={`${ui.btnPrimary} px-5 py-2.5 rounded-2xl`}
+          className={ui.btnPrimary}
         >
           {busy ? (
             <>
-              <Loader className="w-5 h-5 animate-spin" />
+              <Loader className="h-4 w-4 animate-spin" />
               Traitement…
             </>
           ) : (
             <>
-              <Sparkles className="w-5 h-5" />
+              <Sparkles className="h-4 w-4" />
               Analyser
             </>
           )}
@@ -140,7 +257,7 @@ export function ImportHeader({
           type="button"
           onClick={onClear}
           disabled={busy || !canClear}
-          className={`${ui.btnGhost} px-5 py-2.5 rounded-2xl`}
+          className={ui.btnGhost}
         >
           Nettoyer
         </button>

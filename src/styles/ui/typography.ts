@@ -1,5 +1,10 @@
 export const typography = {
-  title: "text-2xl sm:text-3xl font-bold text-slate-100",
-  subtitle: "text-sm sm:text-base text-slate-300/80",
-  muted: "text-sm text-slate-300/70",
+  title:
+    "text-2xl sm:text-3xl font-semibold tracking-tight text-[#173E31]",
+
+  subtitle:
+    "text-sm sm:text-base text-[#607168]",
+
+  muted:
+    "text-sm text-[#7A8981]",
 };

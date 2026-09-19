@@ -1,13 +1,15 @@
-import { useState } from "react";
 import {
   ArrowLeft,
+  Tag,
   AlertCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+
 import { PageShell } from "../../Layout/PageShell";
 import { KitchNLoader } from "../../Loading/KitchNLoader";
 import { ui } from "../../../styles/ui";
+
 import {
   Select,
   SelectContent,
@@ -15,11 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../styles/ui/select";
+
 import { useRecipeDisplay } from "../../../features/recipe/hooks/useRecipeDisplay";
+
 import {
   CROSS_MANUAL_VALUE,
   fmtQty,
-  formatCoefficient,
   formatQtyDisplay,
   isQS,
   normUnit,
@@ -33,25 +36,24 @@ type Props = {
   hideBackButton?: boolean;
 };
 
-export default function RecipeDisplayMobile({
+export default function RecipeDisplayDesktop({
   recipeId,
   onBack,
   onEdit,
   embedded = false,
   hideBackButton = false,
 }: Props) {
-  const [openTools, setOpenTools] = useState(false);
-
   const {
     recipe,
-    ingredients,
     sections,
     loading,
     error,
     recipeImages,
     subtitle,
-    allergensText,
 
+    servings,
+    setServings,
+    baseServings,
     coefficient,
     crossRatio,
 
@@ -67,10 +69,6 @@ export default function RecipeDisplayMobile({
     refUnit,
     crossSelectableIngredients,
 
-    increaseMultiplier,
-    decreaseMultiplier,
-    resetMultiplier,
-
     sectionIngredients,
     openSections,
     toggleSection,
@@ -82,456 +80,814 @@ export default function RecipeDisplayMobile({
     noteSavedAt,
   } = useRecipeDisplay({
     recipeId,
-    sectionsInitiallyOpen: true,
+    sectionsInitiallyOpen: false,
   });
+
+  const inputClass =
+    "mt-1 h-11 w-full rounded-2xl " +
+    "border border-[#173E31]/10 " +
+    "bg-[#F7F5EF] px-4 " +
+    "text-[#173E31] outline-none " +
+    "placeholder:text-[#8B9791] " +
+    "transition " +
+    "focus:border-[#C7A45D]/50 " +
+    "focus:ring-2 focus:ring-[#C7A45D]/15";
 
   const content = (
     <>
-      {/* ✅ Header mobile : en bottom sheet, on évite le doublon avec le titre déjà affiché */}
-      <div className={embedded ? "mb-4" : "mb-6"}>
-        {embedded ? (
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-         </div>
-
-            {onEdit && recipe ? (
-              <button
-                onClick={() => onEdit(recipe.id)}
-                className={`${ui.btnPrimary} shrink-0 h-10 rounded-2xl px-4`}
-                type="button"
+      {/* HEADER */}
+      <div className="mb-7">
+        <div className="flex items-start justify-between gap-5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <span
+                className="
+                  grid h-11 w-11
+                  shrink-0 place-items-center
+                  rounded-2xl
+                  bg-[#E7EEE8]
+                  text-[#184C3A]
+                  ring-1 ring-[#173E31]/8
+                "
               >
-                Modifier
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <>
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <h1 className="text-lg font-semibold text-slate-100 truncate">
-                  {recipe?.title ?? "Recette"}
-                </h1>
+                <Tag className="h-5 w-5" />
+              </span>
 
-                {subtitle ? (
-                  <p className="text-sm text-slate-300/70 mt-1">{subtitle}</p>
-                ) : null}
-              </div>
-
-              {onEdit && recipe ? (
-                <button
-                  onClick={() => onEdit(recipe.id)}
-                  className={`${ui.btnPrimary} shrink-0 h-10 rounded-2xl px-4`}
-                  type="button"
-                >
-                  Modifier
-                </button>
-              ) : null}
+              <h1
+                className="
+                  truncate
+                  font-serif
+                  text-3xl
+                  font-semibold
+                  text-[#173E31]
+                "
+              >
+                {recipe?.title ?? "Recette"}
+              </h1>
             </div>
+
+            {subtitle ? (
+              <p
+                className="
+                  mt-2 max-w-3xl
+                  text-sm
+                  text-[#718078]
+                "
+              >
+                {subtitle}
+              </p>
+            ) : null}
 
             {!hideBackButton ? (
               <button
                 onClick={onBack}
-                className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
-                type="button"
-              >
-                <ArrowLeft className="w-4 h-4" />
+              className="
+                mt-4
+                inline-flex items-center gap-2
+                text-sm font-medium
+                text-[#718078]
+                transition
+                hover:text-[#184C3A]
+              "
+              type="button"
+            >
+              <ArrowLeft className="h-4 w-4" />
                 Retour
               </button>
             ) : null}
-          </>
-        )}
+          </div>
+
+          {recipe && onEdit ? (
+            <button
+              onClick={() =>
+                onEdit(recipe.id)
+              }
+              className={ui.btnPrimary}
+              type="button"
+            >
+              Modifier
+            </button>
+          ) : null}
+        </div>
       </div>
 
+      {/* LOADING */}
       {loading ? (
-        <div className="flex items-center justify-center h-48">
+        <div className="flex h-48 items-center justify-center">
           <KitchNLoader className="kitchn-loader--compact" />
         </div>
       ) : error ? (
-        <div className="rounded-3xl bg-red-500/10 ring-1 ring-red-500/20 p-6 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-red-300" />
-          <div className="text-red-200">{error}</div>
+        <div
+          className="
+            flex gap-3
+            rounded-[24px]
+            border border-[#C05C56]/20
+            bg-[#F8EAE7]
+            p-6
+          "
+        >
+          <AlertCircle className="h-5 w-5 text-[#C05C56]" />
+
+          <div className="text-[#9B4944]">
+            {error}
+          </div>
         </div>
       ) : recipe ? (
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* IMAGES */}
           {recipeImages.length > 0 ? (
-            <div
-              className={
-                recipeImages.length === 1
-                  ? "mx-auto flex w-full justify-center"
-                  : "flex w-full gap-3 overflow-x-auto pb-1"
-              }
-            >
-              {recipeImages.map((imageUrl, index) => (
-                <img
-                  key={imageUrl}
-                  src={imageUrl}
-                  alt={`Photo ${index + 1} de ${recipe.title ?? "la recette"}`}
-                  className="h-auto max-h-60 w-auto max-w-[82vw] shrink-0 rounded-[20px] object-contain"
-                  loading="lazy"
-                />
-              ))}
-            </div>
-          ) : null}
-
-          {allergensText ? (
-            <div className="rounded-3xl bg-amber-500/10 ring-1 ring-amber-400/20 px-4 py-3">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-amber-100/70">
-                Allergènes
-              </div>
-              <div className="mt-1 text-sm leading-6 text-amber-50/90">
-                {allergensText}
-              </div>
-            </div>
-          ) : null}
-
-          {/* ✅ Multiplicateur compact */}
-          <div className="space-y-3">
-            <div className="rounded-2xl bg-white/[0.06] ring-white/10/80 ring-1 ring-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.20)] overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setOpenTools((prev) => !prev)}
-                className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left"
+            <div className="lg:col-span-3">
+              <div
+                className={
+                  recipeImages.length === 1
+                    ? "mx-auto flex w-full justify-center"
+                    : "flex w-full gap-4 overflow-x-auto pb-2"
+                }
               >
+                {recipeImages.map(
+                  (imageUrl, index) => (
+                    <img
+                      key={imageUrl}
+                      src={imageUrl}
+                      alt={`Photo ${
+                        index + 1
+                      } de ${
+                        recipe.title ??
+                        "la recette"
+                      }`}
+                      className="
+                        h-auto
+                        max-h-[340px]
+                        w-auto max-w-full
+                        shrink-0
+                        rounded-[24px]
+                        object-contain
+                        shadow-[0_10px_30px_rgba(23,62,49,0.08)]
+                      "
+                      loading="lazy"
+                    />
+                  ),
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {/* COLONNE OUTILS */}
+          <div className="space-y-5 lg:col-span-1">
+            <div
+              className="
+                rounded-[28px]
+                border border-[#173E31]/10
+                bg-[#FBFAF6]
+                p-5
+                shadow-[0_10px_30px_rgba(23,62,49,0.05)]
+              "
+            >
+              <p
+                className="
+                  mb-5
+                  text-xs font-semibold
+                  uppercase
+                  tracking-[0.16em]
+                  text-[#A8833E]
+                "
+              >
+                Ajuster la recette
+              </p>
+
+              {/* MULTIPLICATEUR */}
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-white truncate">
+                  <div className="text-xs text-[#7A8981]">
                     Multiplicateur
                   </div>
-                  <div className="mt-0.5 text-xs text-white/45">
-                    Coefficient x{formatCoefficient(coefficient)}
+
+                  <div
+                    className="
+                      mt-1
+                      font-serif
+                      text-xl font-semibold
+                      text-[#173E31]
+                    "
+                  >
+                    ×
+                    {Math.round(
+                      coefficient * 100,
+                    ) / 100}
                   </div>
                 </div>
 
-                <div className="shrink-0 flex items-center gap-2">
-                  <span className="rounded-full bg-amber-400/15 px-3 py-1 text-xs font-bold text-amber-200 ring-1 ring-amber-300/20">
-                    x{formatCoefficient(coefficient)}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      setServings((s) =>
+                        Math.max(
+                          1,
+                          s - 1,
+                        ),
+                      )
+                    }
+                    className="
+                      inline-flex h-10 w-10
+                      items-center justify-center
+                      rounded-xl
+                      border border-[#173E31]/10
+                      bg-[#F3F0E8]
+                      text-[#173E31]
+                      transition
+                      hover:bg-[#E7EEE8]
+                      disabled:opacity-40
+                    "
+                    type="button"
+                    aria-label="Diminuer"
+                    disabled={
+                      servings <= 1 ||
+                      !!crossRatio
+                    }
+                  >
+                    –
+                  </button>
 
-                  {openTools ? (
-                    <ChevronUp className="w-4 h-4 text-white/70" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-white/70" />
-                  )}
+                  <button
+                    onClick={() =>
+                      setServings(
+                        (s) => s + 1,
+                      )
+                    }
+                    className="
+                      inline-flex h-10 w-10
+                      items-center justify-center
+                      rounded-xl
+                      bg-[#184C3A]
+                      text-[#F7F3EA]
+                      transition
+                      hover:bg-[#123C2E]
+                      disabled:opacity-40
+                    "
+                    type="button"
+                    aria-label="Augmenter"
+                    disabled={!!crossRatio}
+                  >
+                    +
+                  </button>
                 </div>
-              </button>
+              </div>
 
-              {openTools ? (
-                <div className="border-t border-white/10 px-4 py-3 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs text-white/45">Multiplier</div>
-                      <div className="text-sm font-bold text-white">
-                        x{formatCoefficient(coefficient)}
-                      </div>
-                    </div>
+              <div className="my-5 h-px bg-[#173E31]/8" />
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={decreaseMultiplier}
-                        className="h-9 w-9 rounded-xl bg-white/[0.06] ring-1 ring-white/10 hover:bg-white/[0.09] transition inline-flex items-center justify-center text-white"
-                        aria-label="Diminuer"
-                        disabled={coefficient <= 1 && !crossRatio}
-                      >
-                        –
-                      </button>
+              {/* INGREDIENT REF */}
+              <div>
+                <div className="mb-2 text-xs text-[#7A8981]">
+                  Ingrédient de référence
+                </div>
 
-                      <button
-                        type="button"
-                        onClick={increaseMultiplier}
-                        className="h-9 w-9 rounded-xl bg-amber-500/20 ring-1 ring-amber-400/25 hover:bg-amber-500/25 transition inline-flex items-center justify-center text-amber-100"
-                        aria-label="Augmenter"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
+                <Select
+                  value={
+                    crossRefIngredientId ||
+                    CROSS_MANUAL_VALUE
+                  }
+                  onValueChange={(value) =>
+                    setCrossRefIngredientId(
+                      value ===
+                        CROSS_MANUAL_VALUE
+                        ? ""
+                        : value,
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    className="
+                      h-11 w-full
+                      rounded-2xl
+                      border border-[#173E31]/10
+                      bg-[#F7F5EF]
+                      px-4
+                      text-sm text-[#173E31]
+                      outline-none
+                      transition
+                      hover:bg-[#E7EEE8]
+                    "
+                  >
+                    <SelectValue placeholder="Manuel (pas d’ingrédient)" />
+                  </SelectTrigger>
 
-                  <div>
-                    <div className="text-xs text-white/45 mb-1.5">
-                      Ingrédient
-                    </div>
-
-                    <Select
-                      value={crossRefIngredientId || CROSS_MANUAL_VALUE}
-                      onValueChange={(v) =>
-                        setCrossRefIngredientId(
-                          v === CROSS_MANUAL_VALUE ? "" : v
-                        )
+                  <SelectContent
+                    className="
+                      z-[9999]
+                      overflow-hidden
+                      rounded-2xl
+                      border border-[#173E31]/10
+                      bg-[#FBFAF6]
+                      text-[#173E31]
+                      shadow-[0_18px_45px_rgba(23,62,49,0.12)]
+                    "
+                  >
+                    <SelectItem
+                      value={
+                        CROSS_MANUAL_VALUE
                       }
+                      className="
+                        cursor-pointer
+                        focus:bg-[#E7EEE8]
+                        focus:text-[#184C3A]
+                        data-[state=checked]:bg-[#E7EEE8]
+                      "
                     >
-                      <SelectTrigger className="w-full h-10 rounded-xl bg-white/[0.04] ring-1 ring-white/10 px-3 text-sm text-slate-100 outline-none backdrop-blur-md hover:bg-white/[0.07] transition">
-                        <SelectValue placeholder="Manuel (pas d’ingrédient)" />
-                      </SelectTrigger>
+                      Choisir un ingrédient
+                    </SelectItem>
 
-                      <SelectContent className="z-[9999] rounded-2xl border border-white/10 bg-slate-950/70 text-slate-100 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
+                    {crossSelectableIngredients.map(
+                      (option) => (
                         <SelectItem
-                          value={CROSS_MANUAL_VALUE}
-                          className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
+                          key={option.id}
+                          value={option.id}
+                          className="
+                            cursor-pointer
+                            focus:bg-[#E7EEE8]
+                            focus:text-[#184C3A]
+                            data-[state=checked]:bg-[#E7EEE8]
+                          "
                         >
-                          Choisir un ingrédient
+                          {option.label}
                         </SelectItem>
-
-                        {crossSelectableIngredients.map((opt) => (
-                          <SelectItem
-                            key={opt.id}
-                            value={opt.id}
-                            className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
-                          >
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {refIngredient ? (
-                      <div className="mt-1.5 text-xs text-white/45">
-                        Base auto : {fmtQty(refBaseQty)}
-                        {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {!refIngredient ? (
-                      <div>
-                        <div className="text-xs text-white/45 mb-1.5">Base</div>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          value={crossBase}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setCrossBase(Number.isFinite(v) && v > 0 ? v : 1);
-                          }}
-                          className="w-full h-10 rounded-xl bg-white/[0.04] ring-1 ring-white/10 px-3 text-sm font-semibold text-slate-100 outline-none"
-                        />
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-xs text-white/45 mb-1.5">
-                          Base
-                        </div>
-                        <div className="h-10 flex items-center rounded-xl bg-white/[0.04] ring-1 ring-white/10 px-3 text-sm font-semibold text-slate-100">
-                          {fmtQty(refBaseQty)}
-                          {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
-                        </div>
-                      </div>
+                      ),
                     )}
+                  </SelectContent>
+                </Select>
 
-                    <div>
-                      <div className="text-xs text-white/45 mb-1.5">
-                        J’ai
-                        {refIngredient && normUnit(refUnit)
-                          ? ` (${normUnit(refUnit)})`
-                          : ""}
-                      </div>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder={refIngredient ? "ex: 763" : "ex: 350"}
-                        value={crossHave}
-                        onChange={(e) => setCrossHave(e.target.value)}
-                        className="w-full h-10 rounded-xl bg-white/[0.04] ring-1 ring-white/10 px-3 text-sm font-semibold text-slate-100 outline-none placeholder:text-slate-300/40"
-                      />
+                {refIngredient ? (
+                  <div className="mt-2 text-xs text-[#7A8981]">
+                    Base auto :{" "}
+                    {fmtQty(refBaseQty)}
+
+                    {normUnit(refUnit)
+                      ? ` ${normUnit(
+                          refUnit,
+                        )}`
+                      : ""}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* BASE / J'AI */}
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {!refIngredient ? (
+                  <div>
+                    <div className="text-xs text-[#7A8981]">
+                      Base
+                    </div>
+
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={crossBase}
+                      onChange={(event) => {
+                        const value =
+                          Number(
+                            event.target
+                              .value,
+                          );
+
+                        setCrossBase(
+                          Number.isFinite(
+                            value,
+                          ) &&
+                            value > 0
+                            ? value
+                            : 1,
+                        );
+                      }}
+                      className={
+                        inputClass
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-xs text-[#7A8981]">
+                      Base auto
+                    </div>
+
+                    <div
+                      className="
+                        mt-1
+                        flex h-11
+                        items-center
+                        rounded-2xl
+                        border border-[#173E31]/10
+                        bg-[#F7F5EF]
+                        px-4
+                        text-[#173E31]
+                      "
+                    >
+                      {fmtQty(refBaseQty)}
+
+                      {normUnit(refUnit)
+                        ? ` ${normUnit(
+                            refUnit,
+                          )}`
+                        : ""}
                     </div>
                   </div>
+                )}
 
-                  <div className="flex items-center justify-between gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={resetMultiplier}
-                      className="text-xs font-semibold text-white/45 hover:text-white"
-                    >
-                      Reset
-                    </button>
+                <div>
+                  <div className="text-xs text-[#7A8981]">
+                    J’ai
+                    {refIngredient &&
+                    normUnit(refUnit)
+                      ? ` (${normUnit(
+                          refUnit,
+                        )})`
+                      : ""}
                   </div>
+
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder={
+                      refIngredient
+                        ? "ex: 763"
+                        : "ex: 350"
+                    }
+                    value={crossHave}
+                    onChange={(event) =>
+                      setCrossHave(
+                        event.target.value,
+                      )
+                    }
+                    className={inputClass}
+                  />
                 </div>
-              ) : null}
+              </div>
+
+              <button
+                onClick={() => {
+                  setServings(
+                    baseServings,
+                  );
+                  setCrossHave("");
+                  setCrossBase(500);
+                  setCrossRefIngredientId(
+                    "",
+                  );
+                }}
+                className="
+                  mt-5 w-full
+                  rounded-2xl
+                  border border-[#173E31]/10
+                  bg-[#F3F0E8]
+                  px-4 py-3
+                  text-sm font-medium
+                  text-[#617168]
+                  transition
+                  hover:bg-[#E7EEE8]
+                  hover:text-[#184C3A]
+                "
+                type="button"
+              >
+                Réinitialiser
+              </button>
             </div>
           </div>
 
-          {/* ✅ Sections en déroulé */}
-          {sections.length > 0 ? (
-            <div className="space-y-3">
-              {sections.map((section) => {
-                const isOpen = !!openSections[section.id];
-                const ings = sectionIngredients.get(section.id) ?? [];
+          {/* CONTENU */}
+          <div className="space-y-5 lg:col-span-2">
+            {sections.length > 0 ? (
+              <div className="space-y-3">
+                {sections.map(
+                  (section) => {
+                    const isOpen =
+                      !!openSections[
+                        section.id
+                      ];
 
-                return (
-                  <div
-                    key={section.id}
-                    className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.20)] overflow-hidden"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleSection(section.id)}
-                      className="w-full px-4 py-4 flex items-center justify-between gap-3 text-left"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-slate-100 font-semibold truncate">
-                          {section.title?.trim() ? section.title : "Sans titre"}
-                        </div>
-                        <div className="mt-0.5 text-[12px] text-slate-300/55">
-                          {ings.length} ingrédient(s)
-                          {section.instructions?.trim() ? " · Étapes" : ""}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-slate-300/70">
-                        {isOpen ? (
-                          <ChevronUp className="w-5 h-5" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5" />
-                        )}
-                      </div>
-                    </button>
-
-                    {isOpen ? (
-                      <div className="px-4 pb-4">
-                        <div className="h-px bg-white/10 mb-4" />
-
-                        <div>
-                          <div className="text-sm text-slate-200 font-medium mb-2">
-                            Ingrédients
-                          </div>
-
-                          {ings.length === 0 ? (
-                            <div className="text-sm text-slate-300/70">
-                              Aucun ingrédient
-                            </div>
-                          ) : (
-                            <ul className="space-y-2">
-                              {ings.map((ing) => {
-                                const scaled =
-                                  isQS(ing.unit) || ing.quantity === null
-                                    ? ing.quantity
-                                    : ing.quantity * coefficient;
-
-                                const right = formatQtyDisplay(scaled, ing.unit);
-                                if (!right) return null;
-
-                                return (
-                                  <li
-                                    key={ing.id}
-                                    className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/[0.035] px-3 py-2 ring-1 ring-white/10"
-                                  >
-                                    <div className="text-base leading-6 text-slate-50">
-                                      {ing.designation ?? "—"}
-                                    </div>
-                                    <div className="whitespace-nowrap text-base font-semibold text-amber-100">
-                                      {right}
-                                    </div>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </div>
-
-                        <div className="mt-4">
-                          <div className="text-sm text-slate-200 font-medium mb-2">
-                            Étapes
-                          </div>
-                          {section.instructions?.trim() ? (
-                            <div className="rounded-2xl bg-white/[0.03] p-3 text-base leading-7 text-slate-100 ring-1 ring-white/10 whitespace-pre-wrap">
-                              {section.instructions}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-slate-300/60">
-                              Aucune instruction
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 p-4">
-              <div className="text-slate-100 font-semibold mb-3">Ingrédients</div>
-
-              {ingredients.length > 0 ? (
-                <ul className="space-y-2">
-                  {ingredients.map((ing) => {
-                    const scaled =
-                      isQS(ing.unit) || ing.quantity === null
-                        ? ing.quantity
-                        : ing.quantity * coefficient;
-
-                    const right = formatQtyDisplay(scaled, ing.unit);
-                    if (!right) return null;
+                    const sectionItems =
+                      sectionIngredients.get(
+                        section.id,
+                      ) ?? [];
 
                     return (
-                      <li
-                        key={ing.id}
-                        className="flex items-baseline justify-between gap-3 rounded-2xl bg-white/[0.035] px-3 py-2 ring-1 ring-white/10"
+                      <div
+                        key={section.id}
+                        className="
+                          overflow-hidden
+                          rounded-[28px]
+                          border border-[#173E31]/10
+                          bg-[#FBFAF6]
+                          shadow-[0_10px_30px_rgba(23,62,49,0.05)]
+                        "
                       >
-                        <div className="text-base leading-6 text-slate-50">
-                          {ing.designation ?? "—"}
-                        </div>
-                        <div className="whitespace-nowrap text-base font-semibold text-amber-100">
-                          {right}
-                        </div>
-                      </li>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            toggleSection(
+                              section.id,
+                            )
+                          }
+                          className="
+                            flex w-full
+                            items-center
+                            justify-between
+                            gap-3
+                            px-5 py-5
+                            text-left
+                          "
+                        >
+                          <div className="min-w-0">
+                            <div
+                              className="
+                                truncate
+                                font-serif
+                                text-xl
+                                font-semibold
+                                text-[#173E31]
+                              "
+                            >
+                              {section.title?.trim()
+                                ? section.title
+                                : "Sans titre"}
+                            </div>
+
+                            <div className="mt-1 text-xs text-[#7A8981]">
+                              {
+                                sectionItems.length
+                              }{" "}
+                              ingrédient(s)
+                              {section.instructions?.trim()
+                                ? " · Étapes"
+                                : ""}
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 text-[#718078]">
+                            {isOpen ? (
+                              <ChevronUp className="h-5 w-5" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5" />
+                            )}
+                          </div>
+                        </button>
+
+                        {isOpen ? (
+                          <div className="px-5 pb-5">
+                            <div className="mb-4 h-px bg-[#173E31]/8" />
+
+                            <div>
+                              <div
+                                className="
+                                  mb-3
+                                  text-sm
+                                  font-semibold
+                                  text-[#29493E]
+                                "
+                              >
+                                Ingrédients
+                              </div>
+
+                              {sectionItems.length ===
+                              0 ? (
+                                <div className="text-sm text-[#718078]">
+                                  Aucun
+                                  ingrédient
+                                </div>
+                              ) : (
+                                <ul
+                                  className="
+                                    grid
+                                    grid-cols-1
+                                    gap-2
+                                    md:grid-cols-2
+                                    md:gap-x-5
+                                  "
+                                >
+                                  {sectionItems.map(
+                                    (
+                                      ingredient,
+                                    ) => {
+                                      const scaled =
+                                        isQS(
+                                          ingredient.unit,
+                                        ) ||
+                                        ingredient.quantity ===
+                                          null
+                                          ? ingredient.quantity
+                                          : ingredient.quantity *
+                                            coefficient;
+
+                                      const right =
+                                        formatQtyDisplay(
+                                          scaled,
+                                          ingredient.unit,
+                                        );
+
+                                      if (
+                                        !right
+                                      ) {
+                                        return null;
+                                      }
+
+                                      return (
+                                        <li
+                                          key={
+                                            ingredient.id
+                                          }
+                                          className="
+                                            flex
+                                            items-baseline
+                                            justify-between
+                                            gap-3
+                                            rounded-2xl
+                                            border border-[#173E31]/8
+                                            bg-[#F7F5EF]
+                                            px-3 py-2.5
+                                          "
+                                        >
+                                          <div className="text-sm text-[#173E31]">
+                                            {ingredient.designation ??
+                                              "—"}
+                                          </div>
+
+                                          <div
+                                            className="
+                                              whitespace-nowrap
+                                              text-sm
+                                              font-semibold
+                                              text-[#A8833E]
+                                            "
+                                          >
+                                            {
+                                              right
+                                            }
+                                          </div>
+                                        </li>
+                                      );
+                                    },
+                                  )}
+                                </ul>
+                              )}
+                            </div>
+
+                            <div className="mt-5">
+                              <div
+                                className="
+                                  mb-2
+                                  text-sm
+                                  font-semibold
+                                  text-[#29493E]
+                                "
+                              >
+                                Étapes
+                              </div>
+
+                              {section.instructions?.trim() ? (
+                                <div
+                                  className="
+                                    whitespace-pre-wrap
+                                    rounded-2xl
+                                    border border-[#173E31]/8
+                                    bg-[#F7F5EF]
+                                    p-4
+                                    text-sm
+                                    leading-7
+                                    text-[#617168]
+                                  "
+                                >
+                                  {
+                                    section.instructions
+                                  }
+                                </div>
+                              ) : (
+                                <div className="text-sm text-[#718078]">
+                                  Aucune
+                                  instruction
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
                     );
-                  })}
-                </ul>
-              ) : (
-                <div className="text-sm text-slate-300/70">
-                  Aucun ingrédient n’a encore été ajouté à cette recette.
+                  },
+                )}
+              </div>
+            ) : (
+              <div
+                className="
+                  rounded-[28px]
+                  border border-[#173E31]/10
+                  bg-[#FBFAF6]
+                  p-5
+                "
+              >
+                <div
+                  className="
+                    mb-2
+                    font-serif
+                    text-xl
+                    font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Sections
                 </div>
-              )}
 
-              <div className="mt-4 rounded-2xl bg-white/[0.03] p-3 text-sm leading-6 text-slate-300/70 ring-1 ring-white/10">
-                Aucune section d’étapes n’a encore été ajoutée à cette recette.
+                <div className="text-sm text-[#718078]">
+                  Aucune section (étape)
+                  n’a encore été ajoutée à
+                  cette recette.
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Notes recette */}
-          {recipe.notes ? (
-            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4">
-              <div className="text-slate-100 font-semibold mb-2">Notes</div>
-              <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
-                {recipe.notes}
+            {/* NOTES RECETTE */}
+            {recipe.notes ? (
+              <div
+                className="
+                  rounded-[28px]
+                  border border-[#173E31]/10
+                  bg-[#FBFAF6]
+                  p-5
+                "
+              >
+                <div
+                  className="
+                    mb-2
+                    font-serif
+                    text-xl
+                    font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Notes
+                </div>
+
+                <div className="whitespace-pre-wrap text-sm leading-6 text-[#617168]">
+                  {recipe.notes}
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          {/* ✅ Mes notes (privées) */}
-          <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-slate-100 font-semibold">Mes notes</div>
-              <div className="text-xs text-slate-300/60">
-                {noteLoading
-                  ? "Chargement…"
-                  : noteSaving
-                    ? "Enregistrement…"
-                    : noteSavedAt
-                      ? "Enregistré"
-                      : "—"}
-              </div>
-            </div>
-
-            <textarea
-              value={myNote}
-              onChange={(e) => setMyNote(e.target.value)}
-              placeholder="Écris tes notes ici…"
+            {/* MES NOTES */}
+            <div
               className="
-                mt-3
-                w-full min-h-[160px]
-                rounded-2xl
-                bg-white/[0.03]
-                ring-1 ring-white/10
-                px-4 py-3
-                text-sm text-slate-100
-                outline-none
-                placeholder:text-slate-300/40
-                backdrop-blur-md
-                resize-y
+                rounded-[28px]
+                border border-[#173E31]/10
+                bg-[#FBFAF6]
+                p-5
               "
-            />
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div
+                  className="
+                    font-serif
+                    text-xl
+                    font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Mes notes
+                </div>
+
+                <div className="text-xs text-[#7A8981]">
+                  {noteLoading
+                    ? "Chargement…"
+                    : noteSaving
+                      ? "Enregistrement…"
+                      : noteSavedAt
+                        ? "Enregistré"
+                        : "—"}
+                </div>
+              </div>
+
+              <textarea
+                value={myNote}
+                onChange={(event) =>
+                  setMyNote(
+                    event.target.value,
+                  )
+                }
+                placeholder="Écris tes notes ici…"
+                className="
+                  mt-3
+                  min-h-[160px]
+                  w-full
+                  resize-y
+                  rounded-2xl
+                  border border-[#173E31]/10
+                  bg-[#F7F5EF]
+                  px-4 py-3
+                  text-sm
+                  text-[#173E31]
+                  outline-none
+                  placeholder:text-[#8B9791]
+                  transition
+                  focus:border-[#C7A45D]/50
+                  focus:ring-2
+                  focus:ring-[#C7A45D]/15
+                "
+              />
+            </div>
           </div>
         </div>
       ) : null}
@@ -542,27 +898,5 @@ export default function RecipeDisplayMobile({
     return <div className="px-4 pb-8 pt-4">{content}</div>;
   }
 
-  return (
-    <PageShell
-      withPanel={false}
-      title={undefined}
-      subtitle={undefined}
-      icon={undefined}
-      actions={
-        onEdit && recipe ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(recipe.id)}
-              className={ui.btnPrimary}
-              type="button"
-            >
-              Modifier
-            </button>
-          </div>
-        ) : null
-      }
-    >
-      {content}
-    </PageShell>
-  );
+  return <PageShell withPanel={false}>{content}</PageShell>;
 }

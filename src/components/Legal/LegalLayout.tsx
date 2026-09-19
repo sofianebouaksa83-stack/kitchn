@@ -1,4 +1,10 @@
 import React from "react";
+
+import {
+  ArrowLeft,
+  Scale,
+} from "lucide-react";
+
 import { Footer } from "../Layout/Footer";
 
 type LegalLayoutProps = {
@@ -20,49 +26,194 @@ export function LegalLayout({
   children,
 }: LegalLayoutProps) {
   return (
-    <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden flex flex-col">
-      {/* glow */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-amber-500/10 blur-3xl" />
-        <div className="absolute top-24 right-[-140px] h-[440px] w-[440px] rounded-full bg-white/5 blur-3xl" />
-      </div>
-
+    <div
+      className="
+        min-h-screen
+        bg-[#F3F0E8]
+        text-[#173E31]
+        flex flex-col
+      "
+    >
       <div className="relative flex-1">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10 sm:py-16">
-          <div className="flex items-center justify-between gap-4">
-            <a href="/" className="inline-flex items-center gap-3">
+        <div
+          className="
+            mx-auto
+            max-w-5xl
+            px-4
+            py-6
+            sm:px-6
+            sm:py-10
+          "
+        >
+          {/* TOP BAR */}
+          <div
+            className="
+              flex items-center
+              justify-between
+              gap-4
+            "
+          >
+            <a
+              href="/"
+              className="
+                inline-flex
+                items-center
+                transition
+                hover:opacity-80
+              "
+            >
               <img
                 src="/Logo_kitchn_horizontal.svg"
                 alt="KITCH'N"
-                className="h-10 sm:h-11 w-auto"
+                className="
+                  h-9
+                  w-auto
+                  sm:h-10
+                "
                 draggable={false}
               />
             </a>
 
             <a
               href="/"
-              className="text-sm text-white/60 hover:text-white transition"
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                bg-[#E7EEE8]
+                px-4 py-2.5
+                text-sm
+                font-medium
+                text-[#184C3A]
+                transition
+                hover:bg-[#DDE8DF]
+              "
             >
-              Retour à l’accueil
+              <ArrowLeft className="h-4 w-4" />
+
+              <span className="hidden sm:inline">
+                Retour à l’accueil
+              </span>
+
+              <span className="sm:hidden">
+                Retour
+              </span>
             </a>
           </div>
 
-          <div className="mt-12 text-center max-w-3xl mx-auto">
-            <div className="inline-flex rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-1.5 text-sm text-amber-300">
+          {/* HERO */}
+          <div
+            className="
+              mx-auto
+              mt-10
+              max-w-3xl
+              text-center
+              sm:mt-14
+            "
+          >
+            <div
+              className="
+                mx-auto
+                grid h-12 w-12
+                place-items-center
+                rounded-[18px]
+                bg-[#E7EEE8]
+                text-[#184C3A]
+                ring-1
+                ring-[#173E31]/8
+              "
+            >
+              <Scale className="h-5 w-5" />
+            </div>
+
+            <div
+              className="
+                mt-5
+                inline-flex
+                rounded-full
+                bg-[#C7A45D]/12
+                px-3.5 py-1.5
+                text-[11px]
+                font-semibold
+                uppercase
+                tracking-[0.16em]
+                text-[#A8833E]
+              "
+            >
               {badge}
             </div>
 
-            <h1 className="mt-6 text-3xl sm:text-5xl font-semibold tracking-tight">
+            <h1
+              className="
+                mt-5
+                font-serif
+                text-3xl
+                font-semibold
+                tracking-tight
+                text-[#173E31]
+                sm:text-5xl
+              "
+            >
               {title}
             </h1>
 
-            <p className="mt-4 text-white/65 text-base sm:text-lg leading-7">
+            <p
+              className="
+                mx-auto
+                mt-4
+                max-w-2xl
+                text-sm
+                leading-7
+                text-[#718078]
+                sm:text-base
+              "
+            >
               {intro}
             </p>
           </div>
 
-          <div className="mt-12 rounded-[28px] border border-white/10 bg-white/[0.04] shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className="p-6 sm:p-10">{children}</div>
+          {/* CONTENT */}
+          <div
+            className="
+              mt-10
+              overflow-hidden
+              rounded-[30px]
+              border border-[#173E31]/10
+              bg-[#FBFAF6]
+              shadow-[0_12px_35px_rgba(23,62,49,0.05)]
+              sm:mt-12
+            "
+          >
+            <div
+              className="
+                px-5
+                py-2
+                sm:px-8
+                sm:py-4
+              "
+            >
+              {children}
+            </div>
+          </div>
+
+          {/* FOOT NOTE */}
+          <div
+            className="
+              mx-auto
+              mt-6
+              max-w-2xl
+              text-center
+              text-xs
+              leading-relaxed
+              text-[#8B9791]
+            "
+          >
+            Les informations présentes
+            sur cette page peuvent être
+            mises à jour afin de refléter
+            les évolutions de Kitch’n et
+            de ses services.
           </div>
         </div>
       </div>
@@ -72,11 +223,41 @@ export function LegalLayout({
   );
 }
 
-export function LegalSection({ title, children }: SectionProps) {
+export function LegalSection({
+  title,
+  children,
+}: SectionProps) {
   return (
-    <section className="py-6 border-b border-white/8 last:border-b-0">
-      <h2 className="text-lg sm:text-xl font-semibold text-white">{title}</h2>
-      <div className="mt-3 text-white/75 leading-7 text-sm sm:text-base">
+    <section
+      className="
+        border-b
+        border-[#173E31]/8
+        py-6
+        last:border-b-0
+        sm:py-7
+      "
+    >
+      <h2
+        className="
+          font-serif
+          text-lg
+          font-semibold
+          text-[#173E31]
+          sm:text-xl
+        "
+      >
+        {title}
+      </h2>
+
+      <div
+        className="
+          mt-3
+          text-sm
+          leading-7
+          text-[#617168]
+          sm:text-base
+        "
+      >
         {children}
       </div>
     </section>

@@ -4,11 +4,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
 import {
   AnimatePresence,
   motion,
   useDragControls,
 } from "framer-motion";
+
 import {
   Search,
   Plus,
@@ -26,13 +28,18 @@ import {
   Check,
   ArrowLeft,
 } from "lucide-react";
+
 import { useSharedRecipeGroupView } from "../../features/sharing/hooks/useSharedRecipeGroupView";
+
 import type { RecipeRow } from "../../features/sharing/types/sharing.types";
+
 import {
   cn,
   safeTitle,
 } from "../../features/sharing/utils/sharingHelpers";
+
 import { ui } from "../../styles/ui";
+
 import { RecipeGroupsModal } from "../Recipe/components/RecipeGroupsModal";
 import { RecipeDisplay } from "../Recipe/components/RecipeDisplay";
 import RecipeDisplayMobile from "../Recipe/components/RecipeDisplayMobile";
@@ -47,6 +54,10 @@ type Props = {
   onInitialRecipeOpened?: () => void;
 };
 
+/* ─────────────────────────────
+   CATEGORY CHIPS
+───────────────────────────── */
+
 function CategoryChips({
   categories,
   value,
@@ -58,20 +69,23 @@ function CategoryChips({
 }) {
   return (
     <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
-      <div className="flex items-center gap-2 min-w-max pr-2">
+      <div className="flex min-w-max items-center gap-2 pr-2">
         {categories.map((category) => {
-          const active = category === value;
+          const active =
+            category === value;
 
           return (
             <button
               key={category}
               type="button"
-              onClick={() => onChange(category)}
+              onClick={() =>
+                onChange(category)
+              }
               className={cn(
-                "h-10 px-4 rounded-full text-sm font-medium whitespace-nowrap ring-1 transition",
+                "h-10 whitespace-nowrap rounded-full px-4 text-sm font-medium transition",
                 active
-                  ? "bg-amber-400/20 ring-amber-300/30 text-amber-100"
-                  : "bg-white/[0.04] ring-amber-400/15 text-slate-200 hover:bg-white/[0.07]"
+                  ? "bg-[#184C3A] text-[#F7F3EA] shadow-[0_6px_16px_rgba(23,62,49,0.12)]"
+                  : "border border-[#173E31]/10 bg-[#FBFAF6] text-[#617168] hover:bg-[#E7EEE8] hover:text-[#184C3A]",
               )}
             >
               {category}
@@ -82,6 +96,10 @@ function CategoryChips({
     </div>
   );
 }
+
+/* ─────────────────────────────
+   ACTION SHEET ROW
+───────────────────────────── */
 
 function SheetAction({
   icon,
@@ -94,23 +112,26 @@ function SheetAction({
   tone?: "neutral" | "danger";
   onClick: () => void;
 }) {
+  const danger =
+    tone === "danger";
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 rounded-2xl",
-        "bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.05] transition text-left",
-        tone === "danger" &&
-          "hover:bg-red-500/10 ring-red-500/20"
+        "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition",
+        danger
+          ? "border-[#C05C56]/12 bg-[#F8EAE7] hover:bg-[#F5E1DD]"
+          : "border-[#173E31]/8 bg-[#F7F5EF] hover:bg-[#E7EEE8]",
       )}
     >
       <span
         className={cn(
-          "h-10 w-10 rounded-2xl inline-flex items-center justify-center",
-          tone === "danger"
-            ? "bg-red-500/10 ring-1 ring-red-500/20 text-red-200"
-            : "bg-white/[0.04] ring-1 ring-amber-400/15 text-slate-200"
+          "inline-flex h-10 w-10 items-center justify-center rounded-2xl",
+          danger
+            ? "bg-[#F3D9D5] text-[#A54C48]"
+            : "bg-[#E7EEE8] text-[#184C3A]",
         )}
       >
         {icon}
@@ -119,9 +140,9 @@ function SheetAction({
       <span
         className={cn(
           "text-sm font-medium",
-          tone === "danger"
-            ? "text-red-100"
-            : "text-slate-100"
+          danger
+            ? "text-[#A54C48]"
+            : "text-[#29493E]",
         )}
       >
         {label}
@@ -202,36 +223,61 @@ export function SharedRecipeGroupMobileView({
   const [sidebarOpen, setSidebarOpen] =
     useState(false);
 
-  const [openedRecipeId, setOpenedRecipeId] =
-    useState<string | null>(null);
+  const [
+    openedRecipeId,
+    setOpenedRecipeId,
+  ] = useState<string | null>(null);
 
-  const recipeSheetOpen = Boolean(openedRecipeId);
+  const recipeSheetOpen =
+    Boolean(openedRecipeId);
 
   const closeRecipeSheet = () => {
     setOpenedRecipeId(null);
   };
 
-  const recipeDragControls = useDragControls();
-  const foldersDragControls = useDragControls();
+  const recipeDragControls =
+    useDragControls();
 
-  const [sheetRecipe, setSheetRecipe] =
-    useState<RecipeRow | null>(null);
+  const foldersDragControls =
+    useDragControls();
 
-  const sheetOpen = Boolean(sheetRecipe);
+  const [
+    sheetRecipe,
+    setSheetRecipe,
+  ] = useState<RecipeRow | null>(null);
+
+  const sheetOpen =
+    Boolean(sheetRecipe);
 
   const closeSheet = () => {
     setSheetRecipe(null);
   };
 
+  /* ─────────────────────────────
+     INITIAL OPEN
+  ───────────────────────────── */
+
   useEffect(() => {
     if (!initialRecipeId) return;
 
-    setOpenedRecipeId(initialRecipeId);
+    setOpenedRecipeId(
+      initialRecipeId,
+    );
+
     onInitialRecipeOpened?.();
-  }, [initialRecipeId, onInitialRecipeOpened]);
+  }, [
+    initialRecipeId,
+    onInitialRecipeOpened,
+  ]);
+
+  /* ─────────────────────────────
+     OPEN FROM HOME / EVENT
+  ───────────────────────────── */
 
   useEffect(() => {
-    const openPendingSharedRecipe = (event?: Event) => {
+    const openPendingSharedRecipe = (
+      event?: Event,
+    ) => {
       const detail = (
         event as
           | CustomEvent<{
@@ -244,16 +290,16 @@ export function SharedRecipeGroupMobileView({
       const pendingRecipeId =
         detail?.recipeId ||
         sessionStorage.getItem(
-          "selectedSharedRecipeId"
+          "selectedSharedRecipeId",
         );
 
       const pendingGroupId =
         detail?.groupId ||
         sessionStorage.getItem(
-          "selectedSharedGroupId"
+          "selectedSharedGroupId",
         ) ||
         sessionStorage.getItem(
-          "selectedWorkGroupId"
+          "selectedWorkGroupId",
         );
 
       if (!pendingRecipeId) return;
@@ -266,32 +312,40 @@ export function SharedRecipeGroupMobileView({
       }
 
       sessionStorage.removeItem(
-        "selectedSharedRecipeId"
-      );
-      sessionStorage.removeItem(
-        "selectedSharedGroupId"
-      );
-      sessionStorage.removeItem(
-        "selectedWorkGroupId"
+        "selectedSharedRecipeId",
       );
 
-      setOpenedRecipeId(pendingRecipeId);
+      sessionStorage.removeItem(
+        "selectedSharedGroupId",
+      );
+
+      sessionStorage.removeItem(
+        "selectedWorkGroupId",
+      );
+
+      setOpenedRecipeId(
+        pendingRecipeId,
+      );
     };
 
     openPendingSharedRecipe();
 
     window.addEventListener(
       "kitchn:open-shared-recipe",
-      openPendingSharedRecipe
+      openPendingSharedRecipe,
     );
 
     return () => {
       window.removeEventListener(
         "kitchn:open-shared-recipe",
-        openPendingSharedRecipe
+        openPendingSharedRecipe,
       );
     };
   }, [groupId]);
+
+  /* ─────────────────────────────
+     BODY LOCK
+  ───────────────────────────── */
 
   useEffect(() => {
     const shouldLock =
@@ -301,20 +355,36 @@ export function SharedRecipeGroupMobileView({
       moveFolderOpen;
 
     if (!shouldLock) {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
+      document.documentElement.style.overflow =
+        "";
+
+      document.body.style.overflow =
+        "";
+
+      document.body.style.touchAction =
+        "";
+
       return;
     }
 
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
+    document.documentElement.style.overflow =
+      "hidden";
+
+    document.body.style.overflow =
+      "hidden";
+
+    document.body.style.touchAction =
+      "none";
 
     return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
+      document.documentElement.style.overflow =
+        "";
+
+      document.body.style.overflow =
+        "";
+
+      document.body.style.touchAction =
+        "";
     };
   }, [
     sidebarOpen,
@@ -322,6 +392,10 @@ export function SharedRecipeGroupMobileView({
     sheetOpen,
     moveFolderOpen,
   ]);
+
+  /* ─────────────────────────────
+     ESCAPE
+  ───────────────────────────── */
 
   useEffect(() => {
     if (
@@ -333,8 +407,14 @@ export function SharedRecipeGroupMobileView({
       return;
     }
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+    const handleEscape = (
+      event: KeyboardEvent,
+    ) => {
+      if (
+        event.key !== "Escape"
+      ) {
+        return;
+      }
 
       setSidebarOpen(false);
       setOpenedRecipeId(null);
@@ -342,12 +422,15 @@ export function SharedRecipeGroupMobileView({
       closeMoveFolder();
     };
 
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener(
+      "keydown",
+      handleEscape,
+    );
 
     return () => {
       window.removeEventListener(
         "keydown",
-        handleEscape
+        handleEscape,
       );
     };
   }, [
@@ -358,324 +441,738 @@ export function SharedRecipeGroupMobileView({
     closeMoveFolder,
   ]);
 
-  const headerLabel = useMemo(() => {
-    if (selectedFolder && !searchTerm.trim()) {
-      return (
-        folders.find(
-          (folder) => folder.id === selectedFolder
-        )?.name ?? "Dossier"
-      );
-    }
+  /* ─────────────────────────────
+     HEADER LABEL
+  ───────────────────────────── */
 
-    if (showFavoritesOnly) return "Favoris";
+  const headerLabel =
+    useMemo(() => {
+      if (
+        selectedFolder &&
+        !searchTerm.trim()
+      ) {
+        return (
+          folders.find(
+            (folder) =>
+              folder.id ===
+              selectedFolder,
+          )?.name ?? "Dossier"
+        );
+      }
 
-    return groupName;
-  }, [
-    selectedFolder,
-    searchTerm,
-    folders,
-    showFavoritesOnly,
-    groupName,
-  ]);
+      if (showFavoritesOnly) {
+        return "Favoris";
+      }
+
+      return groupName;
+    }, [
+      selectedFolder,
+      searchTerm,
+      folders,
+      showFavoritesOnly,
+      groupName,
+    ]);
+
+  /* ─────────────────────────────
+     FULL DISPLAY
+  ───────────────────────────── */
 
   if (viewingRecipeId) {
     return (
       <RecipeDisplay
         recipeId={viewingRecipeId}
-        onBack={() => setViewingRecipeId(null)}
+        onBack={() =>
+          setViewingRecipeId(null)
+        }
       />
     );
   }
 
   return (
-    <div className={cn(ui.dashboardBg, "min-h-screen")}>
-      <div className="px-4 pt-6 pb-28">
+    <div
+      className={cn(
+        ui.dashboardBg,
+        "min-h-screen",
+      )}
+    >
+      <div className="px-4 pb-28 pt-6">
+        {/* ════════════════════════
+            HEADER
+        ════════════════════════ */}
+
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-xl font-semibold text-slate-100 tracking-tight">
-              Partager
+          <div className="min-w-0">
+            <div
+              className="
+                text-[11px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-[#A8833E]
+              "
+            >
+              Groupe partagé
             </div>
-            <div className="mt-1 text-sm text-slate-300/80">
-              {headerLabel} ·{" "}
-              <span className="text-slate-100 font-semibold">
+
+            <h1
+              className="
+                mt-1
+                truncate
+                font-serif
+                text-3xl
+                font-semibold
+                text-[#173E31]
+              "
+            >
+              {headerLabel}
+            </h1>
+
+            <div className="mt-2 text-sm text-[#718078]">
+              <span className="font-semibold text-[#173E31]">
                 {filteredRecipes.length}
-              </span>
+              </span>{" "}
+              recette
+              {filteredRecipes.length !==
+              1
+                ? "s"
+                : ""}
             </div>
-            {onBack && (
+
+            {onBack ? (
               <button
                 type="button"
                 onClick={onBack}
-                className="mt-2 text-sm text-slate-300 hover:text-slate-100 transition"
+                className="
+                  mt-3
+                  inline-flex
+                  items-center gap-2
+                  text-sm font-medium
+                  text-[#718078]
+                  transition
+                  hover:text-[#184C3A]
+                "
               >
-                ← Retour
+                <ArrowLeft className="h-4 w-4" />
+                Retour aux groupes
               </button>
-            )}
+            ) : null}
           </div>
 
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="h-12 w-12 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
+            onClick={() =>
+              setSidebarOpen(true)
+            }
+            className="
+              inline-flex
+              h-11 w-11
+              shrink-0
+              items-center
+              justify-center
+              rounded-2xl
+              border border-[#173E31]/10
+              bg-[#FBFAF6]
+              text-[#184C3A]
+              shadow-[0_5px_15px_rgba(23,62,49,0.04)]
+              transition
+              active:scale-[0.97]
+            "
             aria-label="Ouvrir les filtres"
             title="Filtres"
           >
-            <Filter className="w-5 h-5 text-slate-100" />
+            <Filter className="h-5 w-5" />
           </button>
         </div>
 
-        {selectedFolder && (
+        {/* SELECTED FOLDER */}
+
+        {selectedFolder ? (
           <button
             type="button"
             onClick={() => {
               setSelectedFolder(null);
               setShowFavoritesOnly(false);
             }}
-            className="mt-4 inline-flex h-10 items-center gap-2 rounded-2xl bg-white/[0.04] px-4 text-sm font-semibold text-slate-100 ring-1 ring-amber-400/15 transition active:scale-[0.98] hover:bg-amber-400/10"
+            className="
+              mt-4
+              inline-flex h-10
+              items-center gap-2
+              rounded-full
+              bg-[#E7EEE8]
+              px-4
+              text-sm font-medium
+              text-[#184C3A]
+              transition
+              active:scale-[0.98]
+            "
           >
             <ArrowLeft className="h-4 w-4" />
             Toutes les recettes
           </button>
-        )}
+        ) : null}
 
-        <div className="mt-5 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300/70 pointer-events-none" />
+        {/* ════════════════════════
+            SEARCH
+        ════════════════════════ */}
+
+        <div className="relative mt-5">
+          <Search
+            className="
+              pointer-events-none
+              absolute left-4 top-1/2
+              h-5 w-5
+              -translate-y-1/2
+              text-[#718078]
+            "
+          />
+
           <input
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) =>
+              setSearchTerm(
+                event.target.value,
+              )
+            }
             placeholder="Rechercher par nom…"
-            className="w-full h-12 pl-12 pr-4 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 border border-amber-300/10 text-slate-100 placeholder:text-slate-400/70 outline-none focus:ring-2 focus:ring-amber-400/25"
+            className="
+              h-12 w-full
+              rounded-2xl
+              border border-[#173E31]/10
+              bg-[#FBFAF6]
+              pl-12 pr-4
+              text-sm
+              text-[#173E31]
+              placeholder:text-[#8B9791]
+              outline-none
+              transition
+              focus:border-[#C7A45D]/50
+              focus:ring-2
+              focus:ring-[#C7A45D]/15
+            "
           />
         </div>
+
+        {/* CATEGORIES */}
 
         <div className="mt-4">
           <CategoryChips
             categories={categories}
             value={categoryFilter}
-            onChange={setCategoryFilter}
+            onChange={
+              setCategoryFilter
+            }
           />
         </div>
 
+        {/* ════════════════════════
+            RECIPES
+        ════════════════════════ */}
+
         <div className="mt-6">
           {loading ? (
-            <KitchNLoader className="kitchn-loader--compact" />
-          ) : filteredRecipes.length === 0 ? (
-            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-amber-400/15 p-8 text-center">
-              <AlertCircle className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-              <p className="text-slate-200 text-lg font-semibold">
+            <div className="flex min-h-48 items-center justify-center">
+              <KitchNLoader className="kitchn-loader--compact" />
+            </div>
+          ) : filteredRecipes.length ===
+            0 ? (
+            <div
+              className="
+                rounded-[28px]
+                border border-[#173E31]/10
+                bg-[#FBFAF6]
+                p-8
+                text-center
+              "
+            >
+              <AlertCircle
+                className="
+                  mx-auto mb-4
+                  h-11 w-11
+                  text-[#8B9791]
+                "
+              />
+
+              <p
+                className="
+                  font-serif
+                  text-xl
+                  font-semibold
+                  text-[#173E31]
+                "
+              >
                 {recipesCount === 0
                   ? "Aucune recette pour le moment"
                   : "Aucune recette trouvée"}
               </p>
-              <p className="text-sm text-slate-300/70 mt-2">
-                Change tes filtres ou ton dossier.
+
+              <p className="mt-2 text-sm text-[#718078]">
+                Change tes filtres ou ton
+                dossier.
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-white/10">
-              {filteredRecipes.map((r) => {
-                const fav = !!r.is_favorite;
-                const folderName = r.folder_id
-                  ? folders.find((f) => f.id === r.folder_id)?.name
-                  : null;
+            <div className="space-y-3">
+              {filteredRecipes.map(
+                (recipe) => {
+                  const fav =
+                    !!recipe.is_favorite;
 
-                return (
-                  <div key={r.id} className="group py-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setOpenedRecipeId(r.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setOpenedRecipeId(r.id);
+                  const folderName =
+                    recipe.folder_id
+                      ? folders.find(
+                          (folder) =>
+                            folder.id ===
+                            recipe.folder_id,
+                        )?.name
+                      : null;
+
+                  return (
+                    <article
+                      key={recipe.id}
+                      className="
+                        rounded-[22px]
+                        border border-[#173E31]/10
+                        bg-[#FBFAF6]
+                        p-4
+                        shadow-[0_5px_16px_rgba(23,62,49,0.035)]
+                      "
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        {/* OPEN */}
+
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() =>
+                            setOpenedRecipeId(
+                              recipe.id,
+                            )
                           }
-                        }}
-                        className="min-w-0 flex-1 outline-none"
-                      >
-                        <div className="text-[15px] font-medium tracking-tight text-white truncate">
-                          {r.title || "Sans titre"}
-                        </div>
+                          onKeyDown={(
+                            event,
+                          ) => {
+                            if (
+                              event.key ===
+                                "Enter" ||
+                              event.key ===
+                                " "
+                            ) {
+                              event.preventDefault();
 
-                        <div className="mt-1 text-xs text-white/50 flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="inline-flex items-center gap-1">
-                            <Tag className="w-3.5 h-3.5 text-amber-100/45" />
-                            {r.category || "Autre"}
-                          </span>
-                        </div>
-
-                        {searchTerm.trim() && folderName && (
-                          <div className="mt-1 text-[11px] text-amber-100/45">
-                            Dossier : {folderName}
+                              setOpenedRecipeId(
+                                recipe.id,
+                              );
+                            }
+                          }}
+                          className="min-w-0 flex-1 outline-none"
+                        >
+                          <div
+                            className="
+                              truncate
+                              font-serif
+                              text-lg
+                              font-semibold
+                              text-[#173E31]
+                            "
+                          >
+                            {recipe.title ||
+                              "Sans titre"}
                           </div>
-                        )}
-                      </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSheetRecipe(r);
-                        }}
-                        className="h-9 w-9 rounded-full bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.07] transition inline-flex items-center justify-center text-white/60 hover:text-white"
-                        aria-label="Actions"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
-                    </div>
+                          <div
+                            className="
+                              mt-1.5
+                              flex flex-wrap
+                              items-center
+                              gap-x-2 gap-y-1
+                              text-xs
+                              text-[#718078]
+                            "
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              <Tag className="h-3.5 w-3.5 text-[#A8833E]" />
 
-                    <div className="mt-3 flex items-center gap-3 text-white/60">
-                      {canShare && (
+                              {recipe.category ||
+                                "Autre"}
+                            </span>
+                          </div>
+
+                          {searchTerm.trim() &&
+                          folderName ? (
+                            <div className="mt-1 text-[11px] text-[#8B9791]">
+                              Dossier :{" "}
+                              {folderName}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {/* MENU */}
+
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openGroupsModal(r.id);
+                          onClick={(
+                            event,
+                          ) => {
+                            event.stopPropagation();
+
+                            setSheetRecipe(
+                              recipe,
+                            );
                           }}
-                          className="h-10 w-10 rounded-full hover:bg-white/[0.05] transition inline-flex items-center justify-center hover:text-white"
-                          title="Partager"
+                          className="
+                            inline-flex
+                            h-9 w-9
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-full
+                            bg-[#F0F2EC]
+                            text-[#718078]
+                            transition
+                            active:scale-[0.96]
+                          "
+                          aria-label="Actions"
                         >
-                          <Share2 className="w-5 h-5" />
+                          <MoreVertical className="h-5 w-5" />
                         </button>
-                      )}
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleToggleFavorite(r.id, fav);
-                        }}
-                        className={cn(
-                          "h-10 w-10 rounded-full transition inline-flex items-center justify-center",
-                          fav
-                            ? "text-amber-300 hover:bg-amber-400/10"
-                            : "hover:bg-white/[0.05] hover:text-white"
-                        )}
-                        title="Favori"
-                      >
-                        <Heart className={cn("w-5 h-5", fav && "fill-current")} />
-                      </button>
+                      {/* ACTION BAR */}
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenedRecipeId(r.id);
-                        }}
-                        className="h-10 w-10 rounded-full hover:bg-white/[0.05] transition inline-flex items-center justify-center hover:text-white"
-                        title="Voir"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
+                      <div className="mt-3 flex items-center gap-1 text-[#718078]">
+                        {canShare ? (
+                          <button
+                            type="button"
+                            onClick={(
+                              event,
+                            ) => {
+                              event.stopPropagation();
 
-                      {canEdit && (
+                              openGroupsModal(
+                                recipe.id,
+                              );
+                            }}
+                            className="
+                              inline-flex
+                              h-10 w-10
+                              items-center
+                              justify-center
+                              rounded-full
+                              transition
+                              active:bg-[#E7EEE8]
+                            "
+                            title="Partager"
+                          >
+                            <Share2 className="h-5 w-5" />
+                          </button>
+                        ) : null}
+
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(r.id);
+                          onClick={(
+                            event,
+                          ) => {
+                            event.stopPropagation();
+
+                            void handleToggleFavorite(
+                              recipe.id,
+                              fav,
+                            );
                           }}
-                          className="h-10 w-10 rounded-full hover:bg-white/[0.05] transition inline-flex items-center justify-center hover:text-white"
-                          title="Modifier"
+                          className={cn(
+                            "inline-flex h-10 w-10 items-center justify-center rounded-full transition",
+                            fav
+                              ? "text-[#C96E6A] active:bg-[#F5E4E0]"
+                              : "active:bg-[#E7EEE8]",
+                          )}
+                          title="Favori"
                         >
-                          <Pencil className="w-5 h-5" />
+                          <Heart
+                            className={cn(
+                              "h-5 w-5",
+                              fav &&
+                                "fill-current",
+                            )}
+                          />
                         </button>
-                      )}
 
-                      <div className="flex-1" />
+                        <button
+                          type="button"
+                          onClick={(
+                            event,
+                          ) => {
+                            event.stopPropagation();
 
-                    {(canRemoveFromGroup || canManageFolders) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
+                            setOpenedRecipeId(
+                              recipe.id,
+                            );
+                          }}
+                          className="
+                            inline-flex
+                            h-10 w-10
+                            items-center
+                            justify-center
+                            rounded-full
+                            transition
+                            active:bg-[#E7EEE8]
+                          "
+                          title="Voir"
+                        >
+                          <Eye className="h-5 w-5" />
+                        </button>
 
-                          if (selectedFolder && canManageFolders && r.folder_id === selectedFolder) {
-                            void handleRemoveFromFolder(r.id);
-                            return;
-                          }
+                        {canEdit ? (
+                          <button
+                            type="button"
+                            onClick={(
+                              event,
+                            ) => {
+                              event.stopPropagation();
 
-                          if (canRemoveFromGroup) {
-                            void handleRemoveFromGroup(r.id);
-                          }
-                        }}
-                        className="h-10 w-10 rounded-full hover:bg-red-500/10 transition inline-flex items-center justify-center text-white/60 hover:text-red-200"
-                        title={selectedFolder ? "Retirer du dossier" : "Retirer du groupe"}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    )}
+                              handleEdit(
+                                recipe.id,
+                              );
+                            }}
+                            className="
+                              inline-flex
+                              h-10 w-10
+                              items-center
+                              justify-center
+                              rounded-full
+                              transition
+                              active:bg-[#E7EEE8]
+                            "
+                            title="Modifier"
+                          >
+                            <Pencil className="h-5 w-5" />
+                          </button>
+                        ) : null}
+
+                        <div className="flex-1" />
+
+                        {canRemoveFromGroup ||
+                        canManageFolders ? (
+                          <button
+                            type="button"
+                            onClick={(
+                              event,
+                            ) => {
+                              event.stopPropagation();
+
+                              if (
+                                selectedFolder &&
+                                canManageFolders &&
+                                recipe.folder_id ===
+                                  selectedFolder
+                              ) {
+                                void handleRemoveFromFolder(
+                                  recipe.id,
+                                );
+
+                                return;
+                              }
+
+                              if (
+                                canRemoveFromGroup
+                              ) {
+                                void handleRemoveFromGroup(
+                                  recipe.id,
+                                );
+                              }
+                            }}
+                            className="
+                              inline-flex
+                              h-10 w-10
+                              items-center
+                              justify-center
+                              rounded-full
+                              text-[#A86A66]
+                              transition
+                              active:bg-[#F5E4E0]
+                            "
+                            title={
+                              selectedFolder
+                                ? "Retirer du dossier"
+                                : "Retirer du groupe"
+                            }
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        ) : null}
                       </div>
-                  </div>
-                );
-              })}
+                    </article>
+                  );
+                },
+              )}
             </div>
           )}
         </div>
       </div>
 
+      {/* ═════════════════════════════
+          RECIPE BOTTOM SHEET
+      ═════════════════════════════ */}
+
       <AnimatePresence>
-        {recipeSheetOpen && openedRecipeId && (
+        {recipeSheetOpen &&
+        openedRecipeId ? (
           <div className="fixed inset-0 z-[140] lg:hidden">
             <motion.div
-              className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]"
+              className="
+                absolute inset-0
+                bg-[#173E31]/20
+                backdrop-blur-[2px]
+              "
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={closeRecipeSheet}
+              onClick={
+                closeRecipeSheet
+              }
             />
 
             <motion.div
-              className="absolute inset-x-0 bottom-0 max-h-[94dvh] overflow-hidden rounded-t-[32px] border-t border-amber-300/10 bg-gradient-to-b from-[#0E1736] via-[#0B1538] to-[#070D22] ring-1 ring-amber-400/15 shadow-[0_-24px_90px_rgba(0,0,0,0.70)]"
+              className="
+                absolute inset-x-0
+                bottom-0
+                max-h-[94dvh]
+                overflow-hidden
+                rounded-t-[32px]
+                border-t
+                border-[#173E31]/10
+                bg-[#F3F0E8]
+                shadow-[0_-24px_70px_rgba(23,62,49,0.16)]
+              "
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 280, damping: 30 }}
+              transition={{
+                type: "spring",
+                stiffness: 280,
+                damping: 30,
+              }}
               drag="y"
-              dragControls={recipeDragControls}
+              dragControls={
+                recipeDragControls
+              }
               dragListener={false}
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={{ top: 0, bottom: 0.28 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 120 || info.velocity.y > 700) {
+              dragConstraints={{
+                top: 0,
+                bottom: 0,
+              }}
+              dragElastic={{
+                top: 0,
+                bottom: 0.28,
+              }}
+              onDragEnd={(
+                _,
+                info,
+              ) => {
+                if (
+                  info.offset.y > 120 ||
+                  info.velocity.y > 700
+                ) {
                   closeRecipeSheet();
                 }
               }}
             >
               <div
-                className="sticky top-0 z-20 bg-[#0E1736]/95 px-4 pt-3 pb-3 backdrop-blur-xl border-b border-amber-300/10"
-                onPointerDown={(e) => recipeDragControls.start(e)}
+                className="
+                  sticky top-0 z-20
+                  border-b
+                  border-[#173E31]/8
+                  bg-[#FBFAF6]/95
+                  px-4 pb-3 pt-3
+                  backdrop-blur-xl
+                "
+                onPointerDown={(
+                  event,
+                ) =>
+                  recipeDragControls.start(
+                    event,
+                  )
+                }
               >
-                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-amber-300/40" />
+                <div
+                  className="
+                    mx-auto mb-3
+                    h-1.5 w-12
+                    rounded-full
+                    bg-[#C7A45D]/45
+                  "
+                />
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-amber-200/70">
+                    <div
+                      className="
+                        text-[11px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.16em]
+                        text-[#A8833E]
+                      "
+                    >
                       Recette partagée
                     </div>
-                    <div className="truncate text-base font-semibold text-white">
-                      {safeTitle(recipes.find((r) => r.id === openedRecipeId))}
+
+                    <div
+                      className="
+                        truncate
+                        font-serif
+                        text-lg
+                        font-semibold
+                        text-[#173E31]
+                      "
+                    >
+                      {safeTitle(
+                        recipes.find(
+                          (recipe) =>
+                            recipe.id ===
+                            openedRecipeId,
+                        ),
+                      )}
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={closeRecipeSheet}
-                    className="h-10 w-10 shrink-0 rounded-2xl bg-white/[0.05] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
+                    onClick={
+                      closeRecipeSheet
+                    }
+                    className="
+                      inline-flex
+                      h-10 w-10
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      bg-[#E7EEE8]
+                      text-[#184C3A]
+                    "
                     aria-label="Fermer la recette"
                   >
-                    <X className="w-5 h-5 text-slate-100" />
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
               <div className="max-h-[calc(94dvh-78px)] overflow-y-auto overscroll-contain">
                 <RecipeDisplayMobile
-                  recipeId={openedRecipeId}
-                  onBack={closeRecipeSheet}
-                  onEdit={(recipeId) => {
+                  recipeId={
+                    openedRecipeId
+                  }
+                  onBack={
+                    closeRecipeSheet
+                  }
+                  onEdit={(
+                    recipeId,
+                  ) => {
                     closeRecipeSheet();
-                    handleEdit(recipeId);
+
+                    handleEdit(
+                      recipeId,
+                    );
                   }}
                   embedded
                   hideBackButton
@@ -683,67 +1180,127 @@ export function SharedRecipeGroupMobileView({
               </div>
             </motion.div>
           </div>
-        )}
+        ) : null}
       </AnimatePresence>
 
-      {sheetOpen && sheetRecipe && (
+      {/* ═════════════════════════════
+          ACTION SHEET
+      ═════════════════════════════ */}
+
+      {sheetOpen &&
+      sheetRecipe ? (
         <div className="fixed inset-0 z-[140]">
-          <div className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]" onClick={closeSheet} />
-          <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
-            <div className="mx-auto max-w-[520px] rounded-[28px] border border-amber-300/10 bg-gradient-to-b from-[#0E1736] to-[#0B1020] ring-1 ring-amber-400/15 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
-              <div className="flex items-start justify-between gap-3 mb-3">
+          <div
+            className="
+              absolute inset-0
+              bg-[#173E31]/20
+              backdrop-blur-[2px]
+            "
+            onClick={closeSheet}
+          />
+
+          <div className="absolute bottom-0 left-0 right-0 p-4 pb-6">
+            <div
+              className="
+                mx-auto
+                max-w-[520px]
+                rounded-[28px]
+                border border-[#173E31]/10
+                bg-[#FBFAF6]
+                p-4
+                shadow-[0_24px_70px_rgba(23,62,49,0.18)]
+              "
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-slate-100 font-semibold truncate">
-                    {sheetRecipe.title || "Sans titre"}
+                  <div
+                    className="
+                      truncate
+                      font-serif
+                      text-xl
+                      font-semibold
+                      text-[#173E31]
+                    "
+                  >
+                    {sheetRecipe.title ||
+                      "Sans titre"}
                   </div>
-                  <div className="text-xs text-slate-300/70 mt-1 truncate">
-                    {sheetRecipe.category || "Autre"}
+
+                  <div className="mt-1 truncate text-xs text-[#718078]">
+                    {sheetRecipe.category ||
+                      "Autre"}
                   </div>
                 </div>
+
                 <button
                   type="button"
                   onClick={closeSheet}
-                  className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
+                  className="
+                    inline-flex
+                    h-10 w-10
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    bg-[#E7EEE8]
+                    text-[#184C3A]
+                  "
                   aria-label="Fermer"
                 >
-                  <X className="w-5 h-5 text-slate-100" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
               <div className="space-y-2">
                 <SheetAction
-                  icon={<Eye className="w-5 h-5" />}
+                  icon={
+                    <Eye className="h-5 w-5" />
+                  }
                   label="Voir la recette"
                   onClick={() => {
-                    setOpenedRecipeId(sheetRecipe.id);
+                    setOpenedRecipeId(
+                      sheetRecipe.id,
+                    );
+
                     closeSheet();
                   }}
                 />
 
-                {canEdit && (
+                {canEdit ? (
                   <SheetAction
-                    icon={<Pencil className="w-5 h-5" />}
+                    icon={
+                      <Pencil className="h-5 w-5" />
+                    }
                     label="Modifier la recette"
                     onClick={() => {
-                      handleEdit(sheetRecipe.id);
+                      handleEdit(
+                        sheetRecipe.id,
+                      );
+
                       closeSheet();
                     }}
                   />
-                )}
+                ) : null}
 
-                {canShare && (
+                {canShare ? (
                   <SheetAction
-                    icon={<Share2 className="w-5 h-5" />}
+                    icon={
+                      <Share2 className="h-5 w-5" />
+                    }
                     label="Partager à un groupe"
                     onClick={() => {
-                      openGroupsModal(sheetRecipe.id);
+                      openGroupsModal(
+                        sheetRecipe.id,
+                      );
+
                       closeSheet();
                     }}
                   />
-                )}
+                ) : null}
 
                 <SheetAction
-                  icon={<Heart className="w-5 h-5" />}
+                  icon={
+                    <Heart className="h-5 w-5" />
+                  }
                   label={
                     sheetRecipe.is_favorite
                       ? "Retirer des favoris"
@@ -752,346 +1309,757 @@ export function SharedRecipeGroupMobileView({
                   onClick={() => {
                     void handleToggleFavorite(
                       sheetRecipe.id,
-                      !!sheetRecipe.is_favorite
+                      !!sheetRecipe.is_favorite,
                     );
+
                     closeSheet();
                   }}
                 />
 
-                {canManageFolders && (
+                {canManageFolders ? (
                   <SheetAction
-                    icon={<Folder className="w-5 h-5" />}
+                    icon={
+                      <Folder className="h-5 w-5" />
+                    }
                     label="Déplacer dans un dossier"
                     onClick={() => {
-                      openMoveFolder(sheetRecipe);
+                      openMoveFolder(
+                        sheetRecipe,
+                      );
+
                       closeSheet();
                     }}
                   />
-                )}
+                ) : null}
 
-                {(canRemoveFromGroup || canManageFolders) && (
+                {canRemoveFromGroup ||
+                canManageFolders ? (
                   <SheetAction
-                    icon={<Trash2 className="w-5 h-5" />}
-                    label={selectedFolder ? "Retirer du dossier" : "Retirer du groupe"}
+                    icon={
+                      <Trash2 className="h-5 w-5" />
+                    }
+                    label={
+                      selectedFolder
+                        ? "Retirer du dossier"
+                        : "Retirer du groupe"
+                    }
                     tone="danger"
                     onClick={() => {
                       if (
                         selectedFolder &&
                         canManageFolders &&
-                        sheetRecipe.folder_id === selectedFolder
+                        sheetRecipe.folder_id ===
+                          selectedFolder
                       ) {
-                        void handleRemoveFromFolder(sheetRecipe.id);
-                      } else if (canRemoveFromGroup) {
-                        void handleRemoveFromGroup(sheetRecipe.id);
+                        void handleRemoveFromFolder(
+                          sheetRecipe.id,
+                        );
+                      } else if (
+                        canRemoveFromGroup
+                      ) {
+                        void handleRemoveFromGroup(
+                          sheetRecipe.id,
+                        );
                       }
+
                       closeSheet();
                     }}
                   />
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ═════════════════════════════
+          MOVE FOLDER SHEET
+      ═════════════════════════════ */}
+
+      {moveFolderOpen &&
+      moveRecipe ? (
+        <div className="fixed inset-0 z-[150]">
+          <div
+            className="
+              absolute inset-0
+              bg-[#173E31]/20
+              backdrop-blur-[2px]
+            "
+            onClick={closeMoveFolder}
+          />
+
+          <div className="absolute bottom-0 left-0 right-0 p-4 pb-6">
+            <div
+              className="
+                mx-auto
+                max-w-[520px]
+                rounded-[28px]
+                border border-[#173E31]/10
+                bg-[#FBFAF6]
+                p-4
+                shadow-[0_24px_70px_rgba(23,62,49,0.18)]
+              "
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div
+                    className="
+                      truncate
+                      font-serif
+                      text-xl
+                      font-semibold
+                      text-[#173E31]
+                    "
+                  >
+                    Déplacer :{" "}
+                    {moveRecipe.title ||
+                      "Sans titre"}
+                  </div>
+
+                  <div className="mt-1 text-xs text-[#718078]">
+                    Choisir un dossier
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    closeMoveFolder
+                  }
+                  className="
+                    inline-flex
+                    h-10 w-10
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    bg-[#E7EEE8]
+                    text-[#184C3A]
+                  "
+                  aria-label="Fermer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleSelectMoveFolder(
+                      null,
+                    )
+                  }
+                  className="
+                    flex w-full
+                    items-center gap-3
+                    rounded-2xl
+                    border border-[#173E31]/8
+                    bg-[#F7F5EF]
+                    px-4 py-3
+                    text-left
+                    transition
+                    active:bg-[#E7EEE8]
+                  "
+                >
+                  <span
+                    className="
+                      inline-flex
+                      h-10 w-10
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      bg-[#E7EEE8]
+                      text-[#184C3A]
+                    "
+                  >
+                    <Folder className="h-5 w-5" />
+                  </span>
+
+                  <span className="flex-1 text-sm font-medium text-[#173E31]">
+                    À la racine
+                  </span>
+
+                  {!moveRecipe.folder_id ? (
+                    <Check className="h-4 w-4 text-[#A8833E]" />
+                  ) : null}
+                </button>
+
+                {folders.map(
+                  (folder) => {
+                    const active =
+                      moveRecipe.folder_id ===
+                      folder.id;
+
+                    return (
+                      <button
+                        key={folder.id}
+                        type="button"
+                        onClick={() =>
+                          void handleSelectMoveFolder(
+                            folder.id,
+                          )
+                        }
+                        className="
+                          flex w-full
+                          items-center gap-3
+                          rounded-2xl
+                          border border-[#173E31]/8
+                          bg-[#F7F5EF]
+                          px-4 py-3
+                          text-left
+                          transition
+                          active:bg-[#E7EEE8]
+                        "
+                      >
+                        <span
+                          className="
+                            inline-flex
+                            h-10 w-10
+                            items-center
+                            justify-center
+                            rounded-2xl
+                            bg-[#E7EEE8]
+                            text-[#184C3A]
+                          "
+                        >
+                          <Folder className="h-5 w-5" />
+                        </span>
+
+                        <span className="flex-1">
+                          <span className="block text-sm font-medium text-[#173E31]">
+                            {folder.name}
+                          </span>
+
+                          <span className="block text-xs text-[#718078]">
+                            {folderCounts.get(
+                              folder.id,
+                            ) ?? 0}{" "}
+                            recette
+                            {(folderCounts.get(
+                              folder.id,
+                            ) ??
+                              0) > 1
+                              ? "s"
+                              : ""}
+                          </span>
+                        </span>
+
+                        {active ? (
+                          <Check className="h-4 w-4 text-[#A8833E]" />
+                        ) : null}
+                      </button>
+                    );
+                  },
                 )}
               </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {moveFolderOpen && moveRecipe && (
-        <div className="fixed inset-0 z-[150]">
-          <div
-            className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]"
-            onClick={closeMoveFolder}
-          />
-          <div className="absolute left-0 right-0 bottom-0 p-4 pb-6">
-            <div className="mx-auto max-w-[520px] rounded-[28px] border border-amber-300/10 bg-gradient-to-b from-[#0E1736] to-[#0B1020] ring-1 ring-amber-400/15 shadow-[0_24px_90px_rgba(0,0,0,0.65)] p-4">
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="min-w-0">
-                  <div className="text-slate-100 font-semibold truncate">
-                    Déplacer : {moveRecipe.title || "Sans titre"}
-                  </div>
-                  <div className="text-xs text-slate-300/70 mt-1">
-                    Choisir un dossier
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeMoveFolder}
-                  className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
-                  aria-label="Fermer"
-                >
-                  <X className="w-5 h-5 text-slate-100" />
-                </button>
-              </div>
-
-              <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
-                <button
-                  type="button"
-                  onClick={() => void handleSelectMoveFolder(null)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.05] transition text-left"
-                >
-                  <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-amber-400/15 text-slate-200">
-                    <Folder className="w-5 h-5" />
-                  </span>
-                  <span className="flex-1 text-sm font-medium text-slate-100">
-                    À la racine
-                  </span>
-                  {!moveRecipe.folder_id && (
-                    <Check className="w-4 h-4 text-amber-300" />
-                  )}
-                </button>
-
-                {folders.map((folder) => {
-                  const active = moveRecipe.folder_id === folder.id;
-
-                  return (
-                    <button
-                      key={folder.id}
-                      type="button"
-                      onClick={() => void handleSelectMoveFolder(folder.id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-white/[0.05] transition text-left"
-                    >
-                      <span className="h-10 w-10 rounded-2xl inline-flex items-center justify-center bg-white/[0.04] ring-1 ring-amber-400/15 text-slate-200">
-                        <Folder className="w-5 h-5" />
-                      </span>
-                      <span className="flex-1">
-                        <span className="block text-sm font-medium text-slate-100">
-                          {folder.name}
-                        </span>
-                        <span className="block text-xs text-slate-300/60">
-                          {folderCounts.get(folder.id) ?? 0} recette
-                          {(folderCounts.get(folder.id) ?? 0) > 1 ? "s" : ""}
-                        </span>
-                      </span>
-                      {active && <Check className="w-4 h-4 text-amber-300" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ═════════════════════════════
+          FOLDERS / FILTERS SHEET
+      ═════════════════════════════ */}
 
       <AnimatePresence>
-        {sidebarOpen && (
+        {sidebarOpen ? (
           <div className="fixed inset-0 z-[120] lg:hidden">
             <motion.div
-              className="absolute inset-0 bg-[#020617]/35 backdrop-blur-[3px]"
+              className="
+                absolute inset-0
+                bg-[#173E31]/20
+                backdrop-blur-[2px]
+              "
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)}
+              onClick={() =>
+                setSidebarOpen(false)
+              }
             />
 
             <motion.div
-              className="absolute bottom-0 left-0 right-0 max-h-[84dvh] overflow-hidden rounded-t-[32px] border-t border-amber-300/10 bg-gradient-to-b from-[#0E1736] via-[#0B1538] to-[#070D22] ring-1 ring-amber-400/15 shadow-[0_-24px_90px_rgba(0,0,0,0.60)]"
+              className="
+                absolute bottom-0
+                left-0 right-0
+                max-h-[84dvh]
+                overflow-hidden
+                rounded-t-[32px]
+                border-t
+                border-[#173E31]/10
+                bg-[#FBFAF6]
+                shadow-[0_-24px_70px_rgba(23,62,49,0.16)]
+              "
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+              transition={{
+                type: "spring",
+                stiffness: 260,
+                damping: 28,
+              }}
               drag="y"
-              dragControls={foldersDragControls}
+              dragControls={
+                foldersDragControls
+              }
               dragListener={false}
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={{ top: 0, bottom: 0.35 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 120 || info.velocity.y > 700) {
-                  setSidebarOpen(false);
+              dragConstraints={{
+                top: 0,
+                bottom: 0,
+              }}
+              dragElastic={{
+                top: 0,
+                bottom: 0.35,
+              }}
+              onDragEnd={(
+                _,
+                info,
+              ) => {
+                if (
+                  info.offset.y > 120 ||
+                  info.velocity.y > 700
+                ) {
+                  setSidebarOpen(
+                    false,
+                  );
                 }
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) =>
+                event.stopPropagation()
+              }
             >
+              {/* SHEET HEADER */}
+
               <div
-                className="sticky top-0 z-20 border-b border-amber-300/10 bg-[#0E1736]/95 px-4 pt-3 pb-4 backdrop-blur-xl"
-                onPointerDown={(e) => foldersDragControls.start(e)}
+                className="
+                  sticky top-0 z-20
+                  border-b
+                  border-[#173E31]/8
+                  bg-[#FBFAF6]/95
+                  px-4 pb-4 pt-3
+                  backdrop-blur-xl
+                "
+                onPointerDown={(
+                  event,
+                ) =>
+                  foldersDragControls.start(
+                    event,
+                  )
+                }
               >
-                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-amber-300/40" />
+                <div
+                  className="
+                    mx-auto mb-3
+                    h-1.5 w-12
+                    rounded-full
+                    bg-[#C7A45D]/45
+                  "
+                />
 
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-slate-100 font-semibold">Dossiers</div>
+                  <div>
+                    <div
+                      className="
+                        text-[11px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.16em]
+                        text-[#A8833E]
+                      "
+                    >
+                      Navigation
+                    </div>
+
+                    <div
+                      className="
+                        font-serif
+                        text-xl
+                        font-semibold
+                        text-[#173E31]
+                      "
+                    >
+                      Dossiers
+                    </div>
+                  </div>
+
                   <button
                     type="button"
-                    className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/10 transition inline-flex items-center justify-center"
-                    onClick={() => setSidebarOpen(false)}
+                    className="
+                      inline-flex
+                      h-10 w-10
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      bg-[#E7EEE8]
+                      text-[#184C3A]
+                    "
+                    onClick={() =>
+                      setSidebarOpen(
+                        false,
+                      )
+                    }
                     aria-label="Fermer"
                   >
-                    <X className="w-5 h-5 text-slate-100" />
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
+              {/* SHEET BODY */}
+
               <div className="max-h-[calc(84dvh-78px)] overflow-y-auto px-4 pb-8 pt-4">
                 <div className="space-y-2">
+                  {/* ALL */}
+
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedFolder(null);
-                      setShowFavoritesOnly(false);
-                      setSidebarOpen(false);
+                      setSelectedFolder(
+                        null,
+                      );
+
+                      setShowFavoritesOnly(
+                        false,
+                      );
+
+                      setSidebarOpen(
+                        false,
+                      );
                     }}
                     className={cn(
-                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-amber-400/15 transition text-slate-100",
-                      !selectedFolder && !showFavoritesOnly
-                        ? "bg-amber-400/15"
-                        : "bg-white/[0.04] hover:bg-amber-400/10"
+                      "h-11 w-full rounded-2xl px-3 text-left text-sm font-medium transition",
+                      !selectedFolder &&
+                        !showFavoritesOnly
+                        ? "bg-[#184C3A] text-[#F7F3EA]"
+                        : "border border-[#173E31]/8 bg-[#F7F5EF] text-[#617168]",
                     )}
                   >
                     Toutes les recettes
                   </button>
 
+                  {/* FAV */}
+
                   <button
                     type="button"
                     onClick={() => {
-                      setShowFavoritesOnly(true);
-                      setSelectedFolder(null);
-                      setSidebarOpen(false);
+                      setShowFavoritesOnly(
+                        true,
+                      );
+
+                      setSelectedFolder(
+                        null,
+                      );
+
+                      setSidebarOpen(
+                        false,
+                      );
                     }}
                     className={cn(
-                      "w-full h-11 px-3 rounded-2xl text-left ring-1 ring-amber-400/15 transition text-slate-100 inline-flex items-center gap-2",
+                      "inline-flex h-11 w-full items-center gap-2 rounded-2xl px-3 text-left text-sm font-medium transition",
                       showFavoritesOnly
-                        ? "bg-amber-400/15"
-                        : "bg-white/[0.04] hover:bg-amber-400/10"
+                        ? "bg-[#184C3A] text-[#F7F3EA]"
+                        : "border border-[#173E31]/8 bg-[#F7F5EF] text-[#617168]",
                     )}
                   >
-                    <Heart className="w-4 h-4" />
+                    <Heart className="h-4 w-4" />
                     Mes favoris
                   </button>
 
-                  <div className="mt-3 border-t border-amber-300/10 pt-3 space-y-2">
-                    {folders.map((folder) => (
-                      <div key={folder.id} className="relative">
+                  {/* FOLDERS */}
+
+                  <div className="mt-3 space-y-2 border-t border-[#173E31]/8 pt-3">
+                    {folders.map(
+                      (folder) => (
                         <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => {
-                            setSelectedFolder(folder.id);
-                            setShowFavoritesOnly(false);
-                            setSidebarOpen(false);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              setSelectedFolder(folder.id);
-                              setShowFavoritesOnly(false);
-                              setSidebarOpen(false);
-                            }
-                          }}
-                          onDrop={(e) => handleDrop(folder.id, e)}
-                          onDragOver={(e) => {
-                            if (!canManageFolders) return;
-                            e.preventDefault();
-                          }}
-                          className={cn(
-                            "w-full px-3 py-2.5 rounded-2xl flex items-center gap-2 transition-all duration-200 cursor-pointer",
-                            selectedFolder === folder.id
-                              ? "bg-amber-400/15 text-slate-100 ring-1 ring-amber-400/15"
-                              : "text-slate-300 hover:bg-amber-400/10 hover:text-slate-100"
-                          )}
+                          key={
+                            folder.id
+                          }
+                          className="relative"
                         >
-                          <Folder className="w-4 h-4" />
-                          <span className="flex-1 truncate">{folder.name}</span>
-
-                          <span className="text-[11px] text-amber-100/45">
-                            ({folderCounts.get(folder.id) ?? 0})
-                          </span>
-
-                          {canManageFolders && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setFolderMenuOpenId((prev) =>
-                                  prev === folder.id ? null : folder.id
-                                );
-                              }}
-                              className="h-9 w-9 inline-flex items-center justify-center rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 hover:bg-amber-400/15 transition text-slate-200"
-                              aria-label="Options dossier"
-                            >
-                              <MoreVertical className="w-5 h-5" />
-                            </button>
-                          )}
-                        </div>
-
-                        {canManageFolders && folderMenuOpenId === folder.id && (
                           <div
-                            ref={folderMenuRef}
-                            className="absolute right-2 top-[52px] z-[130] w-48 rounded-2xl border border-amber-300/10 bg-[#0B1020] ring-1 ring-amber-400/15 shadow-[0_18px_60px_rgba(0,0,0,0.55)] overflow-hidden"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
+                              setSelectedFolder(
+                                folder.id,
+                              );
+
+                              setShowFavoritesOnly(
+                                false,
+                              );
+
+                              setSidebarOpen(
+                                false,
+                              );
+                            }}
+                            onKeyDown={(
+                              event,
+                            ) => {
+                              if (
+                                event.key ===
+                                  "Enter" ||
+                                event.key ===
+                                  " "
+                              ) {
+                                setSelectedFolder(
+                                  folder.id,
+                                );
+
+                                setShowFavoritesOnly(
+                                  false,
+                                );
+
+                                setSidebarOpen(
+                                  false,
+                                );
+                              }
+                            }}
+                            onDrop={(
+                              event,
+                            ) =>
+                              handleDrop(
+                                folder.id,
+                                event,
+                              )
+                            }
+                            onDragOver={(
+                              event,
+                            ) => {
+                              if (
+                                !canManageFolders
+                              ) {
+                                return;
+                              }
+
+                              event.preventDefault();
+                            }}
+                            className={cn(
+                              "flex w-full cursor-pointer items-center gap-2 rounded-2xl px-3 py-2.5 transition-all duration-200",
+                              selectedFolder ===
+                                folder.id
+                                ? "bg-[#E7EEE8] text-[#184C3A]"
+                                : "border border-[#173E31]/8 bg-[#F7F5EF] text-[#617168]",
+                            )}
                           >
-                            <button
-                              type="button"
-                              onClick={() => void handleRenameFolder(folder.id)}
-                              className="w-full px-4 py-3 text-left text-sm text-slate-100 hover:bg-amber-400/10 transition"
-                            >
-                              Renommer
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDeleteFolder(folder.id)}
-                              className="w-full px-4 py-3 text-left text-sm text-red-200 hover:bg-red-500/10 transition"
-                            >
-                              Supprimer
-                            </button>
+                            <Folder className="h-4 w-4" />
+
+                            <span className="flex-1 truncate">
+                              {
+                                folder.name
+                              }
+                            </span>
+
+                            <span className="text-[11px] text-[#8B9791]">
+                              {folderCounts.get(
+                                folder.id,
+                              ) ?? 0}
+                            </span>
+
+                            {canManageFolders ? (
+                              <button
+                                type="button"
+                                onClick={(
+                                  event,
+                                ) => {
+                                  event.preventDefault();
+
+                                  event.stopPropagation();
+
+                                  setFolderMenuOpenId(
+                                    (
+                                      previous,
+                                    ) =>
+                                      previous ===
+                                      folder.id
+                                        ? null
+                                        : folder.id,
+                                  );
+                                }}
+                                className="
+                                  inline-flex
+                                  h-9 w-9
+                                  items-center
+                                  justify-center
+                                  rounded-xl
+                                  bg-[#E7EEE8]
+                                  text-[#184C3A]
+                                "
+                                aria-label="Options dossier"
+                              >
+                                <MoreVertical className="h-5 w-5" />
+                              </button>
+                            ) : null}
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+                          {/* FOLDER MENU */}
+
+                          {canManageFolders &&
+                          folderMenuOpenId ===
+                            folder.id ? (
+                            <div
+                              ref={
+                                folderMenuRef
+                              }
+                              className="
+                                absolute
+                                right-2
+                                top-[52px]
+                                z-[130]
+                                w-48
+                                overflow-hidden
+                                rounded-2xl
+                                border border-[#173E31]/10
+                                bg-[#FBFAF6]
+                                shadow-[0_18px_45px_rgba(23,62,49,0.16)]
+                              "
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleRenameFolder(
+                                    folder.id,
+                                  )
+                                }
+                                className="
+                                  w-full
+                                  px-4 py-3
+                                  text-left
+                                  text-sm
+                                  text-[#29493E]
+                                  transition
+                                  hover:bg-[#E7EEE8]
+                                "
+                              >
+                                Renommer
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleDeleteFolder(
+                                    folder.id,
+                                  )
+                                }
+                                className="
+                                  w-full
+                                  px-4 py-3
+                                  text-left
+                                  text-sm
+                                  text-[#A54C48]
+                                  transition
+                                  hover:bg-[#F5E4E0]
+                                "
+                              >
+                                Supprimer
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ),
+                    )}
                   </div>
 
-                  {canManageFolders && (
+                  {/* CREATE FOLDER */}
+
+                  {canManageFolders ? (
                     <div className="mt-4">
                       {showNewFolderInput ? (
-                        <div className="flex gap-2">
+                        <div className="space-y-2">
                           <input
                             type="text"
-                            value={newFolderName}
-                            onChange={(e) => setNewFolderName(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && void handleCreateFolder()}
+                            value={
+                              newFolderName
+                            }
+                            onChange={(
+                              event,
+                            ) =>
+                              setNewFolderName(
+                                event.target
+                                  .value,
+                              )
+                            }
+                            onKeyDown={(
+                              event,
+                            ) =>
+                              event.key ===
+                                "Enter" &&
+                              void handleCreateFolder()
+                            }
                             placeholder="Nom du dossier"
-                            className="w-full h-11 px-4 rounded-2xl bg-white/[0.04] ring-1 ring-amber-400/15 border border-amber-300/10 text-slate-100 placeholder:text-slate-400/70 outline-none"
+                            className={ui.input}
                             autoFocus
                           />
-                          <button
-                            onClick={() => void handleCreateFolder()}
-                            className={cn(ui.btnPrimary, "h-11 px-4 rounded-2xl")}
-                            type="button"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowNewFolderInput(false);
-                              setNewFolderName("");
-                            }}
-                            className={cn(ui.btnGhost, "h-11 px-4 rounded-2xl")}
-                            type="button"
-                          >
-                            ✕
-                          </button>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() =>
+                                void handleCreateFolder()
+                              }
+                              className={`${ui.btnDark} flex-1`}
+                              type="button"
+                            >
+                              Créer
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setShowNewFolderInput(
+                                  false,
+                                );
+
+                                setNewFolderName(
+                                  "",
+                                );
+                              }}
+                              className={`${ui.btnGhost} px-4`}
+                              type="button"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <button
-                          onClick={() => setShowNewFolderInput(true)}
-                          className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
+                          onClick={() =>
+                            setShowNewFolderInput(
+                              true,
+                            )
+                          }
+                          className="
+                            mt-2
+                            inline-flex
+                            items-center gap-2
+                            text-sm font-medium
+                            text-[#A8833E]
+                          "
                           type="button"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="h-4 w-4" />
                           Nouveau dossier
                         </button>
                       )}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </motion.div>
           </div>
-        )}
+        ) : null}
       </AnimatePresence>
 
-     {activeRecipeId && (
+      {/* SHARE */}
+
+      {activeRecipeId ? (
         <RecipeGroupsModal
           open={showGroupsModal}
-          recipeId={activeRecipeId}
-          onClose={closeGroupsModal}
+          recipeId={
+            activeRecipeId
+          }
+          onClose={
+            closeGroupsModal
+          }
         />
-      )}
+      ) : null}
     </div>
   );
 }

@@ -326,7 +326,7 @@ function MainApp() {
           )}
 
           {currentView === "groups" && (
-          <GroupsPage onViewChange={handleViewChange} />
+          <GroupsPage />
           )}
 
           {currentView === "import-ai" && <ImportPage />}

@@ -4,6 +4,7 @@ import {
   Loader2,
   Save,
 } from "lucide-react";
+
 import { ui } from "../../../styles/ui";
 import { useRecipeEditor } from "../../../features/recipe/hooks/useRecipeEditor";
 import { RecipeEditorForm } from "./RecipeEditorForm";
@@ -35,9 +36,20 @@ export function RecipeEditorMobile({
     return (
       <div className={`${ui.dashboardBg} overflow-x-hidden`}>
         <div className="px-4 py-10">
-          <div className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 p-8 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-amber-300" />
-            <div className="ml-3 text-slate-200">Chargement…</div>
+          <div
+            className="
+              flex items-center justify-center
+              rounded-[28px]
+              border border-[#173E31]/10
+              bg-[#FBFAF6]
+              p-8
+            "
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-[#A8833E]" />
+
+            <div className="ml-3 text-[#617168]">
+              Chargement…
+            </div>
           </div>
         </div>
       </div>
@@ -46,33 +58,69 @@ export function RecipeEditorMobile({
 
   return (
     <div className={`${ui.dashboardBg} overflow-x-hidden`}>
-      <div className="px-4 pt-3 pb-32">
-        <div className="flex items-start justify-between gap-3">
-          <button
-            onClick={() => onBack?.()}
-            className={ui.btnGhost}
-            type="button"
+      <div className="px-4 pb-32 pt-5">
+        {/* HEADER */}
+        <div>
+          <p
+            className="
+              mb-2 text-[11px]
+              font-semibold uppercase
+              tracking-[0.18em]
+              text-[#A8833E]
+            "
           >
-            <ArrowLeft className="w-4 h-4" />
-            Retour
-          </button>
+            Éditeur
+          </p>
 
-          <div className="min-w-0 flex-1">
-            <div className="text-[17px] leading-tight font-semibold text-slate-100 truncate">
-              {headerTitle}
-            </div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1
+                className="
+                  truncate
+                  font-serif
+                  text-3xl font-semibold
+                  leading-tight
+                  text-[#173E31]
+                "
+              >
+                {headerTitle}
+              </h1>
 
-            <div className="mt-1 text-xs text-slate-300/70">
-              Remplis les infos puis enregistre
+              <p className="mt-2 text-sm text-[#718078]">
+                Remplis les informations puis enregistre ta recette.
+              </p>
             </div>
           </div>
 
-          <div className="w-10" />
+          <button
+            onClick={() => onBack?.()}
+            className="
+              mt-4 inline-flex
+              items-center gap-2
+              text-sm font-medium
+              text-[#718078]
+              transition
+              hover:text-[#184C3A]
+            "
+            type="button"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </button>
         </div>
 
         {editor.errorMsg ? (
-          <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
+          <div
+            className="
+              mt-5 flex items-center gap-2
+              rounded-2xl
+              border border-[#C05C56]/20
+              bg-[#F8EAE7]
+              px-4 py-3
+              text-sm text-[#9B4944]
+            "
+          >
+            <AlertCircle className="h-4 w-4" />
             {editor.errorMsg}
           </div>
         ) : null}
@@ -83,25 +131,39 @@ export function RecipeEditorMobile({
         />
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-[90] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        <div className="rounded-[24px] bg-[#0B1020]/92 backdrop-blur ring-1 ring-white/10 shadow-[0_-18px_60px_rgba(0,0,0,0.40)] p-3 flex items-center gap-2">
+      {/* BARRE ENREGISTRER */}
+      <div
+        className="
+          fixed inset-x-0 bottom-0 z-[90]
+          border-t border-[#173E31]/10
+          bg-[#FBFAF6]/95
+          px-4 pt-3
+          pb-[calc(1rem+env(safe-area-inset-bottom))]
+          backdrop-blur-xl
+          shadow-[0_-10px_35px_rgba(23,62,49,0.08)]
+        "
+      >
+        <div className="mx-auto flex max-w-xl items-center gap-2">
           <button
             onClick={() => onBack?.()}
-            className={`${ui.btnGhost} flex-1 h-11 justify-center`}
+            className={`${ui.btnGhost} h-11 flex-1 justify-center`}
             type="button"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Retour
           </button>
 
           <button
             onClick={editor.handleSave}
             disabled={editor.saving}
-            className={`${ui.btnPrimary} flex-1 h-11 justify-center`}
+            className={`${ui.btnPrimary} h-11 flex-1 justify-center`}
             type="button"
           >
-            <Save className="w-4 h-4" />
-            {editor.saving ? "Enregistrement…" : "Enregistrer"}
+            <Save className="h-4 w-4" />
+
+            {editor.saving
+              ? "Enregistrement…"
+              : "Enregistrer"}
           </button>
         </div>
       </div>

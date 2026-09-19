@@ -8,16 +8,6 @@ import {
   Sparkles,
   X,
   FolderOpen,
-  Download,
-  Search,
-  FileDown,
-  ChevronRight,
-  HardDrive,
-  Clock3,
-  Star,
-  Folder,
-  Home,
-  FileArchive,
 } from "lucide-react";
 import { ui } from "../../../styles/ui";
 import {
@@ -26,6 +16,16 @@ import {
   pulseClick,
   wait,
 } from "./RecipeImportAIDemoAutoplay";
+import {
+  createFakeFile,
+  FAKE_LIBRARY_FILES,
+  MAX_MB,
+  type FakeLibraryFile,
+} from "./RecipeImportAIDemoData";
+import {
+  RecipeImportAIDemoExplorer,
+  type RecipeImportExplorerMode,
+} from "./RecipeImportAIDemoExplorer";
 
 type ImportStatus = "idle" | "uploading" | "processing" | "success" | "error";
 
@@ -40,185 +40,12 @@ type QueueItem = {
   relativePath?: string;
 };
 
-type FakeLibraryFile = {
-  id: string;
-  name: string;
-  sizeLabel: string;
-  type: string;
-  folder?: string;
-};
-
-type FakeFolder = {
-  id: string;
-  name: string;
-  files: FakeLibraryFile[];
-};
-
-const MAX_MB = 10;
-
-const FAKE_LIBRARY_FILES: FakeLibraryFile[] = [
-  {
-    id: "lib-1",
-    name: "fiche-technique-saumon-gravlax.pdf",
-    sizeLabel: "1.2 MB",
-    type: "PDF",
-    folder: "Recettes froides",
-  },
-  {
-    id: "lib-2",
-    name: "dessert-citron-restaurant.docx",
-    sizeLabel: "860 KB",
-    type: "Word",
-    folder: "Desserts",
-  },
-  {
-    id: "lib-3",
-    name: "base-sauce-vin-rouge.txt",
-    sizeLabel: "72 KB",
-    type: "Texte",
-    folder: "Sauces",
-  },
-  {
-    id: "lib-4",
-    name: "risotto-truffe-noire.pdf",
-    sizeLabel: "2.4 MB",
-    type: "PDF",
-    folder: "Plats chauds",
-  },
-  {
-    id: "lib-5",
-    name: "volaille-morilles.docx",
-    sizeLabel: "1.1 MB",
-    type: "Word",
-    folder: "Signature",
-  },
-];
-
-const FAKE_FOLDERS: FakeFolder[] = [
-  {
-    id: "folder-1",
-    name: "Recettes froides",
-    files: [
-      {
-        id: "f1",
-        name: "tartare-bar-agrumes.pdf",
-        sizeLabel: "1.4 MB",
-        type: "PDF",
-        folder: "Recettes froides",
-      },
-      {
-        id: "f2",
-        name: "saumon-gravlax-maison.docx",
-        sizeLabel: "930 KB",
-        type: "Word",
-        folder: "Recettes froides",
-      },
-    ],
-  },
-  {
-    id: "folder-2",
-    name: "Plats chauds",
-    files: [
-      {
-        id: "f3",
-        name: "risotto-truffe-noire.pdf",
-        sizeLabel: "2.4 MB",
-        type: "PDF",
-        folder: "Plats chauds",
-      },
-      {
-        id: "f4",
-        name: "jus-volaille-reduit.txt",
-        sizeLabel: "61 KB",
-        type: "Texte",
-        folder: "Plats chauds",
-      },
-      {
-        id: "f5",
-        name: "pigeon-confit-wagyu.docx",
-        sizeLabel: "1.7 MB",
-        type: "Word",
-        folder: "Plats chauds",
-      },
-    ],
-  },
-  {
-    id: "folder-3",
-    name: "Desserts",
-    files: [
-      {
-        id: "f6",
-        name: "dessert-citron-restaurant.docx",
-        sizeLabel: "860 KB",
-        type: "Word",
-        folder: "Desserts",
-      },
-      {
-        id: "f7",
-        name: "ganache-montee-vanille.txt",
-        sizeLabel: "49 KB",
-        type: "Texte",
-        folder: "Desserts",
-      },
-    ],
-  },
-  {
-    id: "folder-4",
-    name: "Sauces",
-    files: [
-      {
-        id: "f8",
-        name: "base-sauce-vin-rouge.txt",
-        sizeLabel: "72 KB",
-        type: "Texte",
-        folder: "Sauces",
-      },
-      {
-        id: "f9",
-        name: "beurre-blanc-premium.pdf",
-        sizeLabel: "540 KB",
-        type: "PDF",
-        folder: "Sauces",
-      },
-    ],
-  },
-];
-
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
-}
-
-function createFakeFile(fake: FakeLibraryFile) {
-  const content = `Démo Kitch’n
-
-Nom: ${fake.name}
-Type: ${fake.type}
-Dossier: ${fake.folder || "Sans dossier"}
-
-Ingrédients
-- Produit 1
-- Produit 2
-- Produit 3
-
-Étapes
-1. Préparer
-2. Cuire
-3. Dresser
-`;
-
-  return new File([content], fake.name, {
-    type:
-      fake.type === "PDF"
-        ? "application/pdf"
-        : fake.type === "Word"
-          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          : "text/plain",
-    lastModified: Date.now(),
-  });
 }
 
 export function RecipeImportAIDemoPanel() {
@@ -230,13 +57,9 @@ export function RecipeImportAIDemoPanel() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [isFolderExplorerOpen, setIsFolderExplorerOpen] = useState(false);
-
-  const [librarySearch, setLibrarySearch] = useState("");
-  const [folderSearch, setFolderSearch] = useState("");
+  const [explorerMode, setExplorerMode] =
+    useState<RecipeImportExplorerMode | null>(null);
   const [libraryDownloadingId, setLibraryDownloadingId] = useState<string | null>(null);
-  const [activeFolderId, setActiveFolderId] = useState<string>(FAKE_FOLDERS[0].id);
 
   const [demoRunning, setDemoRunning] = useState(false);
   const [cursor, setCursor] = useState({ x: 120, y: 120, click: false });
@@ -268,35 +91,6 @@ export function RecipeImportAIDemoPanel() {
     () => queue.find((q) => q.id === selectedId) || queue[0] || null,
     [queue, selectedId]
   );
-
-  const filteredLibrary = useMemo(() => {
-    const q = librarySearch.trim().toLowerCase();
-    if (!q) return FAKE_LIBRARY_FILES;
-    return FAKE_LIBRARY_FILES.filter(
-      (f) =>
-        f.name.toLowerCase().includes(q) ||
-        f.type.toLowerCase().includes(q) ||
-        (f.folder || "").toLowerCase().includes(q)
-    );
-  }, [librarySearch]);
-
-  const activeFolder = useMemo(
-    () => FAKE_FOLDERS.find((f) => f.id === activeFolderId) || FAKE_FOLDERS[0],
-    [activeFolderId]
-  );
-
-  const filteredFolderFiles = useMemo(() => {
-    const q = folderSearch.trim().toLowerCase();
-    const files = activeFolder?.files || [];
-    if (!q) return files;
-
-    return files.filter(
-      (f) =>
-        f.name.toLowerCase().includes(q) ||
-        f.type.toLowerCase().includes(q) ||
-        (f.folder || "").toLowerCase().includes(q)
-    );
-  }, [activeFolder, folderSearch]);
 
   const validateFile = (file: File) => {
     const okSize = file.size <= MAX_MB * 1024 * 1024;
@@ -388,49 +182,35 @@ export function RecipeImportAIDemoPanel() {
     await addFilesToQueue(Array.from(e.dataTransfer.files || []));
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
     await addFilesToQueue(files);
   };
 
-  const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-    await addFilesToQueue(files);
-  };
-
-  const handleFakeLibraryDownload = async (fake: FakeLibraryFile) => {
+  const handleFakeFileOpen = async (
+    fake: FakeLibraryFile,
+    source: RecipeImportExplorerMode
+  ) => {
     if (busy || libraryDownloadingId) return;
 
     setLibraryDownloadingId(fake.id);
-    await sleep(350);
+    await sleep(source === "library" ? 350 : 300);
 
-    const file = createFakeFile(fake);
-    await addFilesToQueue([file]);
+    await addFilesToQueue([createFakeFile(fake)]);
 
-    await sleep(300);
+    await sleep(source === "library" ? 300 : 250);
     setLibraryDownloadingId(null);
-    setIsLibraryOpen(false);
-    setLibrarySearch("");
-    setMessage(`Fichier ajouté depuis Mes fichiers : ${fake.name}`);
-    setStatus("idle");
-  };
 
-  const handleFakeFolderOpen = async (fake: FakeLibraryFile) => {
-    if (busy || libraryDownloadingId) return;
+    setExplorerMode(null);
 
-    setLibraryDownloadingId(fake.id);
-    await sleep(300);
-
-    const file = createFakeFile(fake);
-    await addFilesToQueue([file]);
-
-    await sleep(250);
-    setLibraryDownloadingId(null);
-    setIsFolderExplorerOpen(false);
-    setFolderSearch("");
-    setMessage(`Fichier ajouté depuis le dossier : ${fake.name}`);
+    setMessage(
+      `Fichier ajouté depuis ${
+        source === "library" ? "Mes fichiers" : "le dossier"
+      } : ${fake.name}`
+    );
     setStatus("idle");
   };
 
@@ -566,10 +346,7 @@ export function RecipeImportAIDemoPanel() {
     setSelectedId(null);
     setMessage("");
     setStatus("idle");
-    setIsLibraryOpen(false);
-    setIsFolderExplorerOpen(false);
-    setLibrarySearch("");
-    setFolderSearch("");
+    setExplorerMode(null);
 
     await wait(500);
 
@@ -580,7 +357,7 @@ export function RecipeImportAIDemoPanel() {
     pulseClick(setCursor, 140);
     await wait(160);
 
-    setIsLibraryOpen(true);
+    setExplorerMode("library");
     await wait(250);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -592,7 +369,7 @@ export function RecipeImportAIDemoPanel() {
     pulseClick(setCursor, 140);
     await wait(160);
 
-    await handleFakeLibraryDownload(FAKE_LIBRARY_FILES[0]);
+    await handleFakeFileOpen(FAKE_LIBRARY_FILES[0], "library");
     await wait(900);
 
     moveCursorToElement(analyzeBtnRef.current, rootRef.current, setCursor, -4, -2);
@@ -702,7 +479,7 @@ export function RecipeImportAIDemoPanel() {
                 <button
                   ref={filesBtnRef}
                   type="button"
-                  onClick={() => setIsLibraryOpen(true)}
+                  onClick={() => setExplorerMode("library")}
                   disabled={busy}
                   className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-medium bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition disabled:opacity-50"
                 >
@@ -712,7 +489,7 @@ export function RecipeImportAIDemoPanel() {
 
                 <button
                   type="button"
-                  onClick={() => setIsFolderExplorerOpen(true)}
+                  onClick={() => setExplorerMode("folder")}
                   disabled={busy}
                   className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-medium bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition disabled:opacity-50"
                 >
@@ -726,7 +503,7 @@ export function RecipeImportAIDemoPanel() {
                   multiple
                   // @ts-expect-error -- attribut Chromium absent des types React.
                   webkitdirectory="true"
-                  onChange={handleFolderSelect}
+                  onChange={handleFileInput}
                   className="hidden"
                 />
 
@@ -797,7 +574,7 @@ export function RecipeImportAIDemoPanel() {
                 id="ai-demo-panel-file-input"
                 type="file"
                 multiple
-                onChange={handleFileSelect}
+                onChange={handleFileInput}
                 className="hidden"
               />
             </div>
@@ -947,401 +724,16 @@ export function RecipeImportAIDemoPanel() {
         <DemoCursor cursor={cursor} />
       </div>
 
-      {isLibraryOpen && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/58 backdrop-blur-md"
-            onClick={() => {
-              if (libraryDownloadingId) return;
-              setIsLibraryOpen(false);
-            }}
-          />
+      {explorerMode ? (
+        <RecipeImportAIDemoExplorer
+          mode={explorerMode}
+          downloadingId={libraryDownloadingId}
+          firstOpenButtonRef={firstOpenBtnRef}
+          onClose={() => setExplorerMode(null)}
+          onOpenFile={handleFakeFileOpen}
+        />
+      ) : null}
 
-          <div className="absolute inset-0 px-4 sm:px-6 pt-6 sm:pt-8 pb-6 flex items-start justify-center">
-            <div
-              className="
-                w-full max-w-[980px] h-[min(78vh,720px)]
-                rounded-[26px] overflow-hidden
-                bg-[linear-gradient(180deg,rgba(17,24,39,0.98)_0%,rgba(15,23,42,0.98)_100%)]
-                ring-1 ring-white/10
-                border border-white/10
-                shadow-[0_30px_90px_rgba(0,0,0,0.45)]
-                backdrop-blur-2xl
-              "
-            >
-              <div className="h-14 border-b border-white/10 bg-[linear-gradient(180deg,rgba(30,41,59,0.92)_0%,rgba(22,32,51,0.88)_100%)] backdrop-blur-xl flex items-center justify-between px-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-red-400" />
-                  <span className="h-3 w-3 rounded-full bg-amber-400" />
-                  <span className="h-3 w-3 rounded-full bg-emerald-400" />
-                </div>
-
-                <div className="text-[13px] font-medium text-slate-300">Kitch’n Explorer</div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (libraryDownloadingId) return;
-                    setIsLibraryOpen(false);
-                  }}
-                  className="h-8 w-8 grid place-items-center rounded-xl text-slate-400 hover:bg-white/10"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-[220px_1fr] h-[calc(100%-56px)]">
-                <aside className="border-r border-white/10 bg-[#151e2d] p-3">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 px-3 py-2">
-                    Navigation
-                  </div>
-
-                  <div className="space-y-1">
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5">
-                      <Home className="w-4 h-4" />
-                      Accueil
-                    </button>
-
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5">
-                      <Clock3 className="w-4 h-4" />
-                      Récents
-                    </button>
-
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5">
-                      <Star className="w-4 h-4" />
-                      Favoris
-                    </button>
-
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm bg-cyan-500/10 text-cyan-200 ring-1 ring-cyan-400/20">
-                      <HardDrive className="w-4 h-4 text-cyan-300" />
-                      Kitch’n Drive
-                    </button>
-                  </div>
-
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 px-3 py-2 mt-5">
-                    Collections
-                  </div>
-
-                  <div className="space-y-1">
-                    {["Recettes froides", "Plats chauds", "Desserts", "Sauces"].map((name) => (
-                      <button
-                        key={name}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5"
-                      >
-                        <Folder className="w-4 h-4 text-cyan-300" />
-                        {name}
-                      </button>
-                    ))}
-                  </div>
-                </aside>
-
-                <section className="flex flex-col min-w-0 bg-[linear-gradient(180deg,#0f172a_0%,#101a31_100%)]">
-                  <div className="h-14 border-b border-white/10 bg-[#162033] px-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-400 min-w-0">
-                      <HardDrive className="w-4 h-4 shrink-0" />
-                      <span>Kitch’n Drive</span>
-                      <ChevronRight className="w-4 h-4 shrink-0" />
-                      <span className="truncate text-slate-200 font-medium">Mes fichiers</span>
-                    </div>
-
-                    <div className="relative w-full max-w-[320px]">
-                      <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        value={librarySearch}
-                        onChange={(e) => setLibrarySearch(e.target.value)}
-                        placeholder="Rechercher"
-                        className="w-full h-10 rounded-xl bg-white/5 border border-white/10 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="px-5 pt-5 pb-3">
-                    <div className="text-xl font-semibold text-slate-100">Mes fichiers</div>
-                    <div className="text-sm text-slate-400 mt-1">Bibliothèque de documents Kitch’n</div>
-                  </div>
-
-                  <div className="px-4 pb-4 flex-1 min-h-0">
-                    <div className="h-full rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
-                      <div className="grid grid-cols-[1.5fr_110px_110px_120px] gap-3 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-slate-500 border-b border-white/10 bg-white/[0.02]">
-                        <div>Nom</div>
-                        <div>Type</div>
-                        <div>Taille</div>
-                        <div className="text-right">Action</div>
-                      </div>
-
-                      <div className="overflow-y-auto h-[calc(100%-44px)]">
-                        {filteredLibrary.map((file, index) => {
-                          const downloading = libraryDownloadingId === file.id;
-
-                          return (
-                            <div
-                              key={file.id}
-                              className="grid grid-cols-[1.5fr_110px_110px_120px] gap-3 px-4 py-3 items-center border-b border-white/5 hover:bg-cyan-500/[0.06] transition-colors duration-150"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="h-10 w-10 rounded-xl bg-cyan-500/10 ring-1 ring-cyan-400/20 grid place-items-center shrink-0">
-                                  <FileText className="w-4 h-4 text-cyan-300" />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <div className="text-sm text-slate-100 truncate font-medium">{file.name}</div>
-                                  <div className="text-xs text-slate-400 truncate">{file.folder}</div>
-                                </div>
-                              </div>
-
-                              <div>
-                                <span className="text-[11px] px-2 py-1 rounded-lg bg-white/5 text-slate-300 border border-white/10">
-                                  {file.type}
-                                </span>
-                              </div>
-
-                              <div className="text-sm text-slate-300">{file.sizeLabel}</div>
-
-                              <div className="text-right">
-                                <button
-                                  ref={index === 0 ? firstOpenBtnRef : undefined}
-                                  type="button"
-                                  disabled={!!libraryDownloadingId}
-                                  onClick={() => handleFakeLibraryDownload(file)}
-                                  className={[
-                                    "inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200",
-                                    downloading
-                                      ? "bg-cyan-500/15 text-cyan-200 border border-cyan-400/20"
-                                      : "bg-white/5 text-slate-200 border border-white/10 hover:bg-white/10",
-                                  ].join(" ")}
-                                >
-                                  {downloading ? (
-                                    <>
-                                      <Loader className="w-4 h-4 animate-spin" />
-                                      Ouverture…
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Download className="w-4 h-4" />
-                                      Ouvrir
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {filteredLibrary.length === 0 && (
-                          <div className="h-full grid place-items-center">
-                            <div className="text-center">
-                              <FileDown className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                              <div className="text-slate-300 font-medium">Aucun fichier trouvé</div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isFolderExplorerOpen && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/58 backdrop-blur-md"
-            onClick={() => {
-              if (libraryDownloadingId) return;
-              setIsFolderExplorerOpen(false);
-            }}
-          />
-
-          <div className="absolute inset-0 px-4 sm:px-6 pt-6 sm:pt-8 pb-6 flex items-start justify-center">
-            <div
-              className="
-                w-full max-w-[1040px] h-[min(80vh,740px)]
-                rounded-[26px] overflow-hidden
-                bg-[linear-gradient(180deg,rgba(17,24,39,0.98)_0%,rgba(15,23,42,0.98)_100%)]
-                ring-1 ring-white/10
-                border border-white/10
-                shadow-[0_30px_90px_rgba(0,0,0,0.45)]
-                backdrop-blur-2xl
-              "
-            >
-              <div className="h-14 border-b border-white/10 bg-[linear-gradient(180deg,rgba(30,41,59,0.92)_0%,rgba(22,32,51,0.88)_100%)] backdrop-blur-xl flex items-center justify-between px-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-red-400" />
-                  <span className="h-3 w-3 rounded-full bg-amber-400" />
-                  <span className="h-3 w-3 rounded-full bg-emerald-400" />
-                </div>
-
-                <div className="text-[13px] font-medium text-slate-300">Dossier — Kitch’n Explorer</div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (libraryDownloadingId) return;
-                    setIsFolderExplorerOpen(false);
-                  }}
-                  className="h-8 w-8 grid place-items-center rounded-xl text-slate-400 hover:bg-white/10"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-[240px_1fr] h-[calc(100%-56px)]">
-                <aside className="border-r border-white/10 bg-[#151e2d] p-3">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 px-3 py-2">
-                    Emplacements
-                  </div>
-
-                  <div className="space-y-1">
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm bg-cyan-500/10 text-cyan-200 ring-1 ring-cyan-400/20">
-                      <HardDrive className="w-4 h-4 text-cyan-300" />
-                      Stockage local
-                    </button>
-
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5">
-                      <Home className="w-4 h-4" />
-                      Accueil
-                    </button>
-
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5">
-                      <FileArchive className="w-4 h-4" />
-                      Archives
-                    </button>
-                  </div>
-
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 px-3 py-2 mt-5">
-                    Dossiers
-                  </div>
-
-                  <div className="space-y-1">
-                    {FAKE_FOLDERS.map((folder) => (
-                      <button
-                        key={folder.id}
-                        onClick={() => setActiveFolderId(folder.id)}
-                        className={[
-                          "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition",
-                          folder.id === activeFolderId
-                            ? "bg-cyan-500/10 text-cyan-200 ring-1 ring-cyan-400/20"
-                            : "text-slate-300 hover:bg-white/5",
-                        ].join(" ")}
-                      >
-                        <Folder className="w-4 h-4 text-cyan-300" />
-                        {folder.name}
-                      </button>
-                    ))}
-                  </div>
-                </aside>
-
-                <section className="flex flex-col min-w-0 bg-[linear-gradient(180deg,#0f172a_0%,#101a31_100%)]">
-                  <div className="h-14 border-b border-white/10 bg-[#162033] px-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-400 min-w-0">
-                      <HardDrive className="w-4 h-4 shrink-0" />
-                      <span>Stockage local</span>
-                      <ChevronRight className="w-4 h-4 shrink-0" />
-                      <span className="truncate text-slate-200 font-medium">{activeFolder.name}</span>
-                    </div>
-
-                    <div className="relative w-full max-w-[320px]">
-                      <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        value={folderSearch}
-                        onChange={(e) => setFolderSearch(e.target.value)}
-                        placeholder="Rechercher dans le dossier"
-                        className="w-full h-10 rounded-xl bg-white/5 border border-white/10 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="px-5 pt-5 pb-3">
-                    <div className="text-xl font-semibold text-slate-100">{activeFolder.name}</div>
-                    <div className="text-sm text-slate-400 mt-1">Fichiers disponibles dans ce dossier</div>
-                  </div>
-
-                  <div className="px-4 pb-4 flex-1 min-h-0">
-                    <div className="h-full rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
-                      <div className="grid grid-cols-[1.5fr_110px_110px_120px] gap-3 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-slate-500 border-b border-white/10 bg-white/[0.02]">
-                        <div>Nom</div>
-                        <div>Type</div>
-                        <div>Taille</div>
-                        <div className="text-right">Action</div>
-                      </div>
-
-                      <div className="overflow-y-auto h-[calc(100%-44px)]">
-                        {filteredFolderFiles.map((file) => {
-                          const opening = libraryDownloadingId === file.id;
-
-                          return (
-                            <div
-                              key={file.id}
-                              className="grid grid-cols-[1.5fr_110px_110px_120px] gap-3 px-4 py-3 items-center border-b border-white/5 hover:bg-cyan-500/[0.06] transition-colors duration-150"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="h-10 w-10 rounded-xl bg-cyan-500/10 ring-1 ring-cyan-400/20 grid place-items-center shrink-0">
-                                  <FileText className="w-4 h-4 text-cyan-300" />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <div className="text-sm text-slate-100 truncate font-medium">{file.name}</div>
-                                  <div className="text-xs text-slate-400 truncate">Fichier recette démo</div>
-                                </div>
-                              </div>
-
-                              <div>
-                                <span className="text-[11px] px-2 py-1 rounded-lg bg-white/5 text-slate-300 border border-white/10">
-                                  {file.type}
-                                </span>
-                              </div>
-
-                              <div className="text-sm text-slate-300">{file.sizeLabel}</div>
-
-                              <div className="text-right">
-                                <button
-                                  type="button"
-                                  disabled={!!libraryDownloadingId}
-                                  onClick={() => handleFakeFolderOpen(file)}
-                                  className={[
-                                    "inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200",
-                                    opening
-                                      ? "bg-cyan-500/15 text-cyan-200 border border-cyan-400/20"
-                                      : "bg-white/5 text-slate-200 border border-white/10 hover:bg-white/10",
-                                  ].join(" ")}
-                                >
-                                  {opening ? (
-                                    <>
-                                      <Loader className="w-4 h-4 animate-spin" />
-                                      Ouverture…
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FolderOpen className="w-4 h-4" />
-                                      Ouvrir
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {filteredFolderFiles.length === 0 && (
-                          <div className="h-full grid place-items-center">
-                            <div className="text-center">
-                              <FolderOpen className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                              <div className="text-slate-300 font-medium">Aucun fichier dans ce dossier</div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

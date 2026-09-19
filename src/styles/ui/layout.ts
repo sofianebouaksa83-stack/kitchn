@@ -1,6 +1,9 @@
 export const layout = {
-  pageBg:
-    "min-h-screen bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900",
+  // Fond global ivoire chaud
+  pageBg: "min-h-screen bg-[#F3F0E8] text-[#173E31]",
+
+  // Dashboard : même univers clair
+  dashboardBg: "min-h-screen bg-[#F3F0E8] text-[#173E31]",
 
   container: "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8",
   containerWide: "mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8",

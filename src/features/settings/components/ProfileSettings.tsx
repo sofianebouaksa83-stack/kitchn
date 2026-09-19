@@ -1,4 +1,7 @@
-import type { RefObject } from "react";
+import type {
+  RefObject,
+} from "react";
+
 import {
   Loader2,
   Upload,
@@ -8,6 +11,7 @@ import {
 
 import { Section } from "./Section";
 import { Field } from "./Field";
+
 import { cn } from "../utils/cn";
 
 type ProfileSettingsProps = {
@@ -20,61 +24,106 @@ type ProfileSettingsProps = {
   avatarInitial: string;
   defaultAvatarBg: string;
 
-  fileRef: RefObject<HTMLInputElement>;
+  fileRef:
+    RefObject<HTMLInputElement>;
 
-  onRemoveAvatar: () => void;
-  onPickAvatar: (file: File) => void;
+  onRemoveAvatar:
+    () => void;
+
+  onPickAvatar:
+    (file: File) => void;
 
   fullName: string;
-  setFullName: (value: string) => void;
+
+  setFullName:
+    (value: string) => void;
 
   username: string;
-  setUsername: (value: string) => void;
+
+  setUsername:
+    (value: string) => void;
+
   usernameError?: string;
 
   locale: "fr" | "en";
-  setLocale: (value: "fr" | "en") => void;
+
+  setLocale:
+    (
+      value:
+        | "fr"
+        | "en",
+    ) => void;
 
   bio: string;
-  setBio: (value: string) => void;
+
+  setBio:
+    (value: string) => void;
 };
 
 export function ProfileSettings({
   loading,
+
   avatarPreview,
   avatarAnimOut,
   avatarRemoving,
   avatarUploading,
   avatarInitial,
   defaultAvatarBg,
+
   fileRef,
+
   onRemoveAvatar,
   onPickAvatar,
+
   fullName,
   setFullName,
+
   username,
   setUsername,
   usernameError,
+
   locale,
   setLocale,
+
   bio,
   setBio,
 }: ProfileSettingsProps) {
+  const inputClass =
+    "w-full h-11 rounded-2xl " +
+    "border border-[#173E31]/10 " +
+    "bg-[#F7F5EF] px-4 " +
+    "text-sm text-[#173E31] " +
+    "outline-none transition " +
+    "placeholder:text-[#8B9791] " +
+    "focus:border-[#C7A45D]/50 " +
+    "focus:ring-2 focus:ring-[#C7A45D]/15";
+
   return (
     <Section
       title="Profil"
-      icon={<User className="h-4 w-4" />}
+      icon={
+        <User className="h-4 w-4" />
+      }
       loading={loading}
     >
-      <div className="flex items-center gap-4">
-        <div className="relative group">
+      {/* AVATAR */}
+      <div
+        className="
+          flex flex-col
+          gap-4
+          sm:flex-row
+          sm:items-center
+        "
+      >
+        <div className="group relative">
           <div
             className={cn(
-              "h-14 w-14 rounded-2xl overflow-hidden border border-white/10 bg-white/10",
+              "h-20 w-20 overflow-hidden rounded-[24px] border border-[#173E31]/10 bg-[#E7EEE8]",
+              "shadow-[0_6px_18px_rgba(23,62,49,0.05)]",
               "transition-all duration-200",
               avatarAnimOut
-                ? "opacity-0 scale-[0.96]"
-                : "opacity-100 scale-100"
+                ? "scale-[0.96] opacity-0"
+                : "scale-100 opacity-100",
             )}
           >
             {avatarPreview ? (
@@ -85,11 +134,34 @@ export function ProfileSettings({
               />
             ) : (
               <div
-                className="h-full w-full flex items-center justify-center"
-                style={{ backgroundImage: defaultAvatarBg }}
+                className="
+                  flex h-full w-full
+                  items-center
+                  justify-center
+                "
+                style={{
+                  backgroundImage:
+                    defaultAvatarBg,
+                }}
               >
-                <div className="h-10 w-10 rounded-full bg-black/20 ring-1 ring-white/10 flex items-center justify-center">
-                  <span className="text-sm font-semibold text-white/80">
+                <div
+                  className="
+                    flex h-12 w-12
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-[#FBFAF6]/70
+                    ring-1
+                    ring-[#173E31]/10
+                  "
+                >
+                  <span
+                    className="
+                      text-sm
+                      font-semibold
+                      text-[#184C3A]
+                    "
+                  >
                     {avatarInitial}
                   </span>
                 </div>
@@ -97,20 +169,27 @@ export function ProfileSettings({
             )}
           </div>
 
-          {avatarPreview && (
+          {avatarPreview ? (
             <button
               type="button"
-              onClick={onRemoveAvatar}
-              disabled={avatarRemoving || avatarUploading}
+              onClick={
+                onRemoveAvatar
+              }
+              disabled={
+                avatarRemoving ||
+                avatarUploading
+              }
               className={cn(
-                "absolute -top-1 -right-1 h-5 w-5 rounded-full",
-                "bg-red-500/80 hover:bg-red-500 text-white",
-                "ring-1 ring-slate-950/70 border border-white/10",
-                "flex items-center justify-center transition",
-                "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100",
-                "duration-150 ease-out",
-                (avatarRemoving || avatarUploading) &&
-                  "opacity-60 cursor-not-allowed"
+                "absolute -right-1 -top-1",
+                "flex h-7 w-7 items-center justify-center rounded-full",
+                "bg-[#F5E4E0] text-[#A54C48]",
+                "border border-[#C05C56]/12",
+                "shadow-sm transition",
+                "opacity-0 scale-90",
+                "group-hover:scale-100 group-hover:opacity-100",
+                (avatarRemoving ||
+                  avatarUploading) &&
+                  "cursor-not-allowed opacity-60",
               )}
               title="Supprimer l’avatar"
               aria-label="Supprimer l’avatar"
@@ -121,18 +200,27 @@ export function ProfileSettings({
                 <X className="h-3.5 w-3.5" />
               )}
             </button>
-          )}
+          ) : null}
         </div>
 
         <div>
           <button
             type="button"
-            disabled={avatarUploading || avatarRemoving}
-            onClick={() => fileRef.current?.click()}
+            disabled={
+              avatarUploading ||
+              avatarRemoving
+            }
+            onClick={() =>
+              fileRef.current?.click()
+            }
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border border-white/10 bg-white/10 hover:bg-white/15 transition",
-              (avatarUploading || avatarRemoving) &&
-                "opacity-60 cursor-not-allowed"
+              "inline-flex items-center gap-2 rounded-full",
+              "bg-[#E7EEE8] px-4 py-2.5",
+              "text-sm font-medium text-[#184C3A]",
+              "transition hover:bg-[#DDE8DF]",
+              (avatarUploading ||
+                avatarRemoving) &&
+                "cursor-not-allowed opacity-60",
             )}
           >
             {avatarUploading ? (
@@ -140,45 +228,83 @@ export function ProfileSettings({
             ) : (
               <Upload className="h-4 w-4" />
             )}
+
             Changer l’avatar
           </button>
+
+          <p
+            className="
+              mt-2
+              text-xs
+              text-[#8B9791]
+            "
+          >
+            Photo de profil de ton
+            compte Kitch’n.
+          </p>
 
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
+            onChange={(event) => {
+              const file =
+                event.target.files?.[0];
 
               if (file) {
-                onPickAvatar(file);
+                onPickAvatar(
+                  file,
+                );
               }
 
-              e.currentTarget.value = "";
+              event.currentTarget.value =
+                "";
             }}
           />
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* FIELDS */}
+      <div
+        className="
+          mt-6
+          grid grid-cols-1
+          gap-4
+          sm:grid-cols-2
+        "
+      >
         <Field label="Nom complet">
           <input
             value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+            onChange={(event) =>
+              setFullName(
+                event.target.value,
+              )
+            }
+            className={
+              inputClass
+            }
             placeholder="Paul Bocuse"
           />
         </Field>
 
         <Field
           label="Nom d’utilisateur"
-          error={usernameError}
+          error={
+            usernameError
+          }
         >
           <input
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+            onChange={(event) =>
+              setUsername(
+                event.target.value,
+              )
+            }
+            className={
+              inputClass
+            }
             placeholder="Pseudo"
           />
         </Field>
@@ -186,13 +312,25 @@ export function ProfileSettings({
         <Field label="Langue">
           <select
             value={locale}
-            onChange={(e) =>
-              setLocale(e.target.value as "fr" | "en")
+            onChange={(event) =>
+              setLocale(
+                event.target
+                  .value as
+                  | "fr"
+                  | "en",
+              )
             }
-            className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+            className={
+              inputClass
+            }
           >
-            <option value="fr">Français</option>
-            <option value="en">English</option>
+            <option value="fr">
+              Français
+            </option>
+
+            <option value="en">
+              English
+            </option>
           </select>
         </Field>
 
@@ -202,9 +340,29 @@ export function ProfileSettings({
         >
           <textarea
             value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            rows={3}
-            className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+            onChange={(event) =>
+              setBio(
+                event.target.value,
+              )
+            }
+            rows={4}
+            className="
+              w-full
+              resize-none
+              rounded-2xl
+              border border-[#173E31]/10
+              bg-[#F7F5EF]
+              px-4 py-3
+              text-sm
+              leading-relaxed
+              text-[#173E31]
+              outline-none
+              placeholder:text-[#8B9791]
+              transition
+              focus:border-[#C7A45D]/50
+              focus:ring-2
+              focus:ring-[#C7A45D]/15
+            "
             placeholder="Quelques mots…"
           />
         </Field>

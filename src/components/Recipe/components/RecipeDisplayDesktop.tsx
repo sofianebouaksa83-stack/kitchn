@@ -5,9 +5,11 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+
 import { PageShell } from "../../Layout/PageShell";
 import { KitchNLoader } from "../../Loading/KitchNLoader";
 import { ui } from "../../../styles/ui";
+
 import {
   Select,
   SelectContent,
@@ -15,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../styles/ui/select";
+
 import { useRecipeDisplay } from "../../../features/recipe/hooks/useRecipeDisplay";
+
 import {
   CROSS_MANUAL_VALUE,
   fmtQty,
@@ -75,56 +79,114 @@ export default function RecipeDisplayDesktop({
     sectionsInitiallyOpen: false,
   });
 
+  const inputClass =
+    "mt-1 h-11 w-full rounded-2xl " +
+    "border border-[#173E31]/10 " +
+    "bg-[#F7F5EF] px-4 " +
+    "text-[#173E31] outline-none " +
+    "placeholder:text-[#8B9791] " +
+    "transition " +
+    "focus:border-[#C7A45D]/50 " +
+    "focus:ring-2 focus:ring-[#C7A45D]/15";
+
   return (
-    <PageShell withPanel={false} title={undefined} subtitle={undefined} icon={undefined} actions={undefined}>
-      {/* ✅ Header custom desktop (sans carte globale) */}
-      <div className="mb-6">
-        <div className="flex items-start justify-between gap-4">
+    <PageShell
+      withPanel={false}
+      title={undefined}
+      subtitle={undefined}
+      icon={undefined}
+      actions={undefined}
+    >
+      {/* HEADER */}
+      <div className="mb-7">
+        <div className="flex items-start justify-between gap-5">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <span className="h-11 w-11 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center shrink-0">
-                <Tag className="w-5 h-5 text-amber-200" />
+              <span
+                className="
+                  grid h-11 w-11
+                  shrink-0 place-items-center
+                  rounded-2xl
+                  bg-[#E7EEE8]
+                  text-[#184C3A]
+                  ring-1 ring-[#173E31]/8
+                "
+              >
+                <Tag className="h-5 w-5" />
               </span>
-              <h1 className="text-xl font-semibold text-slate-100 truncate">
+
+              <h1
+                className="
+                  truncate
+                  font-serif
+                  text-3xl
+                  font-semibold
+                  text-[#173E31]
+                "
+              >
                 {recipe?.title ?? "Recette"}
               </h1>
             </div>
 
             {subtitle ? (
-              <p className="text-sm text-slate-300/70 mt-2 max-w-3xl">{subtitle}</p>
+              <p className="mt-2 max-w-3xl text-sm text-[#718078]">
+                {subtitle}
+              </p>
             ) : null}
 
             <button
               onClick={onBack}
-              className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition"
+              className="
+                mt-4
+                inline-flex items-center gap-2
+                text-sm font-medium
+                text-[#718078]
+                transition
+                hover:text-[#184C3A]
+              "
               type="button"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="h-4 w-4" />
               Retour
             </button>
           </div>
 
           {recipe && onEdit ? (
-            <div className="shrink-0 flex items-center gap-2">
-              <button onClick={() => onEdit(recipe.id)} className={ui.btnPrimary} type="button">
-                Modifier
-              </button>
-            </div>
+            <button
+              onClick={() => onEdit(recipe.id)}
+              className={ui.btnPrimary}
+              type="button"
+            >
+              Modifier
+            </button>
           ) : null}
         </div>
       </div>
 
+      {/* LOADING */}
       {loading ? (
-        <div className="flex items-center justify-center h-48">
+        <div className="flex h-48 items-center justify-center">
           <KitchNLoader className="kitchn-loader--compact" />
         </div>
       ) : error ? (
-        <div className="rounded-3xl bg-red-500/10 ring-1 ring-red-500/20 p-6 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-red-300" />
-          <div className="text-red-200">{error}</div>
+        <div
+          className="
+            flex gap-3
+            rounded-[24px]
+            border border-[#C05C56]/20
+            bg-[#F8EAE7]
+            p-6
+          "
+        >
+          <AlertCircle className="h-5 w-5 text-[#C05C56]" />
+
+          <div className="text-[#9B4944]">
+            {error}
+          </div>
         </div>
       ) : recipe ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* IMAGES */}
           {recipeImages.length > 0 ? (
             <div className="lg:col-span-3">
               <div
@@ -138,8 +200,18 @@ export default function RecipeDisplayDesktop({
                   <img
                     key={imageUrl}
                     src={imageUrl}
-                    alt={`Photo ${index + 1} de ${recipe.title ?? "la recette"}`}
-                    className="h-auto max-h-[340px] w-auto max-w-full shrink-0 rounded-[22px] object-contain"
+                    alt={`Photo ${index + 1} de ${
+                      recipe.title ?? "la recette"
+                    }`}
+                    className="
+                      h-auto
+                      max-h-[340px]
+                      w-auto max-w-full
+                      shrink-0
+                      rounded-[24px]
+                      object-contain
+                      shadow-[0_10px_30px_rgba(23,62,49,0.08)]
+                    "
                     loading="lazy"
                   />
                 ))}
@@ -147,30 +219,92 @@ export default function RecipeDisplayDesktop({
             </div>
           ) : null}
 
-          {/* ✅ Col gauche : scaler “plat” */}
-          <div className="lg:col-span-1 space-y-5">
-            <div>
+          {/* OUTILS */}
+          <div className="space-y-5 lg:col-span-1">
+            <div
+              className="
+                rounded-[28px]
+                border border-[#173E31]/10
+                bg-[#FBFAF6]
+                p-5
+                shadow-[0_10px_30px_rgba(23,62,49,0.05)]
+              "
+            >
+              <p
+                className="
+                  mb-5
+                  text-xs font-semibold
+                  uppercase
+                  tracking-[0.16em]
+                  text-[#A8833E]
+                "
+              >
+                Ajuster la recette
+              </p>
+
+              {/* MULTIPLICATEUR */}
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-xs text-slate-300/60">Multiplier</div>
-                  <div className="text-sm text-slate-100 font-semibold">
+                  <div className="text-xs text-[#7A8981]">
+                    Multiplicateur
+                  </div>
+
+                  <div
+                    className="
+                      mt-1
+                      font-serif
+                      text-xl font-semibold
+                      text-[#173E31]
+                    "
+                  >
                     ×{Math.round(coefficient * 100) / 100}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setServings((s) => Math.max(1, s - 1))}
-                    className="h-10 w-10 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07] transition inline-flex items-center justify-center"
+                    onClick={() =>
+                      setServings((value) =>
+                        Math.max(1, value - 1),
+                      )
+                    }
+                    className="
+                      inline-flex h-10 w-10
+                      items-center justify-center
+                      rounded-xl
+                      border border-[#173E31]/10
+                      bg-[#F3F0E8]
+                      text-[#173E31]
+                      transition
+                      hover:bg-[#E7EEE8]
+                      disabled:opacity-40
+                    "
                     type="button"
                     aria-label="Diminuer"
-                    disabled={servings <= 1 || !!crossRatio}
+                    disabled={
+                      servings <= 1 ||
+                      !!crossRatio
+                    }
                   >
                     –
                   </button>
+
                   <button
-                    onClick={() => setServings((s) => s + 1)}
-                    className="h-10 w-10 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 hover:bg-amber-500/20 transition inline-flex items-center justify-center text-amber-100"
+                    onClick={() =>
+                      setServings(
+                        (value) => value + 1,
+                      )
+                    }
+                    className="
+                      inline-flex h-10 w-10
+                      items-center justify-center
+                      rounded-xl
+                      bg-[#184C3A]
+                      text-[#F7F3EA]
+                      transition
+                      hover:bg-[#123C2E]
+                      disabled:opacity-40
+                    "
                     type="button"
                     aria-label="Augmenter"
                     disabled={!!crossRatio}
@@ -180,89 +314,177 @@ export default function RecipeDisplayDesktop({
                 </div>
               </div>
 
-              <div className="mt-4 h-px bg-white/10" />
-            </div>
+              <div className="my-5 h-px bg-[#173E31]/8" />
 
-            <div>
-              <div className="text-xs text-slate-300/60 mb-2">Ingrédient</div>
-
-              <Select
-                value={crossRefIngredientId || CROSS_MANUAL_VALUE}
-                onValueChange={(v) => setCrossRefIngredientId(v === CROSS_MANUAL_VALUE ? "" : v)}
-              >
-                <SelectTrigger className="w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-sm text-slate-100 outline-none backdrop-blur-md hover:bg-white/[0.06] transition">
-                  <SelectValue placeholder="Manuel (pas d’ingrédient)" />
-                </SelectTrigger>
-
-                <SelectContent className="z-[9999] rounded-2xl border border-white/10 bg-slate-950/70 text-slate-100 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
-                  <SelectItem
-                    value={CROSS_MANUAL_VALUE}
-                    className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
-                  >
-                    Choisir un ingrédient
-                  </SelectItem>
-
-                  {crossSelectableIngredients.map((opt) => (
-                    <SelectItem
-                      key={opt.id}
-                      value={opt.id}
-                      className="cursor-pointer focus:bg-white/10 focus:text-white data-[state=checked]:bg-white/10"
-                    >
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {refIngredient ? (
-                <div className="mt-2 text-xs text-slate-300/60">
-                  Base auto : {fmtQty(refBaseQty)}
-                  {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
+              {/* INGRÉDIENT RÉFÉRENCE */}
+              <div>
+                <div className="mb-2 text-xs text-[#7A8981]">
+                  Ingrédient de référence
                 </div>
-              ) : null}
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {!refIngredient ? (
+                <Select
+                  value={
+                    crossRefIngredientId ||
+                    CROSS_MANUAL_VALUE
+                  }
+                  onValueChange={(value) =>
+                    setCrossRefIngredientId(
+                      value ===
+                        CROSS_MANUAL_VALUE
+                        ? ""
+                        : value,
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    className="
+                      h-11 w-full
+                      rounded-2xl
+                      border border-[#173E31]/10
+                      bg-[#F7F5EF]
+                      px-4
+                      text-sm text-[#173E31]
+                      outline-none
+                      transition
+                      hover:bg-[#E7EEE8]
+                    "
+                  >
+                    <SelectValue placeholder="Manuel (pas d’ingrédient)" />
+                  </SelectTrigger>
+
+                  <SelectContent
+                    className="
+                      z-[9999]
+                      overflow-hidden
+                      rounded-2xl
+                      border border-[#173E31]/10
+                      bg-[#FBFAF6]
+                      text-[#173E31]
+                      shadow-[0_18px_45px_rgba(23,62,49,0.12)]
+                    "
+                  >
+                    <SelectItem
+                      value={CROSS_MANUAL_VALUE}
+                      className="
+                        cursor-pointer
+                        focus:bg-[#E7EEE8]
+                        focus:text-[#184C3A]
+                        data-[state=checked]:bg-[#E7EEE8]
+                      "
+                    >
+                      Choisir un ingrédient
+                    </SelectItem>
+
+                    {crossSelectableIngredients.map(
+                      (option) => (
+                        <SelectItem
+                          key={option.id}
+                          value={option.id}
+                          className="
+                            cursor-pointer
+                            focus:bg-[#E7EEE8]
+                            focus:text-[#184C3A]
+                            data-[state=checked]:bg-[#E7EEE8]
+                          "
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
+
+                {refIngredient ? (
+                  <div className="mt-2 text-xs text-[#7A8981]">
+                    Base auto : {fmtQty(refBaseQty)}
+                    {normUnit(refUnit)
+                      ? ` ${normUnit(refUnit)}`
+                      : ""}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* BASE / J'AI */}
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {!refIngredient ? (
+                  <div>
+                    <div className="text-xs text-[#7A8981]">
+                      Base
+                    </div>
+
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={crossBase}
+                      onChange={(event) => {
+                        const value = Number(
+                          event.target.value,
+                        );
+
+                        setCrossBase(
+                          Number.isFinite(value) &&
+                            value > 0
+                            ? value
+                            : 1,
+                        );
+                      }}
+                      className={inputClass}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-xs text-[#7A8981]">
+                      Base auto
+                    </div>
+
+                    <div
+                      className="
+                        mt-1
+                        flex h-11
+                        items-center
+                        rounded-2xl
+                        border border-[#173E31]/10
+                        bg-[#F7F5EF]
+                        px-4
+                        text-[#173E31]
+                      "
+                    >
+                      {fmtQty(refBaseQty)}
+
+                      {normUnit(refUnit)
+                        ? ` ${normUnit(refUnit)}`
+                        : ""}
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <div className="text-xs text-slate-300/60">Base</div>
+                  <div className="text-xs text-[#7A8981]">
+                    J’ai
+                    {refIngredient &&
+                    normUnit(refUnit)
+                      ? ` (${normUnit(refUnit)})`
+                      : ""}
+                  </div>
+
                   <input
                     type="number"
                     inputMode="numeric"
-                    value={crossBase}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setCrossBase(Number.isFinite(v) && v > 0 ? v : 1);
-                    }}
-                    className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 outline-none"
+                    placeholder={
+                      refIngredient
+                        ? "ex: 763"
+                        : "ex: 350"
+                    }
+                    value={crossHave}
+                    onChange={(event) =>
+                      setCrossHave(
+                        event.target.value,
+                      )
+                    }
+                    className={inputClass}
                   />
                 </div>
-              ) : (
-                <div>
-                  <div className="text-xs text-slate-300/60">Base (auto)</div>
-                  <div className="mt-1 h-11 flex items-center rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100">
-                    {fmtQty(refBaseQty)}
-                    {normUnit(refUnit) ? ` ${normUnit(refUnit)}` : ""}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <div className="text-xs text-slate-300/60">
-                  J’ai{refIngredient && normUnit(refUnit) ? ` (${normUnit(refUnit)})` : ""}
-                </div>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder={refIngredient ? "ex: 763" : "ex: 350"}
-                  value={crossHave}
-                  onChange={(e) => setCrossHave(e.target.value)}
-                  className="mt-1 w-full h-11 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 text-slate-100 outline-none placeholder:text-slate-300/40"
-                />
               </div>
-            </div>
-
-            <div className="space-y-2">             
 
               <button
                 onClick={() => {
@@ -271,100 +493,222 @@ export default function RecipeDisplayDesktop({
                   setCrossBase(500);
                   setCrossRefIngredientId("");
                 }}
-                className="w-full rounded-2xl bg-white/[0.03] ring-1 ring-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/[0.06] transition"
+                className="
+                  mt-5 w-full
+                  rounded-2xl
+                  border border-[#173E31]/10
+                  bg-[#F3F0E8]
+                  px-4 py-3
+                  text-sm font-medium
+                  text-[#617168]
+                  transition
+                  hover:bg-[#E7EEE8]
+                  hover:text-[#184C3A]
+                "
                 type="button"
               >
-                Reset
+                Réinitialiser
               </button>
             </div>
-           
           </div>
 
-          {/* ✅ Col droite : accordion sections + notes */}
-          <div className="lg:col-span-2 space-y-5">
+          {/* CONTENU RECETTE */}
+          <div className="space-y-5 lg:col-span-2">
             {sections.length > 0 ? (
               <div className="space-y-3">
                 {sections.map((section) => {
-                  const isOpen = !!openSections[section.id];
-                  const ings = sectionIngredients.get(section.id) ?? [];
+                  const isOpen =
+                    !!openSections[section.id];
+
+                  const sectionItems =
+                    sectionIngredients.get(
+                      section.id,
+                    ) ?? [];
 
                   return (
                     <div
                       key={section.id}
-                      className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.20)] overflow-hidden"
+                      className="
+                        overflow-hidden
+                        rounded-[28px]
+                        border border-[#173E31]/10
+                        bg-[#FBFAF6]
+                        shadow-[0_10px_30px_rgba(23,62,49,0.05)]
+                      "
                     >
                       <button
                         type="button"
-                        onClick={() => toggleSection(section.id)}
-                        className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left"
+                        onClick={() =>
+                          toggleSection(
+                            section.id,
+                          )
+                        }
+                        className="
+                          flex w-full
+                          items-center
+                          justify-between
+                          gap-3
+                          px-5 py-5
+                          text-left
+                        "
                       >
                         <div className="min-w-0">
-                          <div className="text-slate-100 font-semibold truncate">
-                            {section.title?.trim() ? section.title : "Sans titre"}
+                          <div
+                            className="
+                              truncate
+                              font-serif
+                              text-xl
+                              font-semibold
+                              text-[#173E31]
+                            "
+                          >
+                            {section.title?.trim()
+                              ? section.title
+                              : "Sans titre"}
                           </div>
-                          <div className="mt-0.5 text-[12px] text-slate-300/55">
-                            {ings.length} ingrédient(s)
-                            {section.instructions?.trim() ? " · Étapes" : ""}
+
+                          <div className="mt-1 text-xs text-[#7A8981]">
+                            {sectionItems.length}{" "}
+                            ingrédient(s)
+                            {section.instructions?.trim()
+                              ? " · Étapes"
+                              : ""}
                           </div>
                         </div>
 
-                        <div className="shrink-0 text-slate-300/70">
+                        <div className="shrink-0 text-[#718078]">
                           {isOpen ? (
-                            <ChevronUp className="w-5 h-5" />
+                            <ChevronUp className="h-5 w-5" />
                           ) : (
-                            <ChevronDown className="w-5 h-5" />
+                            <ChevronDown className="h-5 w-5" />
                           )}
                         </div>
                       </button>
 
                       {isOpen ? (
                         <div className="px-5 pb-5">
-                          <div className="h-px bg-white/10 mb-4" />
+                          <div className="mb-4 h-px bg-[#173E31]/8" />
 
+                          {/* INGRÉDIENTS */}
                           <div>
-                            <div className="text-sm text-slate-200 font-medium mb-2">
+                            <div
+                              className="
+                                mb-3
+                                text-sm font-semibold
+                                text-[#29493E]
+                              "
+                            >
                               Ingrédients
                             </div>
 
-                            {ings.length === 0 ? (
-                              <div className="text-sm text-slate-300/70">Aucun ingrédient</div>
+                            {sectionItems.length ===
+                            0 ? (
+                              <div className="text-sm text-[#718078]">
+                                Aucun ingrédient
+                              </div>
                             ) : (
-                              <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-1">
-                                {ings.map((ing) => {
-                                  const scaled =
-                                    isQS(ing.unit) || ing.quantity === null
-                                      ? ing.quantity
-                                      : ing.quantity * coefficient;
+                              <ul
+                                className="
+                                  grid
+                                  grid-cols-1
+                                  gap-2
+                                  md:grid-cols-2
+                                  md:gap-x-5
+                                "
+                              >
+                                {sectionItems.map(
+                                  (ingredient) => {
+                                    const scaled =
+                                      isQS(
+                                        ingredient.unit,
+                                      ) ||
+                                      ingredient.quantity ===
+                                        null
+                                        ? ingredient.quantity
+                                        : ingredient.quantity *
+                                          coefficient;
 
-                                  const right = formatQtyDisplay(scaled, ing.unit);
-                                  if (!right) return null;
+                                    const right =
+                                      formatQtyDisplay(
+                                        scaled,
+                                        ingredient.unit,
+                                      );
 
-                                  return (
-                                    <li
-                                      key={ing.id}
-                                      className="flex items-baseline justify-between gap-3"
-                                    >
-                                      <div className="text-slate-100">{ing.designation ?? "—"}</div>
-                                      <div className="text-slate-300/80 whitespace-nowrap">
-                                        {right}
-                                      </div>
-                                    </li>
-                                  );
-                                })}
+                                    if (!right) {
+                                      return null;
+                                    }
+
+                                    return (
+                                      <li
+                                        key={
+                                          ingredient.id
+                                        }
+                                        className="
+                                          flex items-baseline
+                                          justify-between
+                                          gap-3
+                                          rounded-2xl
+                                          border border-[#173E31]/8
+                                          bg-[#F7F5EF]
+                                          px-3 py-2.5
+                                        "
+                                      >
+                                        <div className="text-sm text-[#173E31]">
+                                          {ingredient.designation ??
+                                            "—"}
+                                        </div>
+
+                                        <div
+                                          className="
+                                            whitespace-nowrap
+                                            text-sm
+                                            font-semibold
+                                            text-[#A8833E]
+                                          "
+                                        >
+                                          {right}
+                                        </div>
+                                      </li>
+                                    );
+                                  },
+                                )}
                               </ul>
                             )}
                           </div>
 
-                          <div className="mt-4">
-                            <div className="text-sm text-slate-200 font-medium mb-2">
+                          {/* ÉTAPES */}
+                          <div className="mt-5">
+                            <div
+                              className="
+                                mb-2
+                                text-sm font-semibold
+                                text-[#29493E]
+                              "
+                            >
                               Étapes
                             </div>
+
                             {section.instructions?.trim() ? (
-                              <div className="text-sm text-slate-300/80 whitespace-pre-wrap">
-                                {section.instructions}
+                              <div
+                                className="
+                                  whitespace-pre-wrap
+                                  rounded-2xl
+                                  border border-[#173E31]/8
+                                  bg-[#F7F5EF]
+                                  p-4
+                                  text-sm
+                                  leading-7
+                                  text-[#617168]
+                                "
+                              >
+                                {
+                                  section.instructions
+                                }
                               </div>
                             ) : (
-                              <div className="text-sm text-slate-300/60">Aucune instruction</div>
+                              <div className="text-sm text-[#718078]">
+                                Aucune instruction
+                              </div>
                             )}
                           </div>
                         </div>
@@ -374,25 +718,84 @@ export default function RecipeDisplayDesktop({
                 })}
               </div>
             ) : (
-              <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-                <div className="text-slate-100 font-semibold mb-2">Sections</div>
-                <div className="text-sm text-slate-300/70">
-                  Aucune section (étape) n’a encore été ajoutée à cette recette.
+              <div
+                className="
+                  rounded-[28px]
+                  border border-[#173E31]/10
+                  bg-[#FBFAF6]
+                  p-5
+                "
+              >
+                <div
+                  className="
+                    mb-2
+                    font-serif
+                    text-xl
+                    font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Sections
+                </div>
+
+                <div className="text-sm text-[#718078]">
+                  Aucune section (étape) n’a
+                  encore été ajoutée à cette
+                  recette.
                 </div>
               </div>
             )}
 
+            {/* NOTES RECETTE */}
             {recipe.notes ? (
-              <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-                <div className="text-slate-100 font-semibold mb-2">Notes</div>
-                <div className="text-sm text-slate-300/80 whitespace-pre-wrap">{recipe.notes}</div>
+              <div
+                className="
+                  rounded-[28px]
+                  border border-[#173E31]/10
+                  bg-[#FBFAF6]
+                  p-5
+                "
+              >
+                <div
+                  className="
+                    mb-2
+                    font-serif
+                    text-xl
+                    font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Notes
+                </div>
+
+                <div className="whitespace-pre-wrap text-sm leading-6 text-[#617168]">
+                  {recipe.notes}
+                </div>
               </div>
             ) : null}
 
-            <div className="rounded-3xl bg-white/[0.04] ring-1 ring-white/10 p-5">
+            {/* MES NOTES */}
+            <div
+              className="
+                rounded-[28px]
+                border border-[#173E31]/10
+                bg-[#FBFAF6]
+                p-5
+              "
+            >
               <div className="flex items-center justify-between gap-3">
-                <div className="text-slate-100 font-semibold">Mes notes</div>
-                <div className="text-xs text-slate-300/60">
+                <div
+                  className="
+                    font-serif
+                    text-xl
+                    font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Mes notes
+                </div>
+
+                <div className="text-xs text-[#7A8981]">
                   {noteLoading
                     ? "Chargement…"
                     : noteSaving
@@ -405,20 +808,29 @@ export default function RecipeDisplayDesktop({
 
               <textarea
                 value={myNote}
-                onChange={(e) => setMyNote(e.target.value)}
+                onChange={(event) =>
+                  setMyNote(
+                    event.target.value,
+                  )
+                }
                 placeholder="Écris tes notes ici…"
                 className="
                   mt-3
-                  w-full min-h-[160px]
-                  rounded-2xl
-                  bg-white/[0.03]
-                  ring-1 ring-white/10
-                  px-4 py-3
-                  text-sm text-slate-100
-                  outline-none
-                  placeholder:text-slate-300/40
-                  backdrop-blur-md
+                  min-h-[160px]
+                  w-full
                   resize-y
+                  rounded-2xl
+                  border border-[#173E31]/10
+                  bg-[#F7F5EF]
+                  px-4 py-3
+                  text-sm
+                  text-[#173E31]
+                  outline-none
+                  placeholder:text-[#8B9791]
+                  transition
+                  focus:border-[#C7A45D]/50
+                  focus:ring-2
+                  focus:ring-[#C7A45D]/15
                 "
               />
             </div>

@@ -4,6 +4,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+
 import type { View } from "../../../app/routes";
 import { NavbarAvatar } from "./NavbarAvatar";
 
@@ -18,11 +19,21 @@ type MobileNavigationProps = {
 
 function mobileIconBtn(active: boolean) {
   return [
-    "h-12 w-12 rounded-2xl inline-flex items-center justify-center transition",
-    "ring-1 ring-white/10",
+    "h-12 w-12 rounded-[18px]",
+    "inline-flex items-center justify-center",
+    "transition-all duration-200",
     active
-      ? "bg-amber-500/15 text-amber-200 ring-amber-400/25"
-      : "bg-white/[0.04] text-slate-200/90 hover:bg-white/[0.07]",
+      ? [
+          "bg-[#E7EEE8]",
+          "text-[#184C3A]",
+          "ring-1 ring-[#184C3A]/10",
+        ].join(" ")
+      : [
+          "bg-transparent",
+          "text-[#718078]",
+          "hover:bg-[#F0F2EC]",
+          "hover:text-[#184C3A]",
+        ].join(" "),
   ].join(" ");
 }
 
@@ -35,57 +46,86 @@ export function MobileNavigation({
   onOpenAccount,
 }: MobileNavigationProps) {
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-slate-950/55 backdrop-blur-xl">
+    <div
+      className="
+        fixed bottom-0 left-0 right-0 z-50
+        border-t border-[#173E31]/10
+        bg-[#FBFAF6]/95
+        backdrop-blur-xl
+        shadow-[0_-8px_30px_rgba(23,62,49,0.06)]
+        lg:hidden
+      "
+    >
       <div className="mx-auto max-w-3xl px-3 py-2">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => onViewChange("recipes")}
-            className={mobileIconBtn(currentView === "recipes")}
+            onClick={() =>
+              onViewChange("recipes")
+            }
+            className={mobileIconBtn(
+              currentView === "recipes",
+            )}
             aria-label="Mes recettes"
             title="Mes recettes"
             type="button"
           >
-            <BookOpen className="w-6 h-6" />
+            <BookOpen className="h-6 w-6" />
           </button>
 
           <button
-            onClick={() => onViewChange("shared")}
-            className={mobileIconBtn(currentView === "shared")}
+            onClick={() =>
+              onViewChange("shared")
+            }
+            className={mobileIconBtn(
+              currentView === "shared",
+            )}
             aria-label="Partagées"
             title="Partagées"
             type="button"
           >
-            <Share2 className="w-6 h-6" />
+            <Share2 className="h-6 w-6" />
           </button>
 
           <button
-            onClick={() => onViewChange("groups")}
-            className={mobileIconBtn(currentView === "groups")}
+            onClick={() =>
+              onViewChange("groups")
+            }
+            className={mobileIconBtn(
+              currentView === "groups",
+            )}
             aria-label="Groupes"
             title="Groupes"
             type="button"
           >
-            <Users className="w-6 h-6" />
+            <Users className="h-6 w-6" />
           </button>
 
           <button
-            onClick={() => onViewChange("import-ai")}
-            className={mobileIconBtn(currentView === "import-ai")}
+            onClick={() =>
+              onViewChange("import-ai")
+            }
+            className={mobileIconBtn(
+              currentView === "import-ai",
+            )}
             aria-label="Importer"
             title="Importer"
             type="button"
           >
-            <Sparkles className="w-6 h-6" />
+            <Sparkles className="h-6 w-6" />
           </button>
 
           <button
             onClick={onOpenAccount}
-            className={[
-              "h-12 w-12 rounded-2xl inline-flex items-center justify-center transition",
-              "ring-1 ring-white/10",
-              "bg-white/[0.04] text-slate-200/90 hover:bg-white/[0.07]",
-              "relative",
-            ].join(" ")}
+            className="
+              relative inline-flex
+              h-12 w-12
+              items-center justify-center
+              rounded-[18px]
+              bg-[#F0F2EC]
+              ring-1 ring-[#173E31]/8
+              transition
+              hover:bg-[#E7EEE8]
+            "
             aria-label="Compte"
             title="Compte"
             type="button"
@@ -97,7 +137,19 @@ export function MobileNavigation({
             />
 
             {invitationCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-amber-300 text-slate-950 text-[11px] font-bold">
+              <span
+                className="
+                  absolute -right-1 -top-1
+                  inline-flex h-[18px]
+                  min-w-[18px]
+                  items-center justify-center
+                  rounded-full
+                  bg-[#C7A45D]
+                  px-1
+                  text-[11px] font-bold
+                  text-[#173E31]
+                "
+              >
                 {invitationCount}
               </span>
             )}

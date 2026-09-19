@@ -1,47 +1,110 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader,
+  Lock,
+} from "lucide-react";
+
 import { supabase } from "../../lib/supabase";
-import { Eye, EyeOff, Loader, Lock } from "lucide-react";
-import { ui } from "../../styles/ui";
-import { GlassPanel } from "../../styles/ui/GlassPanel";
 
 type Props = {
   onBackToLogin?: () => void;
 };
 
-function mapError(message?: string) {
-  const m = (message ?? "").toLowerCase();
-  if (m.includes("password")) return "Mot de passe invalide (minimum 6 caractères).";
+function mapError(
+  message?: string,
+) {
+  const m = (
+    message ?? ""
+  ).toLowerCase();
+
+  if (
+    m.includes("password")
+  ) {
+    return "Mot de passe invalide (minimum 6 caractères).";
+  }
+
   return "Impossible de changer le mot de passe. Réessaie.";
 }
 
-export function ResetPasswordForm({ onBackToLogin }: Props) {
-  const [loading, setLoading] = useState(true);
-  const [ready, setReady] = useState(false);
+export function ResetPasswordForm({
+  onBackToLogin,
+}: Props) {
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [show, setShow] = useState(false);
+  const [
+    ready,
+    setReady,
+  ] = useState(false);
 
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [
+    password,
+    setPassword,
+  ] = useState("");
 
-  // ✅ Quand l’utilisateur arrive via le lien email,
-  // Supabase met la session "recovery" en place automatiquement.
+  const [
+    confirm,
+    setConfirm,
+  ] = useState("");
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
+
+  const [
+    showConfirm,
+    setShowConfirm,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    success,
+    setSuccess,
+  ] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (!mounted) return;
+        const { data } =
+          await supabase.auth.getSession();
+
+        if (!mounted) {
+          return;
+        }
 
         if (data.session) {
           setReady(true);
         } else {
-          setError("Lien invalide ou expiré. Relance une demande depuis la page de connexion.");
+          setError(
+            "Lien invalide ou expiré. Relance une demande depuis la page de connexion.",
+          );
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -50,181 +113,653 @@ export function ResetPasswordForm({ onBackToLogin }: Props) {
     };
   }, []);
 
-    function goToLogin(cleanQuery = true) {
+  function goToLogin(
+    cleanQuery = true,
+  ) {
     if (cleanQuery) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("reset");
-        window.history.replaceState({}, "", url.toString());
-    }
-    window.location.hash = "/login";
-    onBackToLogin?.();
+      const url = new URL(
+        window.location.href,
+      );
+
+      url.searchParams.delete(
+        "reset",
+      );
+
+      window.history.replaceState(
+        {},
+        "",
+        url.toString(),
+      );
     }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+    window.location.hash =
+      "/login";
+
+    onBackToLogin?.();
+  }
+
+  async function handleSubmit(
+    event: React.FormEvent,
+  ) {
+    event.preventDefault();
+
     setError(null);
     setSuccess(null);
 
-    if (password.length < 6) {
-      setError("Mot de passe trop court (minimum 6 caractères).");
+    if (
+      password.length < 6
+    ) {
+      setError(
+        "Mot de passe trop court (minimum 6 caractères).",
+      );
+
       return;
     }
-    if (password !== confirm) {
-      setError("Les mots de passe ne correspondent pas.");
+
+    if (
+      password !== confirm
+    ) {
+      setError(
+        "Les mots de passe ne correspondent pas.",
+      );
+
       return;
     }
 
     setLoading(true);
+
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const { error } =
+        await supabase.auth.updateUser(
+          {
+            password,
+          },
+        );
 
-      setSuccess("Mot de passe mis à jour. Redirection vers la connexion…");
-      setTimeout(() => goToLogin(true), 1200);
+      if (error) {
+        throw error;
+      }
 
+      setSuccess(
+        "Mot de passe mis à jour. Redirection vers la connexion…",
+      );
+
+      setTimeout(
+        () =>
+          goToLogin(true),
+        1200,
+      );
     } catch (err: any) {
-      setError(mapError(err?.message));
+      setError(
+        mapError(
+          err?.message,
+        ),
+      );
     } finally {
       setLoading(false);
     }
   }
 
+  const inputClass =
+    "h-12 w-full rounded-2xl " +
+    "border border-[#173E31]/12 " +
+    "bg-[#F7F5EF] " +
+    "text-sm text-[#173E31] " +
+    "outline-none transition " +
+    "placeholder:text-[#8B9791] " +
+    "focus:border-[#C7A45D]/50 " +
+    "focus:ring-2 focus:ring-[#C7A45D]/15 " +
+    "disabled:cursor-not-allowed " +
+    "disabled:opacity-60";
+
   return (
-    <div className={`${ui.pageBg} relative min-h-screen`}>
-      {/* Halo */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-yellow-400/10 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-blue-400/10 blur-3xl" />
+    <div
+      className="
+        relative
+        min-h-screen
+        overflow-hidden
+        bg-[#F3F0E8]
+        text-[#173E31]
+      "
+    >
+      {/* DECORATION */}
+      <div
+        className="
+          pointer-events-none
+          absolute
+          inset-0
+          overflow-hidden
+        "
+      >
+        <div
+          className="
+            absolute
+            -top-40
+            left-1/2
+            h-[520px]
+            w-[680px]
+            -translate-x-1/2
+            rounded-full
+            bg-[#E7EEE8]
+            blur-3xl
+          "
+        />
+
+        <div
+          className="
+            absolute
+            -bottom-48
+            right-[-120px]
+            h-[480px]
+            w-[480px]
+            rounded-full
+            bg-[#DDAE9D]/10
+            blur-3xl
+          "
+        />
       </div>
 
-      <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="w-full max-w-[520px]">
-          <GlassPanel className="overflow-hidden">
-            <div className="px-8 pt-8 pb-6 border-b border-white/10">
-              <div className="flex flex-col items-center text-center gap-3">
-                <img
-                  src="/Logo_kitchn_horizontal.svg"
-                  alt="KITCH'N"
-                  className="h-11 sm:h-12 w-auto select-none"
-                  draggable={false}
-                />
-                <p className="text-sm text-slate-200/80">Nouveau mot de passe</p>
+      <div
+        className="
+          relative
+          flex
+          min-h-screen
+          items-center
+          justify-center
+          px-4
+          py-8
+          sm:py-12
+        "
+      >
+        <div
+          className="
+            w-full
+            max-w-[520px]
+          "
+        >
+          {/* CARD */}
+          <div
+            className="
+              overflow-hidden
+              rounded-[32px]
+              border
+              border-[#173E31]/10
+              bg-[#FBFAF6]
+              shadow-[0_24px_70px_rgba(23,62,49,0.08)]
+            "
+          >
+            {/* HEADER */}
+            <div
+              className="
+                border-b
+                border-[#173E31]/8
+                px-6
+                pb-6
+                pt-7
+                text-center
+                sm:px-8
+                sm:pt-8
+              "
+            >
+              <img
+                src="/logo_kitchn_sans_fond.png"
+                alt="KITCH'N"
+                className="
+                  mx-auto
+                  h-10
+                  w-auto
+                  select-none
+                  sm:h-12
+                "
+                draggable={false}
+              />
+
+              <div
+                className="
+                  mx-auto
+                  mt-5
+                  grid
+                  h-11
+                  w-11
+                  place-items-center
+                  rounded-2xl
+                  bg-[#E7EEE8]
+                  text-[#184C3A]
+                "
+              >
+                <Lock className="h-5 w-5" />
               </div>
+
+              <h1
+                className="
+                  mt-4
+                  font-serif
+                  text-2xl
+                  font-semibold
+                  text-[#173E31]
+                  sm:text-3xl
+                "
+              >
+                Nouveau mot de passe
+              </h1>
+
+              <p
+                className="
+                  mx-auto
+                  mt-2
+                  max-w-sm
+                  text-sm
+                  leading-6
+                  text-[#718078]
+                "
+              >
+                Choisis un nouveau mot de
+                passe pour sécuriser ton
+                compte Kitch’n.
+              </p>
             </div>
 
-            <div className="px-8 py-7">
-              {loading && !ready && !error && (
-                <div className="text-slate-200/80 flex items-center gap-2">
+            <div
+              className="
+                px-6
+                py-7
+                sm:px-8
+              "
+            >
+              {/* VERIFYING */}
+              {loading &&
+              !ready &&
+              !error ? (
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    gap-3
+                    rounded-2xl
+                    bg-[#E7EEE8]
+                    px-4
+                    py-4
+                    text-sm
+                    font-medium
+                    text-[#184C3A]
+                  "
+                >
                   <Loader className="h-5 w-5 animate-spin" />
+
                   Vérification du lien…
                 </div>
-              )}
+              ) : null}
 
-              {error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {error}
+              {/* ERROR */}
+              {error ? (
+                <div
+                  className="
+                    flex
+                    items-start
+                    gap-3
+                    rounded-2xl
+                    border
+                    border-[#C05C56]/20
+                    bg-[#F8EAE7]
+                    px-4
+                    py-3
+                    text-sm
+                    leading-6
+                    text-[#9B4944]
+                  "
+                >
+                  <AlertCircle
+                    className="
+                      mt-0.5
+                      h-4
+                      w-4
+                      shrink-0
+                    "
+                  />
+
+                  <span>
+                    {error}
+                  </span>
                 </div>
-              )}
+              ) : null}
 
-              {success && (
-                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                  {success}
+              {/* SUCCESS */}
+              {success ? (
+                <div
+                  className="
+                    flex
+                    items-start
+                    gap-3
+                    rounded-2xl
+                    border
+                    border-[#184C3A]/10
+                    bg-[#E7EEE8]
+                    px-4
+                    py-3
+                    text-sm
+                    leading-6
+                    text-[#184C3A]
+                  "
+                >
+                  <CheckCircle2
+                    className="
+                      mt-0.5
+                      h-4
+                      w-4
+                      shrink-0
+                    "
+                  />
+
+                  <span>
+                    {success}
+                  </span>
                 </div>
-              )}
+              ) : null}
 
-              {ready && !success && (
-                <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              {/* FORM */}
+              {ready &&
+              !success ? (
+                <form
+                  onSubmit={
+                    handleSubmit
+                  }
+                  className="
+                    space-y-4
+                  "
+                >
+                  {/* PASSWORD */}
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-100/90">
+                    <label
+                      className="
+                        mb-2
+                        block
+                        text-sm
+                        font-medium
+                        text-[#29493E]
+                      "
+                    >
                       Nouveau mot de passe
                     </label>
+
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-                      <input
-                        type={show ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                      <Lock
                         className="
-                          h-12 w-full rounded-2xl pl-11 pr-11
-                          bg-white/5 border border-white/10
-                          text-slate-100 placeholder:text-white/35
-                          outline-none transition
-                          focus:border-yellow-400/40 focus:ring-2 focus:ring-yellow-400/15
+                          absolute
+                          left-4
+                          top-1/2
+                          h-4
+                          w-4
+                          -translate-y-1/2
+                          text-[#8B9791]
                         "
+                      />
+
+                      <input
+                        type={
+                          showPassword
+                            ? "text"
+                            : "password"
+                        }
+                        autoComplete="new-password"
+                        value={
+                          password
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          setPassword(
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        className={`${inputClass} pl-11 pr-12`}
                         placeholder="••••••••"
                         required
+                        disabled={
+                          loading
+                        }
                       />
+
                       <button
                         type="button"
-                        onClick={() => setShow((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-white/10 transition"
-                        aria-label={show ? "Masquer" : "Afficher"}
+                        onClick={() =>
+                          setShowPassword(
+                            (
+                              visible,
+                            ) =>
+                              !visible,
+                          )
+                        }
+                        disabled={
+                          loading
+                        }
+                        className="
+                          absolute
+                          right-2.5
+                          top-1/2
+                          grid
+                          h-8
+                          w-8
+                          -translate-y-1/2
+                          place-items-center
+                          rounded-xl
+                          text-[#718078]
+                          transition
+                          hover:bg-[#E7EEE8]
+                          hover:text-[#184C3A]
+                          disabled:opacity-50
+                        "
+                        aria-label={
+                          showPassword
+                            ? "Masquer le mot de passe"
+                            : "Afficher le mot de passe"
+                        }
                       >
-                        {show ? (
-                          <EyeOff className="h-4 w-4 text-white/50" />
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
                         ) : (
-                          <Eye className="h-4 w-4 text-white/50" />
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+
+                    <p
+                      className="
+                        mt-2
+                        text-xs
+                        text-[#8B9791]
+                      "
+                    >
+                      6 caractères minimum
+                    </p>
+                  </div>
+
+                  {/* CONFIRM */}
+                  <div>
+                    <label
+                      className="
+                        mb-2
+                        block
+                        text-sm
+                        font-medium
+                        text-[#29493E]
+                      "
+                    >
+                      Confirmer le mot de passe
+                    </label>
+
+                    <div className="relative">
+                      <Lock
+                        className="
+                          absolute
+                          left-4
+                          top-1/2
+                          h-4
+                          w-4
+                          -translate-y-1/2
+                          text-[#8B9791]
+                        "
+                      />
+
+                      <input
+                        type={
+                          showConfirm
+                            ? "text"
+                            : "password"
+                        }
+                        autoComplete="new-password"
+                        value={
+                          confirm
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          setConfirm(
+                            event
+                              .target
+                              .value,
+                          )
+                        }
+                        className={`${inputClass} pl-11 pr-12`}
+                        placeholder="••••••••"
+                        required
+                        disabled={
+                          loading
+                        }
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirm(
+                            (
+                              visible,
+                            ) =>
+                              !visible,
+                          )
+                        }
+                        disabled={
+                          loading
+                        }
+                        className="
+                          absolute
+                          right-2.5
+                          top-1/2
+                          grid
+                          h-8
+                          w-8
+                          -translate-y-1/2
+                          place-items-center
+                          rounded-xl
+                          text-[#718078]
+                          transition
+                          hover:bg-[#E7EEE8]
+                          hover:text-[#184C3A]
+                          disabled:opacity-50
+                        "
+                        aria-label={
+                          showConfirm
+                            ? "Masquer la confirmation"
+                            : "Afficher la confirmation"
+                        }
+                      >
+                        {showConfirm ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
                         )}
                       </button>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-100/90">
-                      Confirmer
-                    </label>
-                    <input
-                      type={show ? "text" : "password"}
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      className="
-                        h-12 w-full rounded-2xl px-4
-                        bg-white/5 border border-white/10
-                        text-slate-100 placeholder:text-white/35
-                        outline-none transition
-                        focus:border-yellow-400/40 focus:ring-2 focus:ring-yellow-400/15
-                      "
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-
+                  {/* SUBMIT */}
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={
+                      loading
+                    }
                     className="
-                      h-12 w-full rounded-2xl font-semibold
-                      text-slate-950
-                      bg-gradient-to-r from-yellow-300 to-orange-400
-                      hover:from-yellow-200 hover:to-orange-300
-                      shadow-[0_14px_40px_rgba(255,184,0,0.18)]
+                      flex
+                      h-12
+                      w-full
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-full
+                      bg-[#DDAE9D]
+                      px-5
+                      text-sm
+                      font-semibold
+                      text-[#173E31]
+                      shadow-[0_8px_22px_rgba(120,73,57,0.12)]
                       transition
-                      disabled:cursor-not-allowed disabled:opacity-60
+                      hover:-translate-y-0.5
+                      hover:bg-[#D5A18E]
+                      active:scale-[0.98]
+                      disabled:cursor-not-allowed
+                      disabled:opacity-60
                     "
                   >
                     {loading ? (
-                      <span className="inline-flex items-center justify-center gap-2">
+                      <>
                         <Loader className="h-5 w-5 animate-spin" />
-                        Mise à jour...
-                      </span>
+
+                        Mise à jour…
+                      </>
                     ) : (
                       "Mettre à jour"
                     )}
                   </button>
                 </form>
-              )}
+              ) : null}
 
-              <div className="pt-6 text-center">
+              {/* BACK */}
+              <div
+                className="
+                  pt-6
+                  text-center
+                "
+              >
                 <button
                   type="button"
-                  onClick={() => goToLogin(true)}
-                  className="text-sm font-semibold text-yellow-300/90 hover:text-yellow-200 transition"
+                  onClick={() =>
+                    goToLogin(
+                      true,
+                    )
+                  }
+                  className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    text-sm
+                    font-semibold
+                    text-[#A8833E]
+                    transition
+                    hover:text-[#173E31]
+                  "
                 >
-                  Retour connexion
+                  <ArrowLeft className="h-4 w-4" />
+
+                  Retour à la connexion
                 </button>
               </div>
             </div>
-          </GlassPanel>
+          </div>
+
+          <div
+            className="
+              mt-5
+              text-center
+              text-xs
+              text-[#8B9791]
+            "
+          >
+            ©{" "}
+            {new Date().getFullYear()}{" "}
+            KITCH&apos;N
+          </div>
         </div>
       </div>
     </div>

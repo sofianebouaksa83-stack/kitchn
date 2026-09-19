@@ -1,5 +1,6 @@
 import {
   CreditCard,
+  LifeBuoy,
   LogOut,
   Mail,
   Settings,
@@ -21,6 +22,7 @@ type MobileAccountSheetProps = {
   onOpenInvitations: () => void;
   onOpenTeam: () => void;
   onOpenSubscription: () => void;
+  onOpenAssistance: () => void;
   onSignOut: () => void;
 };
 
@@ -43,6 +45,7 @@ export function MobileAccountSheet({
   onOpenInvitations,
   onOpenTeam,
   onOpenSubscription,
+  onOpenAssistance,
   onSignOut,
 }: MobileAccountSheetProps) {
   if (!open) return null;
@@ -133,6 +136,17 @@ export function MobileAccountSheet({
                 <span className={left}>
                   <CreditCard className="w-4 h-4" />
                   Abonnement
+                </span>
+              </button>
+
+              <button
+                onClick={onOpenAssistance}
+                className={dropdownItem}
+                type="button"
+              >
+                <span className={left}>
+                  <LifeBuoy className="w-4 h-4" />
+                  Centre d’assistance
                 </span>
               </button>
 
