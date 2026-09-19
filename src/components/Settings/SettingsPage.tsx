@@ -126,6 +126,63 @@ function SettingsTabButton({
   );
 }
 
+type MobileSettingsTabButtonProps = {
+  tab: SettingsTab;
+  label: string;
+  badge?: number;
+  active: boolean;
+  onSelect: (tab: SettingsTab) => void;
+};
+
+function MobileSettingsTabButton({
+  tab,
+  label,
+  badge,
+  active,
+  onSelect,
+}: MobileSettingsTabButtonProps) {
+  const showBadge =
+    typeof badge === "number" &&
+    badge > 0;
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        onSelect(tab)
+      }
+      aria-pressed={active}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition-all duration-200",
+        active
+          ? "border-[#184C3A]/10 bg-[#E7EEE8] text-[#184C3A]"
+          : "border-transparent bg-transparent text-[#718078] hover:bg-[#F0F2EC] hover:text-[#184C3A]",
+      )}
+    >
+      <span>{label}</span>
+
+      {showBadge ? (
+        <span
+          className="
+            inline-flex h-5
+            min-w-[20px]
+            items-center
+            justify-center
+            rounded-full
+            bg-[#DDAE9D]
+            px-1.5
+            text-[10px]
+            font-bold
+            text-[#173E31]
+          "
+        >
+          {badge}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 export default function SettingsPage({
   onViewChange,
 }: SettingsPageProps) {
@@ -352,9 +409,7 @@ export default function SettingsPage({
             disabled={
               saveDisabled
             }
-            className={
-              ui.btnPrimary
-            }
+            className={`${ui.btnPrimary} hidden lg:inline-flex`}
           >
             {profileSettings.saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -417,19 +472,90 @@ export default function SettingsPage({
           </div>
         ) : null}
 
+        {/* MOBILE NAVIGATION */}
         <div
           className="
-            mt-6
+            -mx-4 mt-5
+            border-y border-[#173E31]/8
+            bg-[#F6F3EB]/95
+            px-4 py-2.5
+            backdrop-blur
+            sm:-mx-6
+            sm:px-6
+            lg:hidden
+          "
+        >
+          <div
+            className="
+              flex min-w-0
+              gap-1
+              overflow-x-auto
+              pb-0.5
+              [scrollbar-width:none]
+              [&::-webkit-scrollbar]:hidden
+            "
+          >
+            <MobileSettingsTabButton
+              tab="profile"
+              label="Profil"
+              active={tab === "profile"}
+              onSelect={selectTab}
+            />
+
+            <MobileSettingsTabButton
+              tab="notifications"
+              label="Notifications"
+              active={tab === "notifications"}
+              onSelect={selectTab}
+            />
+
+            <MobileSettingsTabButton
+              tab="invitations"
+              label="Invitations"
+              badge={invitationsSettings.invCount}
+              active={tab === "invitations"}
+              onSelect={selectTab}
+            />
+
+            <MobileSettingsTabButton
+              tab="security"
+              label="Sécurité"
+              active={tab === "security"}
+              onSelect={selectTab}
+            />
+
+            <MobileSettingsTabButton
+              tab="subscription"
+              label="Abonnement"
+              active={tab === "subscription"}
+              onSelect={selectTab}
+            />
+
+            <MobileSettingsTabButton
+              tab="account"
+              label="Compte"
+              active={tab === "account"}
+              onSelect={selectTab}
+            />
+          </div>
+        </div>
+
+        <div
+          className="
+            mt-5
             grid grid-cols-1
             gap-5
+            lg:mt-6
             lg:grid-cols-12
           "
         >
           {/* LEFT */}
           <aside
             className="
+              hidden
               space-y-4
               lg:col-span-4
+              lg:block
             "
           >
             {/* ACCOUNT */}
@@ -781,39 +907,101 @@ export default function SettingsPage({
             ) : null}
 
             {tab === "account" ? (
-              <AccountSettings
-                loading={
-                  profileSettings.loading
-                }
-                onDeleteAccount={
-                  accountSettings.onDeleteAccount
-                }
-              />
+              <div className="space-y-4">
+                <div
+                  className="
+                    rounded-[24px]
+                    border border-[#173E31]/10
+                    bg-[#FBFAF6]
+                    p-4
+                    shadow-[0_8px_24px_rgba(23,62,49,0.04)]
+                    lg:hidden
+                  "
+                >
+                  <div
+                    className="
+                      text-[10px]
+                      font-semibold
+                      uppercase
+                      tracking-[0.14em]
+                      text-[#A8833E]
+                    "
+                  >
+                    Connecté en tant que
+                  </div>
+
+                  <div
+                    className="
+                      mt-2
+                      break-all
+                      text-sm
+                      font-medium
+                      text-[#173E31]
+                    "
+                  >
+                    {user.email}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="
+                      mt-4
+                      inline-flex
+                      items-center
+                      gap-2
+                      rounded-full
+                      bg-[#F5E4E0]
+                      px-4 py-2.5
+                      text-sm
+                      font-medium
+                      text-[#A54C48]
+                      transition
+                      hover:bg-[#F0D8D3]
+                    "
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Se déconnecter
+                  </button>
+                </div>
+
+                <AccountSettings
+                  loading={
+                    profileSettings.loading
+                  }
+                  onDeleteAccount={
+                    accountSettings.onDeleteAccount
+                  }
+                />
+              </div>
             ) : null}
           </main>
         </div>
 
         {/* MOBILE SAVE */}
-        <div className="mt-6 lg:hidden">
-          <button
-            type="button"
-            onClick={
-              profileSettings.onSave
-            }
-            disabled={
-              saveDisabled
-            }
-            className={`${ui.btnPrimary} w-full justify-center`}
-          >
-            {profileSettings.saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
+        {tab === "profile" ||
+        tab === "notifications" ? (
+          <div className="mt-6 lg:hidden">
+            <button
+              type="button"
+              onClick={
+                profileSettings.onSave
+              }
+              disabled={
+                saveDisabled
+              }
+              className={`${ui.btnPrimary} w-full justify-center`}
+            >
+              {profileSettings.saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
 
-            Enregistrer
-          </button>
-        </div>
+              Enregistrer
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -49,8 +49,9 @@ export function NotificationsSettings({
     >
       <p
         className="
-          mb-5
+          mb-4
           text-sm
+          sm:mb-5
           leading-relaxed
           text-[#718078]
         "
@@ -60,7 +61,7 @@ export function NotificationsSettings({
         partages et nouveautés.
       </p>
 
-      <div className="space-y-3">
+      <div className="space-y-4 sm:space-y-3">
         <div>
           <div
             className="

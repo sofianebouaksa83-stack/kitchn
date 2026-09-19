@@ -89,7 +89,7 @@ export function ProfileSettings({
   setBio,
 }: ProfileSettingsProps) {
   const inputClass =
-    "w-full h-11 rounded-2xl " +
+    "w-full h-12 sm:h-11 rounded-2xl " +
     "border border-[#173E31]/10 " +
     "bg-[#F7F5EF] px-4 " +
     "text-sm text-[#173E31] " +
@@ -110,9 +110,11 @@ export function ProfileSettings({
       <div
         className="
           flex flex-col
+          items-center
           gap-4
+          text-center
           sm:flex-row
-          sm:items-center
+          sm:text-left
         "
       >
         <div className="group relative">
@@ -185,8 +187,9 @@ export function ProfileSettings({
                 "bg-[#F5E4E0] text-[#A54C48]",
                 "border border-[#C05C56]/12",
                 "shadow-sm transition",
-                "opacity-0 scale-90",
-                "group-hover:scale-100 group-hover:opacity-100",
+                "scale-100 opacity-100",
+                "sm:scale-90 sm:opacity-0",
+                "sm:group-hover:scale-100 sm:group-hover:opacity-100",
                 (avatarRemoving ||
                   avatarUploading) &&
                   "cursor-not-allowed opacity-60",
@@ -214,8 +217,8 @@ export function ProfileSettings({
               fileRef.current?.click()
             }
             className={cn(
-              "inline-flex items-center gap-2 rounded-full",
-              "bg-[#E7EEE8] px-4 py-2.5",
+              "inline-flex w-full items-center justify-center gap-2 rounded-full",
+              "bg-[#E7EEE8] px-4 py-2.5 sm:w-auto",
               "text-sm font-medium text-[#184C3A]",
               "transition hover:bg-[#DDE8DF]",
               (avatarUploading ||
@@ -235,8 +238,10 @@ export function ProfileSettings({
           <p
             className="
               mt-2
+              text-center
               text-xs
               text-[#8B9791]
+              sm:text-left
             "
           >
             Photo de profil de ton
@@ -347,6 +352,7 @@ export function ProfileSettings({
             }
             rows={4}
             className="
+              min-h-[112px]
               w-full
               resize-none
               rounded-2xl
