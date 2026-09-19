@@ -12,17 +12,49 @@ export function HomeStatCard({
   label,
 }: HomeStatCardProps) {
   return (
-    <div className="w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 sm:rounded-3xl sm:p-5">
-      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] sm:h-11 sm:w-11">
+    <div
+      className="
+        w-full min-w-0
+        rounded-[24px]
+        border border-[#173E31]/10
+        bg-[#FBFAF6]
+        p-3 sm:p-5
+        shadow-[0_8px_24px_rgba(23,62,49,0.05)]
+      "
+    >
+      <div className="flex min-w-0 flex-col items-start gap-3">
+        <div
+          className="
+            flex h-10 w-10 shrink-0
+            items-center justify-center
+            rounded-[14px]
+            bg-[#E7EEE8]
+            text-[#184C3A]
+            [&>svg]:h-5 [&>svg]:w-5
+          "
+        >
           {icon}
         </div>
 
         <div className="min-w-0">
-          <p className="text-xl font-bold leading-none sm:text-3xl">
+          <p
+            className="
+              text-2xl font-semibold
+              leading-none text-[#173E31]
+              sm:text-3xl
+            "
+          >
             {value}
           </p>
-          <p className="mt-1 text-[11px] leading-tight text-white/55 sm:text-sm">
+
+          <p
+            className="
+              mt-2
+              text-[11px] leading-tight
+              text-[#718078]
+              sm:text-sm
+            "
+          >
             {label}
           </p>
         </div>

@@ -3,19 +3,24 @@ import type {
   DragEventHandler,
   MouseEventHandler,
 } from "react";
+
 import {
   FolderOpen,
   Upload,
 } from "lucide-react";
+
 import { MAX_MB } from "../utils/importHelpers";
 
 type ImportSourcesProps = {
   busy: boolean;
   isGapiLoaded: boolean;
   isDragOver: boolean;
+
   onFileSelect: ChangeEventHandler<HTMLInputElement>;
   onFolderSelect: ChangeEventHandler<HTMLInputElement>;
+
   onGoogleDrivePicker: () => void | Promise<void>;
+
   onDropzoneClick: MouseEventHandler<HTMLDivElement>;
   onDragEnter: DragEventHandler<HTMLDivElement>;
   onDragLeave: DragEventHandler<HTMLDivElement>;
@@ -43,32 +48,82 @@ export function ImportSources({
   busy,
   isGapiLoaded,
   isDragOver,
+
   onFileSelect,
   onFolderSelect,
   onGoogleDrivePicker,
+
   onDropzoneClick,
   onDragEnter,
   onDragLeave,
   onDrop,
 }: ImportSourcesProps) {
+  const sourceButton =
+    "inline-flex items-center justify-center gap-2 " +
+    "rounded-2xl border border-[#173E31]/10 " +
+    "bg-[#FBFAF6] font-medium text-[#29493E] " +
+    "transition hover:bg-[#E7EEE8] " +
+    "disabled:cursor-not-allowed disabled:opacity-45";
+
   return (
     <>
-      <div className="sm:hidden mt-5 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 p-3 max-w-full overflow-hidden">
-        <div className="text-sm font-semibold text-slate-100">
-          Sources
+      {/* MOBILE */}
+      <div
+        className="
+          mt-6
+          max-w-full
+          overflow-hidden
+          rounded-[26px]
+          border border-[#173E31]/10
+          bg-[#FBFAF6]
+          p-4
+          shadow-[0_8px_24px_rgba(23,62,49,0.04)]
+          sm:hidden
+        "
+      >
+        <div>
+          <p
+            className="
+              text-[11px]
+              font-semibold
+              uppercase
+              tracking-[0.16em]
+              text-[#A8833E]
+            "
+          >
+            Ajouter
+          </p>
+
+          <h2
+            className="
+              mt-1
+              font-serif
+              text-xl
+              font-semibold
+              text-[#173E31]
+            "
+          >
+            Sources
+          </h2>
+
+          <p className="mt-1 text-xs text-[#718078]">
+            Tous formats · Max {MAX_MB} MB/fichier
+          </p>
         </div>
 
-        <div className="text-xs text-slate-400 mt-1">
-          Tous formats • Max {MAX_MB} MB/fichier
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2">
           <label
             htmlFor="ai-file-input-mobile"
             className="cursor-pointer"
           >
-            <span className="w-full inline-flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition">
-              <Upload className="w-5 h-5 text-amber-300" />
+            <span
+              className={`
+                ${sourceButton}
+                h-12 w-full
+                text-sm
+              `}
+            >
+              <Upload className="h-5 w-5 text-[#A8833E]" />
               Mes fichiers
             </span>
 
@@ -87,33 +142,84 @@ export function ImportSources({
             type="button"
             onClick={onGoogleDrivePicker}
             disabled={!isGapiLoaded || busy}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold bg-[#4285F4] text-white ring-1 ring-[#4285F4]/40 hover:bg-[#357ae8] hover:ring-[#4285F4]/70 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`
+              ${sourceButton}
+              h-12 w-full
+              text-sm
+            `}
           >
-            <GoogleDriveIcon className="w-5 h-5" />
+            <GoogleDriveIcon className="h-5 w-5 text-[#4285F4]" />
             Drive
           </button>
         </div>
       </div>
 
-      <div className="mt-5 hidden sm:block rounded-2xl bg-white/[0.05] ring-1 ring-white/10 px-4 py-4 max-w-full overflow-hidden">
-        <div className="flex items-start sm:items-center justify-between gap-3 max-w-full">
+      {/* DESKTOP */}
+      <div
+        className="
+          mt-6
+          hidden
+          max-w-full
+          overflow-hidden
+          rounded-[28px]
+          border border-[#173E31]/10
+          bg-[#FBFAF6]
+          p-5
+          shadow-[0_8px_24px_rgba(23,62,49,0.04)]
+          sm:block
+        "
+      >
+        <div
+          className="
+            flex max-w-full
+            items-start
+            justify-between
+            gap-4
+          "
+        >
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-100">
-              Sources
-            </div>
+            <p
+              className="
+                text-[11px]
+                font-semibold
+                uppercase
+                tracking-[0.16em]
+                text-[#A8833E]
+              "
+            >
+              Ajouter
+            </p>
 
-            <div className="text-xs text-slate-400 mt-1">
-              Tous formats • Max {MAX_MB} MB/fichier
-            </div>
+            <h2
+              className="
+                mt-1
+                font-serif
+                text-xl
+                font-semibold
+                text-[#173E31]
+              "
+            >
+              Sources
+            </h2>
+
+            <p className="mt-1 text-xs text-[#718078]">
+              Tous formats · Max {MAX_MB} MB/fichier
+            </p>
           </div>
 
-          <div className="flex gap-2 items-center shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
             <label
               htmlFor="ai-file-input-desktop"
               className="cursor-pointer"
             >
-              <span className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition">
-                <Upload className="w-4 h-4 text-amber-300" />
+              <span
+                className={`
+                  ${sourceButton}
+                  px-3 py-2
+                  text-xs
+                `}
+              >
+                <Upload className="h-4 w-4 text-[#A8833E]" />
                 Mes fichiers
               </span>
 
@@ -136,9 +242,13 @@ export function ImportSources({
                   ?.click()
               }
               disabled={busy}
-              className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`
+                ${sourceButton}
+                px-3 py-2
+                text-xs
+              `}
             >
-              <FolderOpen className="w-4 h-4 text-amber-300" />
+              <FolderOpen className="h-4 w-4 text-[#A8833E]" />
               Dossier
             </button>
 
@@ -158,14 +268,19 @@ export function ImportSources({
               type="button"
               onClick={onGoogleDrivePicker}
               disabled={!isGapiLoaded || busy}
-              className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-[#4285F4] text-white ring-1 ring-[#4285F4]/40 hover:bg-[#357ae8] hover:ring-[#4285F4]/70 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`
+                ${sourceButton}
+                px-3 py-2
+                text-xs
+              `}
             >
-              <GoogleDriveIcon className="w-4 h-4" />
+              <GoogleDriveIcon className="h-4 w-4 text-[#4285F4]" />
               Drive
             </button>
           </div>
         </div>
 
+        {/* DROPZONE */}
         <div
           role="button"
           tabIndex={0}
@@ -175,32 +290,61 @@ export function ImportSources({
           onDragLeave={onDragLeave}
           onDrop={onDrop}
           className={[
-            "mt-3 rounded-xl border border-dashed px-4 py-3 transition",
+            "mt-5 rounded-[22px] border border-dashed px-5 py-6 transition-all",
             isDragOver
-              ? "border-amber-400/60 bg-black/10"
-              : "border-white/15 hover:border-white/25",
+              ? "border-[#C7A45D]/70 bg-[#C7A45D]/10"
+              : "border-[#173E31]/15 bg-[#F7F5EF] hover:border-[#173E31]/25 hover:bg-[#F2F3EC]",
             busy
-              ? "opacity-60 pointer-events-none"
+              ? "pointer-events-none opacity-60"
               : "cursor-pointer",
           ].join(" ")}
         >
-          <div className="flex items-center justify-between gap-3 max-w-full">
-            <div className="flex items-center gap-2 min-w-0">
-              <Upload className="w-4 h-4 text-amber-300 shrink-0" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className="
+                  grid h-11 w-11
+                  shrink-0
+                  place-items-center
+                  rounded-2xl
+                  bg-[#E7EEE8]
+                  text-[#184C3A]
+                "
+              >
+                <Upload className="h-5 w-5" />
+              </div>
 
               <div className="min-w-0">
-                <div className="text-xs text-slate-200/90 truncate">
-                  Glisse-dépose des fichiers ici, ou clique
-                  pour choisir
+                <div
+                  className="
+                    truncate
+                    text-sm
+                    font-semibold
+                    text-[#29493E]
+                  "
+                >
+                  Glisse-dépose tes fichiers ici
                 </div>
 
-                <div className="text-[11px] text-slate-400 truncate">
-                  Import IA en file (un par un)
+                <div className="mt-1 truncate text-xs text-[#718078]">
+                  Ou clique pour choisir · traitement
+                  automatique un par un
                 </div>
               </div>
             </div>
 
-            <span className="text-[11px] px-2 py-1 rounded-lg bg-white/5 text-slate-200 border border-white/10 shrink-0">
+            <span
+              className="
+                hidden shrink-0
+                rounded-full
+                bg-[#E7EEE8]
+                px-3 py-2
+                text-xs
+                font-semibold
+                text-[#184C3A]
+                md:inline-flex
+              "
+            >
               Ajouter
             </span>
           </div>

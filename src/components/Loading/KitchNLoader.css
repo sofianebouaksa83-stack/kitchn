@@ -1,5 +1,6 @@
 /* =========================================================
    KITCH'N LOADER
+   Nouvelle DA
    ========================================================= */
 
 .kitchn-loader {
@@ -18,16 +19,16 @@
 
   background:
     radial-gradient(
-      circle at 50% 45%,
-      rgba(232, 188, 89, 0.1),
-      transparent 34%
+      circle at 50% 43%,
+      rgba(199, 164, 93, 0.11),
+      transparent 25%
     ),
-    linear-gradient(
-      145deg,
-      #070b16 0%,
-      #0b1020 52%,
-      #101a31 100%
-    );
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(231, 238, 232, 0.82),
+      transparent 46%
+    ),
+    #f3f0e8;
 }
 
 
@@ -43,31 +44,39 @@
 
   z-index: -2;
 
-  opacity: 0.22;
+  opacity: 0.42;
 
   background-image:
     linear-gradient(
-      rgba(255, 255, 255, 0.018) 1px,
+      rgba(23, 62, 49, 0.018) 1px,
       transparent 1px
     ),
     linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.018) 1px,
+      rgba(23, 62, 49, 0.018) 1px,
       transparent 1px
     );
 
   background-size: 44px 44px;
 
   -webkit-mask-image:
-    radial-gradient(circle at center, black, transparent 68%);
+    radial-gradient(
+      circle at center,
+      black,
+      transparent 68%
+    );
 
   mask-image:
-    radial-gradient(circle at center, black, transparent 68%);
+    radial-gradient(
+      circle at center,
+      black,
+      transparent 68%
+    );
 }
 
 
 /* =========================================================
-   HALO DORÉ
+   HALO
    ========================================================= */
 
 .kitchn-loader__ambient {
@@ -79,15 +88,22 @@
   z-index: -1;
 
   width: min(74vw, 34rem);
-  height: min(40vw, 17rem);
+  height: min(42vw, 18rem);
 
   border-radius: 50%;
 
-  background: rgba(225, 174, 54, 0.11);
+  background:
+    radial-gradient(
+      circle,
+      rgba(199, 164, 93, 0.13) 0%,
+      rgba(231, 238, 232, 0.36) 48%,
+      transparent 72%
+    );
 
-  filter: blur(64px);
+  filter: blur(52px);
 
-  transform: translate(-50%, -50%);
+  transform:
+    translate(-50%, -50%);
 
   animation:
     kitchn-ambient-breathe
@@ -108,7 +124,7 @@
   align-items: center;
   justify-content: center;
 
-  gap: 1.1rem;
+  gap: 1.15rem;
 
   animation:
     kitchn-content-in
@@ -131,16 +147,15 @@
 
   filter:
     drop-shadow(
-      0 16px 34px
-      rgba(0, 0, 0, 0.3)
+      0 14px 28px
+      rgba(168, 131, 62, 0.13)
     );
 }
 
 
 /*
-  Toutes les images utilisent exactement
-  la même surface afin de parfaitement
-  se superposer.
+  Toutes les images conservent
+  exactement le même canevas.
 */
 
 .kitchn-loader__hat img {
@@ -156,7 +171,6 @@
   object-fit: contain;
 
   user-select: none;
-
   pointer-events: none;
 }
 
@@ -170,7 +184,8 @@
 
   opacity: 0;
 
-  transform: scale(0.96);
+  transform:
+    scale(0.96);
 
   animation:
     kitchn-hat-in
@@ -186,14 +201,23 @@
 
 .kitchn-loader__wave {
   z-index: 2;
+
   opacity: 0;
 
-  transform: translateY(3px);
+  /*
+    IMPORTANT :
+    aucun translateY ici.
+
+    Les PNG sont déjà positionnés
+    sur le même canevas que la toque.
+  */
+  transform:
+    translateY(0);
 
   filter:
     drop-shadow(
-      0 0 7px
-      rgba(232, 188, 89, 0.16)
+      0 0 6px
+      rgba(199, 164, 93, 0.16)
     );
 
   animation-duration: 2s;
@@ -203,32 +227,32 @@
 
 
 /* gauche */
+
 .kitchn-loader__wave--left {
-  animation-name: kitchn-wave-left;
+  animation-name:
+    kitchn-wave-left;
 }
 
 
 /* centre */
+
 .kitchn-loader__wave--center {
-  animation-name: kitchn-wave-center;
+  animation-name:
+    kitchn-wave-center;
 }
 
 
 /* droite */
+
 .kitchn-loader__wave--right {
-  animation-name: kitchn-wave-right;
+  animation-name:
+    kitchn-wave-right;
 }
+
 
 /* =========================================================
    TOQUE COMPLÈTE
    ========================================================= */
-
-/*
-  On la garde cachée pendant l'animation.
-
-  Elle sert surtout comme fallback lorsque
-  l'utilisateur désactive les animations.
-*/
 
 .kitchn-loader__hat-complete {
   z-index: 3;
@@ -238,11 +262,11 @@
 
 
 /* =========================================================
-   KITCH'N
+   WORDMARK
    ========================================================= */
 
 .kitchn-loader__wordmark {
-  color: #e8bc59;
+  color: #173e31;
 
   font-family:
     Inter,
@@ -252,13 +276,14 @@
     "Segoe UI",
     sans-serif;
 
-  font-size: clamp(
-    1.25rem,
-    3vw,
-    1.75rem
-  );
+  font-size:
+    clamp(
+      1.25rem,
+      3vw,
+      1.75rem
+    );
 
-  font-weight: 500;
+  font-weight: 600;
 
   line-height: 1;
 
@@ -271,11 +296,8 @@
   transform:
     translateY(7px);
 
-  filter: blur(4px);
-
-  text-shadow:
-    0 6px 22px
-    rgba(232, 188, 89, 0.08);
+  filter:
+    blur(4px);
 
   animation:
     kitchn-wordmark-in
@@ -293,6 +315,7 @@
 @keyframes kitchn-content-in {
   from {
     opacity: 0;
+
     transform:
       translateY(8px)
       scale(0.985);
@@ -300,6 +323,7 @@
 
   to {
     opacity: 1;
+
     transform:
       translateY(0)
       scale(1);
@@ -330,29 +354,61 @@
 }
 
 
-@keyframes kitchn-wave-grow {
-  0% {
+/*
+  Apparition successive :
+  gauche → centre → droite
+*/
+
+@keyframes kitchn-wave-left {
+  0%,
+  10% {
     opacity: 0;
-
-    clip-path:
-      inset(100% 0 0 0);
-
-    transform:
-      translateY(4px);
   }
 
-  25% {
+  18%,
+  65% {
     opacity: 1;
   }
 
+  75%,
   100% {
+    opacity: 0;
+  }
+}
+
+
+@keyframes kitchn-wave-center {
+  0%,
+  20% {
+    opacity: 0;
+  }
+
+  28%,
+  65% {
     opacity: 1;
+  }
 
-    clip-path:
-      inset(0 0 0 0);
+  75%,
+  100% {
+    opacity: 0;
+  }
+}
 
-    transform:
-      translateY(0);
+
+@keyframes kitchn-wave-right {
+  0%,
+  30% {
+    opacity: 0;
+  }
+
+  38%,
+  65% {
+    opacity: 1;
+  }
+
+  75%,
+  100% {
+    opacity: 0;
   }
 }
 
@@ -399,56 +455,6 @@
   }
 }
 
-@keyframes kitchn-wave-left {
-  0%,
-  10% {
-    opacity: 0;
-  }
-
-  18%,
-  65% {
-    opacity: 1;
-  }
-
-  75%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes kitchn-wave-center {
-  0%,
-  20% {
-    opacity: 0;
-  }
-
-  28%,
-  65% {
-    opacity: 1;
-  }
-
-  75%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes kitchn-wave-right {
-  0%,
-  30% {
-    opacity: 0;
-  }
-
-  38%,
-  65% {
-    opacity: 1;
-  }
-
-  75%,
-  100% {
-    opacity: 0;
-  }
-}
 
 /* =========================================================
    MINI
@@ -469,22 +475,26 @@
 
 
 .kitchn-loader--mini::before,
-.kitchn-loader--mini .kitchn-loader__ambient {
+.kitchn-loader--mini
+  .kitchn-loader__ambient {
   display: none;
 }
 
 
-.kitchn-loader--mini .kitchn-loader__content {
+.kitchn-loader--mini
+  .kitchn-loader__content {
   gap: 0;
 }
 
 
-.kitchn-loader--mini .kitchn-loader__hat {
+.kitchn-loader--mini
+  .kitchn-loader__hat {
   width: 1.5rem;
 }
 
 
-.kitchn-loader--mini .kitchn-loader__wordmark {
+.kitchn-loader--mini
+  .kitchn-loader__wordmark {
   display: none;
 }
 
@@ -503,22 +513,26 @@
 
 
 .kitchn-loader--compact::before,
-.kitchn-loader--compact .kitchn-loader__ambient {
+.kitchn-loader--compact
+  .kitchn-loader__ambient {
   display: none;
 }
 
 
-.kitchn-loader--compact .kitchn-loader__hat {
+.kitchn-loader--compact
+  .kitchn-loader__hat {
   width: 3.5rem;
 }
 
 
-.kitchn-loader--compact .kitchn-loader__content {
+.kitchn-loader--compact
+  .kitchn-loader__content {
   gap: 0.65rem;
 }
 
 
-.kitchn-loader--compact .kitchn-loader__wordmark {
+.kitchn-loader--compact
+  .kitchn-loader__wordmark {
   font-size: 0.8rem;
 
   letter-spacing: 0.16em;
@@ -540,7 +554,12 @@
 
   overflow: hidden;
 
-  clip: rect(0, 0, 0, 0);
+  clip: rect(
+    0,
+    0,
+    0,
+    0
+  );
 
   white-space: nowrap;
 
@@ -552,8 +571,10 @@
    REDUCED MOTION
    ========================================================= */
 
-@media (prefers-reduced-motion: reduce) {
-
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
   .kitchn-loader__ambient,
   .kitchn-loader__content,
   .kitchn-loader__hat-base,
@@ -562,26 +583,14 @@
     animation: none;
   }
 
-
-  /*
-    On cache les morceaux séparés.
-  */
-
   .kitchn-loader__hat-base,
   .kitchn-loader__wave {
     opacity: 0;
   }
 
-
-  /*
-    Et on affiche directement
-    la toque complète.
-  */
-
   .kitchn-loader__hat-complete {
     opacity: 1;
   }
-
 
   .kitchn-loader__wordmark {
     opacity: 1;
@@ -592,19 +601,25 @@
   }
 }
 
+
 /* =========================================================
    PREVIEW PAGE
    ========================================================= */
 
 .kitchn-loader.kitchn-loader--preview {
   min-height: 420px;
+
   width: 100%;
 }
 
-.kitchn-loader--preview .kitchn-loader__hat {
+
+.kitchn-loader--preview
+  .kitchn-loader__hat {
   width: 10rem;
 }
 
-.kitchn-loader--preview .kitchn-loader__wordmark {
+
+.kitchn-loader--preview
+  .kitchn-loader__wordmark {
   font-size: 1.6rem;
 }

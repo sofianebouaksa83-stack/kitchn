@@ -1,10 +1,16 @@
 export const surfaces = {
   glassPanel:
-    "bg-slate-900/60 backdrop-blur-sm border border-slate-800/80 ring-1 ring-white/5 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.45)]",
+    "bg-[#FBFAF6] border border-[#173E31]/10 rounded-[28px] " +
+    "shadow-[0_12px_35px_rgba(23,62,49,0.06)]",
 
   card:
-    "bg-slate-900/60 backdrop-blur-sm border border-slate-800/80 ring-1 ring-white/5 rounded-xl shadow-[0_16px_50px_rgba(0,0,0,0.35)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_60px_rgba(0,0,0,0.45)] hover:border-slate-700/80",
+    "bg-[#FBFAF6] border border-[#173E31]/10 rounded-2xl " +
+    "shadow-[0_10px_30px_rgba(23,62,49,0.05)] " +
+    "transition-all duration-200 " +
+    "hover:-translate-y-0.5 hover:border-[#173E31]/20 " +
+    "hover:shadow-[0_14px_35px_rgba(23,62,49,0.08)]",
 
   cardSoft:
-    "bg-slate-900/40 backdrop-blur-sm border border-slate-800/70 ring-1 ring-white/5 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]",
+    "bg-[#E7EEE8] border border-[#173E31]/8 rounded-2xl " +
+    "shadow-[0_8px_24px_rgba(23,62,49,0.04)]",
 };

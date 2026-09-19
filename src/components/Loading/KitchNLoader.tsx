@@ -22,7 +22,7 @@ export function KitchNLoader({ className = "" }: KitchNLoaderProps) {
           {/* Toque sans les 3 traits */}
           <img
             className="kitchn-loader__hat-base"
-            src="/toque_sans_wave.png"
+            src="/logo_kitchn_toque_sans_fond_vide.png"
             alt=""
             draggable={false}
           />
@@ -30,7 +30,7 @@ export function KitchNLoader({ className = "" }: KitchNLoaderProps) {
           {/* Trait gauche */}
           <img
             className="kitchn-loader__wave kitchn-loader__wave--left"
-            src="/toque_wave_1.png"
+            src="/logo_kitchn_toque_trait_1.png"
             alt=""
             draggable={false}
           />
@@ -38,7 +38,7 @@ export function KitchNLoader({ className = "" }: KitchNLoaderProps) {
           {/* Trait central */}
           <img
             className="kitchn-loader__wave kitchn-loader__wave--center"
-            src="/toque_wave_2.png"
+            src="/logo_kitchn_toque_trait_2.png"
             alt=""
             draggable={false}
           />
@@ -46,7 +46,7 @@ export function KitchNLoader({ className = "" }: KitchNLoaderProps) {
           {/* Trait droit */}
           <img
             className="kitchn-loader__wave kitchn-loader__wave--right"
-            src="/toque_wave_3.png"
+            src="/logo_kitchn_toque_trait_3.png"
             alt=""
             draggable={false}
           />
@@ -57,7 +57,7 @@ export function KitchNLoader({ className = "" }: KitchNLoaderProps) {
           */}
           <img
             className="kitchn-loader__hat-complete"
-            src="/toque_entier.png"
+            src="/logo_kitchn_toque_sans_fond.png"
             alt=""
             draggable={false}
           />

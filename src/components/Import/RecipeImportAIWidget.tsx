@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+
 import {
   AlertCircle,
   ArrowRight,
@@ -11,12 +12,15 @@ import {
   Upload,
   X,
 } from "lucide-react";
+
 import { useAiImportProcessor } from "../../features/import/hooks/useAiImportProcessor";
 import { useAiImportQuota } from "../../features/import/hooks/useAiImportQuota";
 import { useGoogleDriveImport } from "../../features/import/hooks/useGoogleDriveImport";
 import { useImportFileSelection } from "../../features/import/hooks/useImportFileSelection";
 import { useImportQueue } from "../../features/import/hooks/useImportQueue";
+
 import type { ImportStatus } from "../../features/import/types/import.types";
+
 import {
   clamp,
   MAX_MB,
@@ -34,15 +38,15 @@ const FOLDER_INPUT_ID = "ai-widget-folder-input";
 const WIDGET_DRIVE_MESSAGES = {
   notLoaded:
     "Les APIs Google ne sont pas encore chargées. Réessaie dans quelques secondes.",
+
   missingConfig:
     "⚠️ Configuration Google Drive manquante. Vérifie VITE_GOOGLE_API_KEY et VITE_GOOGLE_CLIENT_ID dans le .env.",
+
   defaultConfig:
     "⚠️ Remplace les valeurs par défaut dans le .env avec tes vraies clés Google.",
 };
 
-function formatWidgetSuccessMessage(
-  title: string
-) {
+function formatWidgetSuccessMessage(title: string) {
   return `Recette "${title}" créée`;
 }
 
@@ -53,7 +57,9 @@ export function RecipeImportAIWidget({
 
   const [status, setStatus] =
     useState<ImportStatus>("idle");
-  const [message, setMessage] = useState("");
+
+  const [message, setMessage] =
+    useState("");
 
   const busy =
     status === "uploading" ||
@@ -103,80 +109,150 @@ export function RecipeImportAIWidget({
     messages: WIDGET_DRIVE_MESSAGES,
   });
 
-  const { processQueue } = useAiImportProcessor({
-    user,
-    queueRef,
-    setQueue,
-    loadQuota,
-    refreshQuota,
-    setStatus,
-    setMessage,
-    processErrorItems: false,
-    unauthenticatedMessage:
-      "Connecte-toi pour utiliser l'import IA.",
-    formatSuccessMessage:
-      formatWidgetSuccessMessage,
-    openAiKeyErrorMessage:
-      "⚠️ Clé OpenAI non configurée. Configure OPENAI_API_KEY dans les secrets Supabase.",
-  });
+  const { processQueue } =
+    useAiImportProcessor({
+      user,
+      queueRef,
+      setQueue,
+      loadQuota,
+      refreshQuota,
+      setStatus,
+      setMessage,
 
-  const hasPendingImports = queue.some(
-    (item) => item.status === "idle"
-  );
+      processErrorItems: false,
+
+      unauthenticatedMessage:
+        "Connecte-toi pour utiliser l'import IA.",
+
+      formatSuccessMessage:
+        formatWidgetSuccessMessage,
+
+      openAiKeyErrorMessage:
+        "⚠️ Clé OpenAI non configurée. Configure OPENAI_API_KEY dans les secrets Supabase.",
+    });
+
+  const hasPendingImports =
+    queue.some(
+      (item) => item.status === "idle",
+    );
 
   const canAnalyze =
     hasPendingImports &&
-    (quota?.plan === "premium" ||
+    (
+      quota?.plan === "premium" ||
       quota == null ||
-      quota.can_import);
+      quota.can_import
+    );
 
-  const canClear = queue.some(
-    (item) => item.status === "success"
-  );
+  const canClear =
+    queue.some(
+      (item) => item.status === "success",
+    );
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04]">
-      <div className="flex items-start justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-5">
+    <section
+      className="
+        overflow-hidden
+        rounded-[30px]
+        border border-[#173E31]/10
+        bg-[#FBFAF6]
+        shadow-[0_12px_35px_rgba(23,62,49,0.06)]
+      "
+    >
+      {/* HEADER */}
+      <div
+        className="
+          flex items-start justify-between
+          gap-4
+          border-b border-[#173E31]/8
+          px-4 py-4
+          sm:px-6 sm:py-5
+        "
+      >
         <div className="flex min-w-0 items-start gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#D4AF37]/15 text-[#D4AF37] ring-1 ring-[#D4AF37]/20">
+          {/* ICON */}
+          <div
+            className="
+              grid h-11 w-11
+              shrink-0 place-items-center
+              rounded-2xl
+              bg-[#C7A45D]/12
+              text-[#A8833E]
+              ring-1 ring-[#C7A45D]/20
+            "
+          >
             <Sparkles className="h-5 w-5" />
           </div>
 
           <div className="min-w-0">
-            <p className="text-sm font-medium text-[#D4AF37]">
+            <p
+              className="
+                text-xs font-semibold
+                uppercase
+                tracking-[0.16em]
+                text-[#A8833E]
+              "
+            >
               Import IA
             </p>
 
-            <h3 className="truncate text-lg font-semibold text-white">
+            <h3
+              className="
+                mt-1
+                font-serif
+                text-xl font-semibold
+                text-[#173E31]
+              "
+            >
               Importer une recette
             </h3>
 
-            <div className="mt-1 text-xs text-white/55">
+            <div
+              className="
+                mt-1
+                text-xs
+                text-[#718078]
+              "
+            >
               {quotaLoading ? (
                 <span>
                   Chargement du quota…
                 </span>
               ) : quota ? (
                 quota.plan === "premium" ? (
-                  <span className="text-emerald-300">
+                  <span
+                    className="
+                      font-medium
+                      text-[#3D8060]
+                    "
+                  >
                     Premium • imports illimités
                   </span>
                 ) : quota.can_import ? (
                   <span>
-                    <span className="font-semibold text-white">
+                    <span
+                      className="
+                        font-semibold
+                        text-[#173E31]
+                      "
+                    >
                       {quota.remaining}
                     </span>{" "}
                     imports IA restants
                   </span>
                 ) : (
-                  <span className="font-medium text-amber-300">
+                  <span
+                    className="
+                      font-medium
+                      text-[#A8833E]
+                    "
+                  >
                     Limite atteinte
                   </span>
                 )
               ) : (
                 <span>
-                  Dépose un PDF, une photo ou un
-                  fichier.
+                  PDF, photo ou fichier
                 </span>
               )}
             </div>
@@ -187,22 +263,69 @@ export function RecipeImportAIWidget({
           <button
             type="button"
             onClick={onOpenFull}
-            className="hidden shrink-0 items-center gap-2 rounded-full border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-3 py-2 text-xs font-semibold text-[#D4AF37] transition hover:bg-[#D4AF37]/15 sm:inline-flex"
+            className="
+              hidden shrink-0
+              items-center gap-2
+              rounded-full
+              border border-[#C7A45D]/25
+              bg-[#C7A45D]/10
+              px-4 py-2
+              text-xs font-semibold
+              text-[#8B6C32]
+              transition
+              hover:bg-[#C7A45D]/16
+              sm:inline-flex
+            "
           >
             Page complète
+
             <ArrowRight className="h-4 w-4" />
           </button>
         ) : null}
       </div>
 
-      <div className="space-y-4 p-4 sm:p-5">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {/* BODY */}
+      <div
+        className="
+          space-y-4
+          p-4 sm:p-6
+        "
+      >
+        {/* ACTION BUTTONS */}
+        <div
+          className="
+            grid grid-cols-2 gap-2
+            sm:grid-cols-4
+          "
+        >
+          {/* FILES */}
           <label
             htmlFor={FILE_INPUT_ID}
             className="cursor-pointer"
           >
-            <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-3 text-sm font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/10">
-              <Upload className="h-4 w-4 text-[#D4AF37]" />
+            <span
+              className="
+                inline-flex w-full
+                items-center justify-center
+                gap-2
+                rounded-2xl
+                border border-[#173E31]/10
+                bg-[#F3F0E8]
+                px-3 py-3
+                text-sm font-semibold
+                text-[#29493E]
+                transition
+                hover:bg-[#E7EEE8]
+                hover:border-[#173E31]/15
+              "
+            >
+              <Upload
+                className="
+                  h-4 w-4
+                  text-[#A8833E]
+                "
+              />
+
               Fichiers
             </span>
 
@@ -217,19 +340,41 @@ export function RecipeImportAIWidget({
             />
           </label>
 
+          {/* FOLDER */}
           <button
             type="button"
             onClick={() =>
               document
                 .getElementById(
-                  FOLDER_INPUT_ID
+                  FOLDER_INPUT_ID,
                 )
                 ?.click()
             }
             disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-3 text-sm font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="
+              inline-flex
+              items-center justify-center
+              gap-2
+              rounded-2xl
+              border border-[#173E31]/10
+              bg-[#F3F0E8]
+              px-3 py-3
+              text-sm font-semibold
+              text-[#29493E]
+              transition
+              hover:bg-[#E7EEE8]
+              hover:border-[#173E31]/15
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+            "
           >
-            <FolderOpen className="h-4 w-4 text-[#D4AF37]" />
+            <FolderOpen
+              className="
+                h-4 w-4
+                text-[#A8833E]
+              "
+            />
+
             Dossier
           </button>
 
@@ -245,11 +390,26 @@ export function RecipeImportAIWidget({
             disabled={busy}
           />
 
+          {/* GOOGLE DRIVE */}
           <button
             type="button"
             onClick={handleGoogleDrivePicker}
             disabled={!isGapiLoaded || busy}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4285F4] px-3 py-3 text-sm font-semibold text-white ring-1 ring-[#4285F4]/40 transition hover:bg-[#357ae8] disabled:cursor-not-allowed disabled:opacity-50"
+            className="
+              inline-flex
+              items-center justify-center
+              gap-2
+              rounded-2xl
+              border border-[#173E31]/10
+              bg-[#E7EEE8]
+              px-3 py-3
+              text-sm font-semibold
+              text-[#184C3A]
+              transition
+              hover:bg-[#DDE8DF]
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+            "
           >
             <svg
               className="h-4 w-4"
@@ -259,25 +419,51 @@ export function RecipeImportAIWidget({
             >
               <path d="M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 110-12.064c1.498 0 2.866.549 3.921 1.453l2.814-2.814A9.969 9.969 0 0012.545 2C7.021 2 2.543 6.477 2.543 12s4.478 10 10.002 10c8.396 0 10.249-7.85 9.426-11.748l-9.426-.013z" />
             </svg>
+
             Drive
           </button>
 
+          {/* ANALYSE */}
           <button
             type="button"
             onClick={processQueue}
             disabled={busy || !canAnalyze}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#D4AF37] px-3 py-3 text-sm font-bold text-[#101827] ring-1 ring-[#D4AF37]/40 transition hover:bg-[#e5c451] disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-white/40 disabled:ring-white/10"
+            className="
+              inline-flex
+              items-center justify-center
+              gap-2
+              rounded-2xl
+              bg-[#DDAE9D]
+              px-3 py-3
+              text-sm font-bold
+              text-[#173E31]
+              ring-1 ring-[#DDAE9D]
+              transition
+              hover:bg-[#D5A18E]
+              disabled:cursor-not-allowed
+              disabled:bg-[#E9E7E0]
+              disabled:text-[#9AA49F]
+              disabled:ring-[#173E31]/5
+            "
           >
             {busy ? (
-              <Loader className="h-4 w-4 animate-spin" />
+              <Loader
+                className="
+                  h-4 w-4
+                  animate-spin
+                "
+              />
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
 
-            {busy ? "Analyse…" : "Analyser"}
+            {busy
+              ? "Analyse…"
+              : "Analyser"}
           </button>
         </div>
 
+        {/* DROP ZONE DESKTOP */}
         <div
           role="button"
           tabIndex={0}
@@ -290,7 +476,9 @@ export function RecipeImportAIWidget({
               event.preventDefault();
 
               document
-                .getElementById(FILE_INPUT_ID)
+                .getElementById(
+                  FILE_INPUT_ID,
+                )
                 ?.click();
             }
           }}
@@ -299,136 +487,320 @@ export function RecipeImportAIWidget({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={[
-            "hidden rounded-2xl border border-dashed px-4 py-4 transition sm:block",
+            "hidden rounded-[22px] border border-dashed px-4 py-4 transition sm:block",
+
             isDragOver
-              ? "border-[#D4AF37]/60 bg-[#D4AF37]/10"
-              : "border-white/15 bg-black/10 hover:border-white/25",
+              ? [
+                  "border-[#C7A45D]/60",
+                  "bg-[#C7A45D]/10",
+                ].join(" ")
+              : [
+                  "border-[#173E31]/15",
+                  "bg-[#F7F5EF]",
+                  "hover:border-[#173E31]/25",
+                  "hover:bg-[#F0F2EC]",
+                ].join(" "),
+
             busy
               ? "pointer-events-none opacity-60"
               : "cursor-pointer",
           ].join(" ")}
         >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5 text-[#D4AF37] ring-1 ring-white/10">
+          <div
+            className="
+              flex items-center
+              justify-between
+              gap-3
+            "
+          >
+            <div
+              className="
+                flex min-w-0
+                items-center gap-3
+              "
+            >
+              <div
+                className="
+                  grid h-10 w-10
+                  shrink-0 place-items-center
+                  rounded-xl
+                  bg-[#E7EEE8]
+                  text-[#184C3A]
+                  ring-1
+                  ring-[#173E31]/8
+                "
+              >
                 <Upload className="h-5 w-5" />
               </div>
 
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">
-                  Glisse-dépose tes fichiers ici
+                <p
+                  className="
+                    truncate
+                    text-sm font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Glissez-déposez vos fichiers ici
                 </p>
 
-                <p className="truncate text-xs text-white/45">
-                  Tous formats • Max {MAX_MB}{" "}
-                  MB/fichier
+                <p
+                  className="
+                    truncate
+                    text-xs
+                    text-[#7A8981]
+                  "
+                >
+                  Tous formats • Max{" "}
+                  {MAX_MB} MB/fichier
                 </p>
               </div>
             </div>
 
-            <span className="hidden shrink-0 rounded-lg bg-white/5 px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/10 sm:inline-flex">
+            <span
+              className="
+                hidden shrink-0
+                rounded-xl
+                border border-[#173E31]/8
+                bg-[#FBFAF6]
+                px-3 py-2
+                text-xs font-semibold
+                text-[#557064]
+                sm:inline-flex
+              "
+            >
               Ajouter
             </span>
           </div>
         </div>
 
+        {/* QUEUE */}
         {queue.length > 0 ? (
-          <div className="rounded-2xl bg-white/[0.05] ring-1 ring-white/10">
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <div
+            className="
+              overflow-hidden
+              rounded-[22px]
+              border border-[#173E31]/10
+              bg-[#F7F5EF]
+            "
+          >
+            {/* QUEUE HEADER */}
+            <div
+              className="
+                flex items-center
+                justify-between
+                gap-3
+                border-b border-[#173E31]/8
+                px-4 py-3
+              "
+            >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">
+                <p
+                  className="
+                    text-sm font-semibold
+                    text-[#173E31]
+                  "
+                >
                   File d'import
                 </p>
 
-                <p className="text-xs text-white/45">
-                  {overall.done}/{overall.total}{" "}
-                  terminé(s) • {overall.pct}%
+                <p
+                  className="
+                    text-xs
+                    text-[#7A8981]
+                  "
+                >
+                  {overall.done}/
+                  {overall.total}{" "}
+                  terminé(s) •{" "}
+                  {overall.pct}%
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={clearDone}
-                disabled={busy || !canClear}
-                className="shrink-0 rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={
+                  busy ||
+                  !canClear
+                }
+                className="
+                  shrink-0
+                  rounded-xl
+                  border border-[#173E31]/8
+                  bg-[#FBFAF6]
+                  px-3 py-2
+                  text-xs font-semibold
+                  text-[#557064]
+                  transition
+                  hover:bg-[#E7EEE8]
+                  disabled:cursor-not-allowed
+                  disabled:opacity-40
+                "
               >
                 Nettoyer
               </button>
             </div>
 
-            <div className="h-1.5 bg-black/20">
+            {/* GLOBAL PROGRESS */}
+            <div className="h-1.5 bg-[#DFE4DE]">
               <div
-                className="h-full rounded-full bg-[#D4AF37] transition-all"
+                className="
+                  h-full
+                  rounded-full
+                  bg-[#C7A45D]
+                  transition-all
+                "
                 style={{
                   width: `${clamp(
                     overall.pct,
                     0,
-                    100
+                    100,
                   )}%`,
                 }}
               />
             </div>
 
-            <div className="max-h-[230px] divide-y divide-white/10 overflow-y-auto">
+            {/* QUEUE ITEMS */}
+            <div
+              className="
+                max-h-[230px]
+                divide-y
+                divide-[#173E31]/8
+                overflow-y-auto
+              "
+            >
               {queue.map((item) => (
                 <div
                   key={item.id}
-                  className="flex min-w-0 items-start gap-3 px-4 py-3"
+                  className="
+                    flex min-w-0
+                    items-start gap-3
+                    px-4 py-3
+                  "
                 >
-                  <div className="mt-0.5 shrink-0 text-[#D4AF37]">
+                  {/* FILE STATUS ICON */}
+                  <div
+                    className="
+                      mt-0.5
+                      shrink-0
+                      text-[#A8833E]
+                    "
+                  >
                     {item.status ===
                     "success" ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-300" />
+                      <CheckCircle
+                        className="
+                          h-4 w-4
+                          text-[#3D8060]
+                        "
+                      />
                     ) : item.status ===
                       "error" ? (
-                      <AlertCircle className="h-4 w-4 text-red-300" />
+                      <AlertCircle
+                        className="
+                          h-4 w-4
+                          text-[#C05C56]
+                        "
+                      />
                     ) : (
                       <FileText className="h-4 w-4" />
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">
+                    <div
+                      className="
+                        flex min-w-0
+                        items-center gap-2
+                      "
+                    >
+                      <p
+                        className="
+                          min-w-0 flex-1
+                          truncate
+                          text-sm font-medium
+                          text-[#173E31]
+                        "
+                      >
                         {item.relativePath ||
                           item.file.name}
                       </p>
 
                       <span
-                        className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-medium ${statusBadge(
-                          item
-                        )}`}
+                        className={`
+                          shrink-0
+                          rounded-full
+                          border
+                          px-2 py-1
+                          text-[10px]
+                          font-medium
+                          ${statusBadge(item)}
+                        `}
                       >
                         {statusLabel(item)}
                       </span>
                     </div>
 
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/20 ring-1 ring-white/10">
+                    {/* FILE PROGRESS */}
+                    <div
+                      className="
+                        mt-2 h-1.5
+                        overflow-hidden
+                        rounded-full
+                        bg-[#DFE4DE]
+                      "
+                    >
                       <div
-                        className="h-full rounded-full bg-[#D4AF37] transition-all"
+                        className="
+                          h-full
+                          rounded-full
+                          bg-[#C7A45D]
+                          transition-all
+                        "
                         style={{
                           width: `${clamp(
                             item.progress,
                             0,
-                            100
+                            100,
                           )}%`,
                         }}
                       />
                     </div>
 
                     {item.message ? (
-                      <p className="mt-1 line-clamp-2 text-xs text-white/55">
+                      <p
+                        className="
+                          mt-1
+                          line-clamp-2
+                          text-xs
+                          text-[#718078]
+                        "
+                      >
                         {item.message}
                       </p>
                     ) : null}
                   </div>
 
+                  {/* REMOVE */}
                   <button
                     type="button"
                     onClick={() =>
-                      removeItem(item.id)
+                      removeItem(
+                        item.id,
+                      )
                     }
-                    className="shrink-0 rounded-lg bg-white/5 p-2 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+                    className="
+                      shrink-0
+                      rounded-xl
+                      border border-[#173E31]/8
+                      bg-[#FBFAF6]
+                      p-2
+                      text-[#718078]
+                      transition
+                      hover:bg-[#F4E4DF]
+                      hover:text-[#A54C48]
+                    "
                     aria-label="Retirer"
                   >
                     <X className="h-4 w-4" />
@@ -439,27 +811,57 @@ export function RecipeImportAIWidget({
           </div>
         ) : null}
 
+        {/* MESSAGE */}
         {message ? (
           <div
             className={[
               "rounded-2xl border px-4 py-3 text-sm",
+
               status === "error"
-                ? "border-red-500/20 bg-red-500/10 text-red-100"
-                : "border-white/10 bg-white/5 text-white/70",
+                ? [
+                    "border-[#C05C56]/20",
+                    "bg-[#F8EAE7]",
+                    "text-[#9B4944]",
+                  ].join(" ")
+                : [
+                    "border-[#173E31]/10",
+                    "bg-[#E7EEE8]",
+                    "text-[#29493E]",
+                  ].join(" "),
             ].join(" ")}
           >
             {message}
           </div>
         ) : null}
 
+        {/* MOBILE FULL PAGE BUTTON */}
         {onOpenFull ? (
           <button
             type="button"
             onClick={onOpenFull}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.07] sm:hidden"
+            className="
+              inline-flex w-full
+              items-center justify-center
+              gap-2
+              rounded-2xl
+              border border-[#173E31]/10
+              bg-[#F3F0E8]
+              px-4 py-3
+              text-sm font-semibold
+              text-[#29493E]
+              transition
+              hover:bg-[#E7EEE8]
+              sm:hidden
+            "
           >
             Ouvrir la page import complète
-            <ArrowRight className="h-4 w-4 text-[#D4AF37]" />
+
+            <ArrowRight
+              className="
+                h-4 w-4
+                text-[#A8833E]
+              "
+            />
           </button>
         ) : null}
       </div>

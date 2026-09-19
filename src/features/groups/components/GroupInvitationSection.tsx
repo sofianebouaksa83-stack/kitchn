@@ -1,15 +1,28 @@
-import { Loader2, Mail } from "lucide-react";
+import {
+  Loader2,
+  Mail,
+} from "lucide-react";
+
 import type { GroupInvitationState } from "../hooks/useGroupInvitation";
+
 import { GROUP_ROLE_OPTIONS } from "../services/groupInvitationService";
+
 import type { InviteRole } from "../types/groups.types";
 
 type GroupInvitationSectionProps = {
   invitation: GroupInvitationState;
+
   busy: boolean;
+
   isPremium: boolean;
+
   membersLimitReached: boolean;
+
   memberCount: number;
-  entitlements: { maxMembersPerGroup: number };
+
+  entitlements: {
+    maxMembersPerGroup: number;
+  };
 };
 
 export function GroupInvitationSection({
@@ -21,101 +34,279 @@ export function GroupInvitationSection({
   entitlements,
 }: GroupInvitationSectionProps) {
   return (
-    <div className="rounded-2xl bg-black/10 p-4 ring-1 ring-amber-400/15">
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <div
+      className="
+        rounded-[24px]
+        border border-[#173E31]/10
+        bg-[#F7F5EF]
+        p-4
+      "
+    >
+      {/* HEADER */}
+      <div
+        className="
+          mb-4
+          flex items-start
+          justify-between
+          gap-3
+        "
+      >
         <div>
-          <h3 className="font-semibold text-white">
+          <h3
+            className="
+              font-serif
+              text-lg
+              font-semibold
+              text-[#173E31]
+            "
+          >
             Inviter un membre par email
           </h3>
-          <p className="mt-1 text-xs text-slate-400">
-            La personne recevra une invitation pour rejoindre directement ce groupe.
+
+          <p
+            className="
+              mt-1
+              text-xs
+              leading-relaxed
+              text-[#718078]
+            "
+          >
+            La personne recevra une
+            invitation pour rejoindre
+            directement ce groupe.
           </p>
         </div>
-        <div className="rounded-full bg-amber-400/15 p-2 text-amber-200">
+
+        <div
+          className="
+            grid h-10 w-10
+            shrink-0
+            place-items-center
+            rounded-2xl
+            bg-[#C7A45D]/12
+            text-[#A8833E]
+          "
+        >
           <Mail className="h-4 w-4" />
         </div>
       </div>
 
       <div className="space-y-3">
+        {/* EMAIL */}
         <input
-          value={invitation.inviteEmail}
-          onChange={(event) => {
-            invitation.setInviteEmail(event.target.value);
+          value={
+            invitation.inviteEmail
+          }
+          onChange={(
+            event,
+          ) => {
+            invitation.setInviteEmail(
+              event.target.value,
+            );
+
             invitation.clearFeedback();
           }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
+          onKeyDown={(
+            event,
+          ) => {
+            if (
+              event.key === "Enter"
+            ) {
               void invitation.sendInvitation();
             }
           }}
           type="email"
           placeholder="email@exemple.com"
-          className="w-full rounded-2xl border border-white/10 bg-[#10215a]/70 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45 focus:border-amber-400/80 focus:ring-2 focus:ring-amber-400/20"
-          disabled={busy || membersLimitReached}
+          className="
+            h-12 w-full
+            rounded-2xl
+            border border-[#173E31]/10
+            bg-[#FBFAF6]
+            px-4
+            text-sm
+            text-[#173E31]
+            outline-none
+            placeholder:text-[#8B9791]
+            transition
+            focus:border-[#C7A45D]/50
+            focus:ring-2
+            focus:ring-[#C7A45D]/15
+            disabled:opacity-50
+          "
+          disabled={
+            busy ||
+            membersLimitReached
+          }
         />
 
+        {/* ROLE */}
         <select
-          value={invitation.inviteRole}
-          onChange={(event) =>
+          value={
+            invitation.inviteRole
+          }
+          onChange={(
+            event,
+          ) =>
             invitation.setInviteRole(
-              event.target.value as InviteRole
+              event.target
+                .value as InviteRole,
             )
           }
-          className="w-full rounded-2xl border border-white/10 bg-[#10215a]/70 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-amber-400/80 focus:ring-2 focus:ring-amber-400/20"
-          disabled={busy || membersLimitReached}
+          className="
+            h-12 w-full
+            rounded-2xl
+            border border-[#173E31]/10
+            bg-[#FBFAF6]
+            px-4
+            text-sm font-medium
+            text-[#173E31]
+            outline-none
+            transition
+            focus:border-[#C7A45D]/50
+            focus:ring-2
+            focus:ring-[#C7A45D]/15
+            disabled:opacity-50
+          "
+          disabled={
+            busy ||
+            membersLimitReached
+          }
         >
-          {GROUP_ROLE_OPTIONS.map((role) => (
-            <option key={role.value} value={role.value}>
-              {role.label} ({role.helper})
-            </option>
-          ))}
+          {GROUP_ROLE_OPTIONS.map(
+            (role) => (
+              <option
+                key={
+                  role.value
+                }
+                value={
+                  role.value
+                }
+              >
+                {role.label} (
+                {role.helper})
+              </option>
+            ),
+          )}
         </select>
 
+        {/* SEND */}
         <button
           type="button"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-500 px-4 py-3 text-sm font-bold text-[#081335] shadow-lg shadow-orange-500/20 transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-          onClick={() => void invitation.sendInvitation()}
-          disabled={busy || membersLimitReached}
+          className="
+            inline-flex
+            w-full
+            items-center
+            justify-center
+            gap-2
+            rounded-full
+            bg-[#DDAE9D]
+            px-5 py-3
+            text-sm
+            font-semibold
+            text-[#173E31]
+            shadow-[0_8px_20px_rgba(120,73,57,0.08)]
+            transition
+            hover:bg-[#D5A18E]
+            active:scale-[0.98]
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+
+            sm:w-auto
+          "
+          onClick={() =>
+            void invitation.sendInvitation()
+          }
+          disabled={
+            busy ||
+            membersLimitReached
+          }
         >
           {invitation.inviteLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Mail className="h-4 w-4" />
           )}
+
           {invitation.inviteLoading
             ? "Envoi..."
             : "Envoyer l’invitation"}
         </button>
 
-        {!isPremium && (
-          <div className="text-xs text-slate-400">
-            Limite : {entitlements.maxMembersPerGroup} membres par groupe (actuel : {memberCount}).
+        {/* PLAN INFO */}
+        {!isPremium ? (
+          <div className="text-xs text-[#718078]">
+            Limite :{" "}
+            {
+              entitlements.maxMembersPerGroup
+            }{" "}
+            membres par groupe
+            (actuel :{" "}
+            {memberCount}).
+          </div>
+        ) : (
+          <div
+            className="
+              rounded-xl
+              bg-[#E7EEE8]
+              px-3 py-2
+              text-xs font-semibold
+              text-[#184C3A]
+            "
+          >
+            Premium actif : membres et
+            invitations illimités.
           </div>
         )}
 
-        {isPremium && (
-          <div className="text-xs font-semibold text-emerald-300">
-            Premium actif : membres et invitations illimités.
+        {membersLimitReached ? (
+          <div
+            className="
+              rounded-xl
+              bg-[#F5ECD9]
+              px-3 py-2
+              text-xs
+              text-[#8B6C32]
+            "
+          >
+            Limite atteinte. Passe
+            Premium pour ajouter plus
+            de membres.
           </div>
-        )}
+        ) : null}
 
-        {membersLimitReached && (
-          <div className="text-xs text-amber-200">
-            Limite atteinte. Passe Premium pour ajouter plus de membres.
+        {/* SUCCESS */}
+        {invitation.inviteSuccess ? (
+          <div
+            className="
+              rounded-2xl
+              bg-[#E7EEE8]
+              px-3 py-2
+              text-xs font-medium
+              text-[#184C3A]
+            "
+          >
+            {
+              invitation.inviteSuccess
+            }
           </div>
-        )}
+        ) : null}
 
-        {invitation.inviteSuccess && (
-          <div className="rounded-2xl bg-emerald-400/10 px-3 py-2 text-xs font-medium text-emerald-200 ring-1 ring-emerald-300/20">
-            {invitation.inviteSuccess}
+        {/* ERROR */}
+        {invitation.inviteError ? (
+          <div
+            className="
+              rounded-2xl
+              bg-[#F8EAE7]
+              px-3 py-2
+              text-xs font-medium
+              text-[#A54C48]
+            "
+          >
+            {
+              invitation.inviteError
+            }
           </div>
-        )}
-
-        {invitation.inviteError && (
-          <div className="rounded-2xl bg-red-500/10 px-3 py-2 text-xs font-medium text-red-200 ring-1 ring-red-300/20">
-            {invitation.inviteError}
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

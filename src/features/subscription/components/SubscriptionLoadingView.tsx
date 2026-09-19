@@ -2,6 +2,7 @@ import {
   CreditCard,
   Loader2,
 } from "lucide-react";
+
 import { ui } from "../../../styles/ui";
 
 type SubscriptionLoadingViewProps = {
@@ -12,32 +13,98 @@ export function SubscriptionLoadingView({
   embedded,
 }: SubscriptionLoadingViewProps) {
   return (
-    <div className={embedded ? "" : ui.dashboardBg}>
+    <div
+      className={
+        embedded
+          ? ""
+          : ui.dashboardBg
+      }
+    >
       <div
         className={
           embedded
             ? ""
-            : `${ui.containerWide} py-6 sm:py-8 px-4 sm:px-6`
+            : `${ui.containerWide} px-4 py-6 sm:px-6 sm:py-8`
         }
       >
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 ring-1 ring-amber-400/25 grid place-items-center">
-              <CreditCard className="w-5 h-5 text-amber-200" />
-            </div>
+        <div className="mx-auto max-w-6xl">
+          {!embedded ? (
+            <div className="flex items-start gap-3">
+              <div
+                className="
+                  grid h-11 w-11
+                  shrink-0
+                  place-items-center
+                  rounded-2xl
+                  bg-[#E7EEE8]
+                  text-[#184C3A]
+                "
+              >
+                <CreditCard className="h-5 w-5" />
+              </div>
 
-            <div>
-              <h1 className="text-lg sm:text-xl font-semibold text-slate-100">
-                Abonnement
-              </h1>
-              <p className="text-sm text-slate-300/70 mt-1">
-                Chargement…
+              <div>
+                <h1
+                  className="
+                    font-serif
+                    text-3xl
+                    font-semibold
+                    text-[#173E31]
+                  "
+                >
+                  Abonnement
+                </h1>
+
+                <p
+                  className="
+                    mt-1
+                    text-sm
+                    text-[#718078]
+                  "
+                >
+                  Chargement de ton abonnement…
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <div
+            className="
+              flex min-h-[260px]
+              items-center
+              justify-center
+            "
+          >
+            <div className="text-center">
+              <div
+                className="
+                  mx-auto
+                  grid h-14 w-14
+                  place-items-center
+                  rounded-[20px]
+                  bg-[#E7EEE8]
+                "
+              >
+                <Loader2
+                  className="
+                    h-6 w-6
+                    animate-spin
+                    text-[#184C3A]
+                  "
+                />
+              </div>
+
+              <p
+                className="
+                  mt-4
+                  text-sm
+                  font-medium
+                  text-[#617168]
+                "
+              >
+                Chargement de l’abonnement…
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center justify-center min-h-[320px]">
-            <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
           </div>
         </div>
       </div>

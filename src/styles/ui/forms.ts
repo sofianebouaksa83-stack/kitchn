@@ -1,41 +1,46 @@
 export const forms = {
   input:
-    "w-full h-10 px-4 rounded-xl bg-slate-900/60 backdrop-blur-sm " +
-    "border border-slate-800/80 ring-1 ring-white/5 " +
-    "text-slate-100 placeholder:text-slate-400 " +
+    "w-full h-11 px-4 rounded-2xl " +
+    "bg-[#FBFAF6] border border-[#173E31]/12 " +
+    "text-[#173E31] placeholder:text-[#7A8981] " +
     "transition-all duration-200 " +
-    "hover:border-slate-700/80 " +
-    "focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/40",
+    "hover:border-[#173E31]/25 " +
+    "focus:outline-none focus:ring-2 focus:ring-[#C7A45D]/25 " +
+    "focus:border-[#C7A45D]/50",
 
   textarea:
-    "w-full min-h-[120px] px-4 py-3 rounded-xl bg-slate-900/60 backdrop-blur-sm " +
-    "border border-slate-800/80 ring-1 ring-white/5 " +
-    "text-slate-100 placeholder:text-slate-400 " +
+    "w-full min-h-[120px] px-4 py-3 rounded-2xl " +
+    "bg-[#FBFAF6] border border-[#173E31]/12 " +
+    "text-[#173E31] placeholder:text-[#7A8981] " +
     "transition-all duration-200 " +
-    "hover:border-slate-700/80 " +
-    "focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/40",
+    "hover:border-[#173E31]/25 " +
+    "focus:outline-none focus:ring-2 focus:ring-[#C7A45D]/25 " +
+    "focus:border-[#C7A45D]/50",
 
   inputSoft:
-    "w-full h-10 px-4 rounded-xl bg-slate-800/70 backdrop-blur-sm " +
-    "border border-slate-700/80 ring-1 ring-white/5 " +
-    "text-slate-100 placeholder:text-slate-400 " +
+    "w-full h-11 px-4 rounded-2xl " +
+    "bg-[#E7EEE8] border border-[#173E31]/10 " +
+    "text-[#173E31] placeholder:text-[#7A8981] " +
     "transition-all duration-200 " +
-    "hover:border-slate-600/80 " +
-    "focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/40",
+    "hover:border-[#173E31]/20 " +
+    "focus:outline-none focus:ring-2 focus:ring-[#C7A45D]/25 " +
+    "focus:border-[#C7A45D]/50",
 
   textareaSoft:
-    "w-full min-h-[120px] px-4 py-3 rounded-xl bg-slate-800/70 backdrop-blur-sm " +
-    "border border-slate-700/80 ring-1 ring-white/5 " +
-    "text-slate-100 placeholder:text-slate-400 " +
+    "w-full min-h-[120px] px-4 py-3 rounded-2xl " +
+    "bg-[#E7EEE8] border border-[#173E31]/10 " +
+    "text-[#173E31] placeholder:text-[#7A8981] " +
     "transition-all duration-200 " +
-    "hover:border-slate-600/80 " +
-    "focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/40",
+    "hover:border-[#173E31]/20 " +
+    "focus:outline-none focus:ring-2 focus:ring-[#C7A45D]/25 " +
+    "focus:border-[#C7A45D]/50",
 
   selectSoft:
-    "w-full h-10 px-4 rounded-xl bg-slate-800/70 backdrop-blur-sm " +
-    "border border-slate-700/80 ring-1 ring-white/5 " +
-    "text-slate-100 " +
+    "w-full h-11 px-4 rounded-2xl " +
+    "bg-[#E7EEE8] border border-[#173E31]/10 " +
+    "text-[#173E31] " +
     "transition-all duration-200 " +
-    "hover:border-slate-600/80 " +
-    "focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/40",
+    "hover:border-[#173E31]/20 " +
+    "focus:outline-none focus:ring-2 focus:ring-[#C7A45D]/25 " +
+    "focus:border-[#C7A45D]/50",
 };

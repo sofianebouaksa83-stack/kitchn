@@ -1,20 +1,74 @@
 import {
+  AlertCircle,
+  CheckCircle2,
   FileText,
+  Loader2,
   X,
 } from "lucide-react";
+
 import type { QueueItem } from "../types/import.types";
+
 import {
   clamp,
-  statusBadge,
   statusLabel,
 } from "../utils/importHelpers";
 
 type ImportQueueListProps = {
   queue: QueueItem[];
+
   selectedId: string | null;
+
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
 };
+
+function getStatusClasses(item: QueueItem) {
+  switch (item.status) {
+    case "success":
+      return "border-[#184C3A]/10 bg-[#E7EEE8] text-[#184C3A]";
+
+    case "error":
+      return "border-[#C05C56]/15 bg-[#F8EAE7] text-[#A54C48]";
+
+    case "uploading":
+    case "processing":
+      return "border-[#C7A45D]/15 bg-[#F5ECD9] text-[#8B6C32]";
+
+    default:
+      return "border-[#173E31]/8 bg-[#F0F2EC] text-[#617168]";
+  }
+}
+
+function StatusIcon({
+  item,
+}: {
+  item: QueueItem;
+}) {
+  if (item.status === "success") {
+    return (
+      <CheckCircle2 className="h-4 w-4 text-[#184C3A]" />
+    );
+  }
+
+  if (item.status === "error") {
+    return (
+      <AlertCircle className="h-4 w-4 text-[#A54C48]" />
+    );
+  }
+
+  if (
+    item.status === "uploading" ||
+    item.status === "processing"
+  ) {
+    return (
+      <Loader2 className="h-4 w-4 animate-spin text-[#A8833E]" />
+    );
+  }
+
+  return (
+    <FileText className="h-4 w-4 text-[#A8833E]" />
+  );
+}
 
 export function ImportQueueList({
   queue,
@@ -25,28 +79,81 @@ export function ImportQueueList({
   if (!queue.length) return null;
 
   return (
-    <div className="mt-5 grid lg:grid-cols-2 gap-4 max-w-full">
-      <div className="w-full max-w-full rounded-2xl bg-white/[0.05] ring-1 ring-white/10 overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 min-w-0 max-w-full">
-          <div className="text-sm font-semibold text-slate-100 shrink-0">
-            Fichiers
+    <div className="mt-5 max-w-full">
+      <div
+        className="
+          w-full
+          max-w-full
+          overflow-hidden
+          rounded-[28px]
+          border border-[#173E31]/10
+          bg-[#FBFAF6]
+          shadow-[0_8px_24px_rgba(23,62,49,0.04)]
+        "
+      >
+        {/* HEADER */}
+        <div
+          className="
+            flex min-w-0
+            max-w-full
+            items-center gap-2
+            border-b
+            border-[#173E31]/8
+            px-4 py-4
+          "
+        >
+          <div>
+            <p
+              className="
+                text-[11px]
+                font-semibold
+                uppercase
+                tracking-[0.14em]
+                text-[#A8833E]
+              "
+            >
+              Import
+            </p>
+
+            <h2
+              className="
+                font-serif
+                text-lg
+                font-semibold
+                text-[#173E31]
+              "
+            >
+              File d’attente
+            </h2>
           </div>
 
-          <div className="ml-auto text-xs text-slate-400 truncate max-w-[52%]">
-            Clique pour sélectionner
+          <div
+            className="
+              ml-auto
+              max-w-[52%]
+              truncate
+              text-xs
+              text-[#718078]
+            "
+          >
+            Clique sur un fichier pour le sélectionner
           </div>
         </div>
 
-        <div className="divide-y divide-white/10 max-w-full">
+        {/* ITEMS */}
+        <div className="divide-y divide-[#173E31]/8">
           {queue.map((item) => {
-            const active = item.id === selectedId;
+            const active =
+              item.id === selectedId;
 
             return (
               <div
                 key={item.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => onSelect(item.id)}
+                onClick={() =>
+                  onSelect(item.id)
+                }
                 onKeyDown={(event) => {
                   if (
                     event.key === "Enter" ||
@@ -56,46 +163,100 @@ export function ImportQueueList({
                   }
                 }}
                 className={[
-                  "px-4 py-3 transition outline-none max-w-full",
+                  "max-w-full px-4 py-4 outline-none transition",
                   active
-                    ? "bg-white/[0.04]"
-                    : "hover:bg-white/[0.04]",
+                    ? "bg-[#E7EEE8]/65"
+                    : "hover:bg-[#F7F5EF]",
                 ].join(" ")}
               >
-                <div className="flex items-start gap-3 min-w-0 max-w-full overflow-hidden">
-                  <FileText className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+                <div
+                  className="
+                    flex max-w-full
+                    min-w-0
+                    items-start gap-3
+                    overflow-hidden
+                  "
+                >
+                  <div
+                    className="
+                      mt-0.5
+                      grid h-9 w-9
+                      shrink-0
+                      place-items-center
+                      rounded-xl
+                      bg-[#F0F2EC]
+                    "
+                  >
+                    <StatusIcon item={item} />
+                  </div>
 
-                  <div className="flex-1 min-w-0 max-w-full">
-                    <div className="flex items-center gap-2 min-w-0 max-w-full overflow-hidden">
-                      <div className="w-0 flex-1 min-w-0 truncate text-sm text-slate-100 font-medium">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div
+                        className="
+                          min-w-0 flex-1
+                          truncate
+                          text-sm
+                          font-medium
+                          text-[#173E31]
+                        "
+                      >
                         {item.relativePath ||
                           item.file.name}
                       </div>
 
                       <span
-                        className={`shrink-0 text-[11px] px-2 py-1 rounded-xl border ${statusBadge(
-                          item
-                        )}`}
+                        className={`
+                          shrink-0
+                          rounded-full
+                          border
+                          px-2.5 py-1
+                          text-[10px]
+                          font-semibold
+                          ${getStatusClasses(item)}
+                        `}
                       >
                         {statusLabel(item)}
                       </span>
                     </div>
 
-                    <div className="mt-2 h-2 rounded-full bg-black/20 ring-1 ring-white/10 overflow-hidden max-w-full">
+                    <div
+                      className="
+                        mt-2.5
+                        h-1.5
+                        max-w-full
+                        overflow-hidden
+                        rounded-full
+                        bg-[#E7EEE8]
+                      "
+                    >
                       <div
-                        className="h-full bg-amber-400/80 rounded-full"
+                        className="
+                          h-full
+                          rounded-full
+                          bg-[#C7A45D]
+                          transition-all
+                        "
                         style={{
                           width: `${clamp(
                             item.progress,
                             0,
-                            100
+                            100,
                           )}%`,
                         }}
                       />
                     </div>
 
                     {item.message ? (
-                      <div className="mt-2 text-xs text-slate-300/90 line-clamp-2">
+                      <div
+                        className="
+                          mt-2
+                          line-clamp-2
+                          text-xs
+                          leading-relaxed
+                          text-[#718078]
+                        "
+                      >
                         {item.message}
                       </div>
                     ) : null}
@@ -103,16 +264,30 @@ export function ImportQueueList({
 
                   <button
                     type="button"
-                    className="shrink-0 ml-1 inline-flex items-center justify-center h-9 w-9 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-slate-200"
+                    className="
+                      ml-1
+                      inline-flex
+                      h-9 w-9
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-[#F0F2EC]
+                      text-[#718078]
+                      transition
+                      hover:bg-[#F5E4E0]
+                      hover:text-[#A54C48]
+                    "
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
+
                       onRemove(item.id);
                     }}
                     title="Retirer"
                     aria-label="Retirer"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>

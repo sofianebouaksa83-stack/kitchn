@@ -7,62 +7,162 @@ import {
 } from "lucide-react";
 
 import { Section } from "./Section";
+
 import { cn } from "../utils/cn";
 
 type SecuritySettingsProps = {
   loading: boolean;
 
   pwShow: boolean;
-  setPwShow: (value: boolean) => void;
+  setPwShow: (
+    value: boolean,
+  ) => void;
 
   pw1: string;
-  setPw1: (value: string) => void;
+  setPw1: (
+    value: string,
+  ) => void;
 
   pw2: string;
-  setPw2: (value: string) => void;
+  setPw2: (
+    value: string,
+  ) => void;
 
   pwStrength: number;
   pwMatch: boolean;
 
   canChangePassword: boolean;
+
   pwSaving: boolean;
 
-  onChangePassword: () => void;
+  onChangePassword:
+    () => void;
 };
 
 export function SecuritySettings({
   loading,
+
   pwShow,
   setPwShow,
+
   pw1,
   setPw1,
+
   pw2,
   setPw2,
+
   pwStrength,
   pwMatch,
+
   canChangePassword,
+
   pwSaving,
+
   onChangePassword,
 }: SecuritySettingsProps) {
+  const inputClass =
+    "h-11 w-full rounded-2xl " +
+    "border border-[#173E31]/10 " +
+    "bg-[#FBFAF6] px-4 " +
+    "text-sm text-[#173E31] " +
+    "outline-none transition " +
+    "placeholder:text-[#8B9791] " +
+    "focus:border-[#C7A45D]/50 " +
+    "focus:ring-2 focus:ring-[#C7A45D]/15";
+
+  const strengthLabel =
+    pw1.length === 0
+      ? "—"
+      : pwStrength <= 2
+        ? "Faible"
+        : pwStrength === 3
+          ? "Correct"
+          : "Fort";
+
   return (
     <Section
       title="Sécurité"
-      icon={<Shield className="h-4 w-4" />}
+      icon={
+        <Shield className="h-4 w-4" />
+      }
       loading={loading}
     >
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-white/80" />
-            <div className="text-sm font-medium">
-              Changer le mot de passe
+      <div
+        className="
+          rounded-[24px]
+          border border-[#173E31]/8
+          bg-[#F7F5EF]
+          p-4
+        "
+      >
+        {/* TITLE */}
+        <div
+          className="
+            flex flex-col
+            gap-3
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+          "
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="
+                grid h-10 w-10
+                shrink-0
+                place-items-center
+                rounded-2xl
+                bg-[#E7EEE8]
+                text-[#184C3A]
+              "
+            >
+              <KeyRound className="h-4 w-4" />
+            </div>
+
+            <div>
+              <div
+                className="
+                  text-sm
+                  font-semibold
+                  text-[#173E31]
+                "
+              >
+                Changer le mot de passe
+              </div>
+
+              <p
+                className="
+                  mt-0.5
+                  text-xs
+                  text-[#718078]
+                "
+              >
+                Utilise au minimum 8 caractères.
+              </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => setPwShow(!pwShow)}
-            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs border border-white/10 bg-white/10 hover:bg-white/15 transition"
+            onClick={() =>
+              setPwShow(
+                !pwShow,
+              )
+            }
+            className="
+              inline-flex
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              bg-[#E7EEE8]
+              px-3 py-2
+              text-xs
+              font-medium
+              text-[#184C3A]
+              transition
+              hover:bg-[#DDE8DF]
+            "
           >
             {pwShow ? (
               <EyeOff className="h-4 w-4" />
@@ -70,89 +170,186 @@ export function SecuritySettings({
               <Eye className="h-4 w-4" />
             )}
 
-            {pwShow ? "Masquer" : "Afficher"}
+            {pwShow
+              ? "Masquer"
+              : "Afficher"}
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* INPUTS */}
+        <div
+          className="
+            mt-5
+            grid grid-cols-1
+            gap-4
+            sm:grid-cols-2
+          "
+        >
           <div>
-            <div className="text-xs text-white/60 mb-1">
+            <label
+              className="
+                mb-2 block
+                text-xs font-semibold
+                text-[#29493E]
+              "
+            >
               Nouveau mot de passe
-            </div>
+            </label>
 
             <input
-              type={pwShow ? "text" : "password"}
+              type={
+                pwShow
+                  ? "text"
+                  : "password"
+              }
               value={pw1}
-              onChange={(e) => setPw1(e.target.value)}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/20"
+              onChange={(
+                event,
+              ) =>
+                setPw1(
+                  event.target
+                    .value,
+                )
+              }
+              className={
+                inputClass
+              }
               placeholder="••••••••"
               autoComplete="new-password"
             />
 
-            <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
+            {/* STRENGTH */}
+            <div
+              className="
+                mt-3
+                flex items-center
+                gap-2
+              "
+            >
+              <div
+                className="
+                  h-1.5
+                  flex-1
+                  overflow-hidden
+                  rounded-full
+                  bg-[#E7EEE8]
+                "
+              >
                 <div
-                  className="h-full bg-yellow-300/50"
+                  className="
+                    h-full
+                    rounded-full
+                    bg-[#C7A45D]
+                    transition-all
+                    duration-300
+                  "
                   style={{
-                    width: `${(pwStrength / 5) * 100}%`,
+                    width: `${(
+                      pwStrength / 5
+                    ) * 100}%`,
                   }}
                 />
               </div>
 
-              <div className="text-[11px] text-white/60">
-                {pw1.length === 0
-                  ? "—"
-                  : pwStrength <= 2
-                  ? "Faible"
-                  : pwStrength === 3
-                  ? "OK"
-                  : "Fort"}
+              <div
+                className="
+                  min-w-[48px]
+                  text-right
+                  text-[11px]
+                  font-medium
+                  text-[#718078]
+                "
+              >
+                {
+                  strengthLabel
+                }
               </div>
             </div>
 
-            <div className="mt-1 text-[11px] text-white/50">
+            <div
+              className="
+                mt-1
+                text-[11px]
+                text-[#8B9791]
+              "
+            >
               Min. 8 caractères.
             </div>
           </div>
 
           <div>
-            <div className="text-xs text-white/60 mb-1">
+            <label
+              className="
+                mb-2 block
+                text-xs font-semibold
+                text-[#29493E]
+              "
+            >
               Confirmer
-            </div>
+            </label>
 
             <input
-              type={pwShow ? "text" : "password"}
+              type={
+                pwShow
+                  ? "text"
+                  : "password"
+              }
               value={pw2}
-              onChange={(e) => setPw2(e.target.value)}
+              onChange={(
+                event,
+              ) =>
+                setPw2(
+                  event.target
+                    .value,
+                )
+              }
               className={cn(
-                "w-full rounded-xl bg-white/5 border px-3 py-2 text-sm outline-none",
-                "focus:border-white/20",
-                pw2.length > 0 && !pwMatch
-                  ? "border-red-500/40"
-                  : "border-white/10"
+                inputClass,
+                pw2.length >
+                  0 &&
+                  !pwMatch
+                  ? "border-[#C05C56]/40 focus:border-[#C05C56]/60 focus:ring-[#C05C56]/10"
+                  : "",
               )}
               placeholder="••••••••"
               autoComplete="new-password"
             />
 
-            {pw2.length > 0 && !pwMatch && (
-              <div className="mt-1 text-xs text-red-200">
-                Les mots de passe ne correspondent pas.
+            {pw2.length >
+              0 &&
+            !pwMatch ? (
+              <div
+                className="
+                  mt-2
+                  text-xs
+                  font-medium
+                  text-[#A54C48]
+                "
+              >
+                Les mots de passe ne
+                correspondent pas.
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
-        <div className="mt-4">
+        {/* ACTION */}
+        <div className="mt-5">
           <button
             type="button"
-            onClick={onChangePassword}
-            disabled={!canChangePassword || pwSaving}
+            onClick={
+              onChangePassword
+            }
+            disabled={
+              !canChangePassword ||
+              pwSaving
+            }
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium border",
-              "border-white/10 bg-white/10 hover:bg-white/15 transition",
-              (!canChangePassword || pwSaving) &&
-                "opacity-50 cursor-not-allowed"
+              "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition",
+              "bg-[#184C3A] text-[#F7F3EA] hover:bg-[#123C2E]",
+              (!canChangePassword ||
+                pwSaving) &&
+                "cursor-not-allowed opacity-45",
             )}
           >
             {pwSaving ? (
@@ -164,9 +361,21 @@ export function SecuritySettings({
             Mettre à jour
           </button>
 
-          <div className="mt-2 text-xs text-white/50">
-            Si Supabase refuse (session trop vieille), déconnecte-toi puis
-            reconnecte-toi et réessaie.
+          <div
+            className="
+              mt-3
+              max-w-xl
+              text-xs
+              leading-relaxed
+              text-[#8B9791]
+            "
+          >
+            Si Supabase refuse la
+            modification car la session
+            est trop ancienne,
+            déconnecte-toi puis
+            reconnecte-toi avant de
+            réessayer.
           </div>
         </div>
       </div>

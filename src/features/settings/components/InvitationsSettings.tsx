@@ -8,30 +8,65 @@ import {
 } from "lucide-react";
 
 import { Section } from "./Section";
+
 import { cn } from "../utils/cn";
+
 import type { PendingInvitationRow } from "../types/settings.types";
 
 type InvitationsSettingsProps = {
   loading: boolean;
+
   error: string | null;
-  invitations: PendingInvitationRow[];
-  joiningToken: string | null;
-  onAcceptInvitation: (token: string) => void;
+
+  invitations:
+    PendingInvitationRow[];
+
+  joiningToken:
+    string | null;
+
+  onAcceptInvitation: (
+    token: string,
+  ) => void;
 };
 
-function roleLabel(role: string | null) {
-  const r = (role ?? "").toLowerCase();
+function roleLabel(
+  role: string | null,
+) {
+  const value = (
+    role ?? ""
+  ).toLowerCase();
 
-  if (r === "admin") return "Second";
-  if (r === "chef_de_partie") return "Chef de partie";
-  if (r === "commis") return "Commis";
+  if (value === "admin") {
+    return "Second";
+  }
+
+  if (
+    value ===
+    "chef_de_partie"
+  ) {
+    return "Chef de partie";
+  }
+
+  if (value === "commis") {
+    return "Commis";
+  }
 
   return role ?? "Membre";
 }
 
-function isExpired(expiresAt: string | null) {
-  if (!expiresAt) return false;
-  return new Date(expiresAt).getTime() < Date.now();
+function isExpired(
+  expiresAt: string | null,
+) {
+  if (!expiresAt) {
+    return false;
+  }
+
+  return (
+    new Date(
+      expiresAt,
+    ).getTime() <
+    Date.now()
+  );
 }
 
 export function InvitationsSettings({
@@ -44,110 +79,273 @@ export function InvitationsSettings({
   return (
     <Section
       title="Invitations"
-      icon={<Mail className="h-4 w-4" />}
+      icon={
+        <Mail className="h-4 w-4" />
+      }
       loading={loading}
     >
-      <div className="text-sm text-white/60">
-        Rejoins un groupe depuis une invitation.
-      </div>
+      <p
+        className="
+          text-sm
+          leading-relaxed
+          text-[#718078]
+        "
+      >
+        Rejoins directement un groupe
+        depuis une invitation reçue.
+      </p>
 
-      {error && (
-        <div className="mt-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100 flex gap-2">
-          <AlertCircle className="h-4 w-4 mt-0.5" />
+      {/* ERROR */}
+      {error ? (
+        <div
+          className="
+            mt-4
+            flex gap-2
+            rounded-2xl
+            border border-[#C05C56]/20
+            bg-[#F8EAE7]
+            px-4 py-3
+            text-sm
+            text-[#9B4944]
+          "
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+
           {error}
         </div>
-      )}
+      ) : null}
 
-      <div className="mt-4 space-y-3">
-        {!loading && invitations.length === 0 && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-            Aucune invitation en attente.
-          </div>
-        )}
-
-        {invitations.map((invitation) => {
-          const expired = isExpired(invitation.expires_at);
-          const joining = joiningToken === invitation.token;
-
-          return (
+      <div className="mt-5 space-y-3">
+        {/* EMPTY */}
+        {!loading &&
+        invitations.length ===
+          0 ? (
+          <div
+            className="
+              rounded-[24px]
+              border border-[#173E31]/8
+              bg-[#F7F5EF]
+              p-6
+              text-center
+            "
+          >
             <div
-              key={invitation.id}
-              className="rounded-2xl border border-white/10 bg-white/5 p-4"
+              className="
+                mx-auto
+                grid h-11 w-11
+                place-items-center
+                rounded-2xl
+                bg-[#E7EEE8]
+                text-[#184C3A]
+              "
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs text-white/60">
-                    Groupe
-                  </div>
-
-                  <div className="mt-0.5 text-base font-semibold truncate">
-                    {invitation.work_group_name ?? "Groupe"}
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-1.5 text-xs text-white/80">
-                      <User className="h-3.5 w-3.5" />
-                      Rôle :
-                      <span className="text-white/95 font-semibold">
-                        {roleLabel(invitation.role)}
-                      </span>
-                    </span>
-
-                    {invitation.expires_at && (
-                      <span className="inline-flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-1.5 text-xs text-white/70">
-                        <Clock className="h-3.5 w-3.5" />
-
-                        Expire le{" "}
-                        {new Date(
-                          invitation.expires_at
-                        ).toLocaleString(undefined, {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    )}
-                  </div>
-
-                  {expired && (
-                    <div className="mt-3 text-xs text-amber-200 flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4" />
-                      Invitation expirée — demande un nouveau lien.
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={expired || joining}
-                  onClick={() =>
-                    onAcceptInvitation(invitation.token)
-                  }
-                  className={cn(
-                    "shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold",
-                    "bg-amber-400 text-black hover:bg-amber-300 transition ring-1 ring-amber-300/60",
-                    (expired || joining) &&
-                      "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  {joining ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Rejoindre…
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      Rejoindre
-                    </>
-                  )}
-                </button>
-              </div>
+              <Mail className="h-5 w-5" />
             </div>
-          );
-        })}
+
+            <p
+              className="
+                mt-4
+                font-serif
+                text-lg
+                font-semibold
+                text-[#173E31]
+              "
+            >
+              Aucune invitation
+            </p>
+
+            <p
+              className="
+                mt-1
+                text-sm
+                text-[#718078]
+              "
+            >
+              Les invitations en
+              attente apparaîtront ici.
+            </p>
+          </div>
+        ) : null}
+
+        {/* INVITATIONS */}
+        {invitations.map(
+          (invitation) => {
+            const expired =
+              isExpired(
+                invitation.expires_at,
+              );
+
+            const joining =
+              joiningToken ===
+              invitation.token;
+
+            return (
+              <div
+                key={
+                  invitation.id
+                }
+                className="
+                  rounded-[24px]
+                  border border-[#173E31]/10
+                  bg-[#F7F5EF]
+                  p-4
+                "
+              >
+                <div
+                  className="
+                    flex flex-col
+                    gap-4
+                    sm:flex-row
+                    sm:items-start
+                    sm:justify-between
+                  "
+                >
+                  <div className="min-w-0">
+                    <p
+                      className="
+                        text-[11px]
+                        font-semibold
+                        uppercase
+                        tracking-[0.14em]
+                        text-[#A8833E]
+                      "
+                    >
+                      Groupe
+                    </p>
+
+                    <div
+                      className="
+                        mt-1
+                        truncate
+                        font-serif
+                        text-xl
+                        font-semibold
+                        text-[#173E31]
+                      "
+                    >
+                      {invitation.work_group_name ??
+                        "Groupe"}
+                    </div>
+
+                    <div
+                      className="
+                        mt-3
+                        flex flex-wrap
+                        gap-2
+                      "
+                    >
+                      <span
+                        className="
+                          inline-flex
+                          items-center
+                          gap-2
+                          rounded-full
+                          bg-[#E7EEE8]
+                          px-3 py-1.5
+                          text-xs
+                          text-[#617168]
+                        "
+                      >
+                        <User className="h-3.5 w-3.5 text-[#184C3A]" />
+
+                        Rôle :
+
+                        <span className="font-semibold text-[#173E31]">
+                          {roleLabel(
+                            invitation.role,
+                          )}
+                        </span>
+                      </span>
+
+                      {invitation.expires_at ? (
+                        <span
+                          className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            rounded-full
+                            bg-[#F0F2EC]
+                            px-3 py-1.5
+                            text-xs
+                            text-[#718078]
+                          "
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+
+                          Expire le{" "}
+                          {new Date(
+                            invitation.expires_at,
+                          ).toLocaleString(
+                            undefined,
+                            {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {expired ? (
+                      <div
+                        className="
+                          mt-3
+                          flex items-center
+                          gap-2
+                          rounded-xl
+                          bg-[#F5ECD9]
+                          px-3 py-2
+                          text-xs
+                          text-[#8B6C32]
+                        "
+                      >
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+
+                        Invitation expirée —
+                        demande un nouveau lien.
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={
+                      expired ||
+                      joining
+                    }
+                    onClick={() =>
+                      onAcceptInvitation(
+                        invitation.token,
+                      )
+                    }
+                    className={cn(
+                      "inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition",
+                      "bg-[#DDAE9D] text-[#173E31] hover:bg-[#D5A18E]",
+                      (expired ||
+                        joining) &&
+                        "cursor-not-allowed opacity-45",
+                    )}
+                  >
+                    {joining ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Rejoindre…
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        Rejoindre
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          },
+        )}
       </div>
     </Section>
   );

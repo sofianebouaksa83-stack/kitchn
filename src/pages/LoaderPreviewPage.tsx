@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { KitchNLoader } from "../components/Loading/KitchNLoader";
 
 export default function LoaderPreviewPage() {
@@ -5,39 +7,57 @@ export default function LoaderPreviewPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#070b16",
+        background: "#F3F0E8",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         gap: "40px",
-        padding: "40px 20px",
-        color: "#e8bc59",
+        padding: "48px 20px",
+        color: "#173E31",
       }}
     >
       {/* TITRE */}
-      <div style={{ textAlign: "center" }}>
+      <div
+        style={{
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            marginBottom: "10px",
+            fontSize: "11px",
+            fontWeight: 700,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "#A8833E",
+          }}
+        >
+          Kitch’n Design System
+        </div>
+
         <h1
           style={{
             margin: 0,
-            color: "#e8bc59",
-            fontFamily: "system-ui, sans-serif",
-            fontSize: "36px",
-            fontWeight: 500,
-            letterSpacing: "0.12em",
+            color: "#173E31",
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: "38px",
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
           }}
         >
-          KITCH’N
+          Loader KITCH’N
         </h1>
 
         <p
           style={{
-            color: "#ffffff",
-            opacity: 0.5,
-            marginTop: "8px",
+            margin: "10px 0 0",
+            color: "#718078",
+            fontFamily: "system-ui, sans-serif",
+            fontSize: "14px",
           }}
         >
-          Preview du loader
+          Preview du nouveau loader
         </p>
       </div>
 
@@ -45,10 +65,11 @@ export default function LoaderPreviewPage() {
       <section
         style={{
           width: "min(100%, 700px)",
-          borderRadius: "24px",
           overflow: "hidden",
-          border: "1px solid rgba(232, 188, 89, 0.12)",
-          boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
+          borderRadius: "32px",
+          border: "1px solid rgba(23, 62, 49, 0.10)",
+          background: "#FBFAF6",
+          boxShadow: "0 24px 70px rgba(23, 62, 49, 0.08)",
         }}
       >
         <KitchNLoader className="kitchn-loader--preview" />
@@ -58,58 +79,87 @@ export default function LoaderPreviewPage() {
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "stretch",
           justifyContent: "center",
-          gap: "32px",
+          gap: "20px",
           flexWrap: "wrap",
+          width: "min(100%, 700px)",
         }}
       >
-        <PreviewCard title="Compact">
+        <PreviewCard
+          title="Compact"
+          description="Chargement d’une section"
+        >
           <KitchNLoader className="kitchn-loader--compact" />
         </PreviewCard>
 
-        <PreviewCard title="Mini">
+        <PreviewCard
+          title="Mini"
+          description="Boutons et petites actions"
+        >
           <KitchNLoader className="kitchn-loader--mini" />
         </PreviewCard>
       </div>
 
-      <p
+      {/* INFO */}
+      <div
         style={{
-          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "10px 16px",
+          borderRadius: "999px",
+          background: "#E7EEE8",
+          border: "1px solid rgba(23, 62, 49, 0.08)",
+          color: "#617168",
+          fontFamily: "system-ui, sans-serif",
           fontSize: "12px",
-          color: "#ffffff",
-          opacity: 0.35,
         }}
       >
+        <span
+          style={{
+            width: "6px",
+            height: "6px",
+            borderRadius: "999px",
+            background: "#C7A45D",
+          }}
+        />
+
         Recharge la page pour rejouer l’animation
-      </p>
+      </div>
     </main>
   );
 }
 
 function PreviewCard({
   title,
+  description,
   children,
 }: {
   title: string;
-  children: React.ReactNode;
+  description: string;
+  children: ReactNode;
 }) {
   return (
     <div
       style={{
-        minWidth: "180px",
-        padding: "20px",
-        borderRadius: "18px",
-        textAlign: "center",
-        background: "rgba(255, 255, 255, 0.025)",
-        border: "1px solid rgba(232, 188, 89, 0.1)",
+        flex: "1 1 260px",
+        minWidth: "220px",
+        overflow: "hidden",
+        borderRadius: "24px",
+        background: "#FBFAF6",
+        border: "1px solid rgba(23, 62, 49, 0.10)",
+        boxShadow: "0 12px 35px rgba(23, 62, 49, 0.05)",
       }}
     >
       <div
         style={{
-          minHeight: "120px",
+          minHeight: "150px",
           display: "grid",
           placeItems: "center",
+          padding: "16px",
+          background:
+            "radial-gradient(circle at center, rgba(231, 238, 232, 0.65), transparent 70%)",
         }}
       >
         {children}
@@ -117,13 +167,32 @@ function PreviewCard({
 
       <div
         style={{
-          marginTop: "12px",
-          fontSize: "13px",
-          color: "#ffffff",
-          opacity: 0.5,
+          padding: "16px 18px 18px",
+          borderTop: "1px solid rgba(23, 62, 49, 0.08)",
         }}
       >
-        {title}
+        <div
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: "17px",
+            fontWeight: 600,
+            color: "#173E31",
+          }}
+        >
+          {title}
+        </div>
+
+        <div
+          style={{
+            marginTop: "4px",
+            fontFamily: "system-ui, sans-serif",
+            fontSize: "12px",
+            lineHeight: 1.5,
+            color: "#8B9791",
+          }}
+        >
+          {description}
+        </div>
       </div>
     </div>
   );

@@ -5,11 +5,19 @@ import {
   Sparkles,
   Plus,
 } from "lucide-react";
+
 import { useSubscription } from "../../hooks/useSubscription";
 import { ui } from "../../styles/ui";
 import { RecipeImportAIWidget } from "../Import/RecipeImportAIWidget";
+
 import type { HomePageProps } from "../../features/home/types/home.types";
-import { FREE_IMPORT_LIMIT, getRecipeSubtitle, getRecipeTitle, } from "../../features/home/utils/homeHelpers";
+
+import {
+  FREE_IMPORT_LIMIT,
+  getRecipeSubtitle,
+  getRecipeTitle,
+} from "../../features/home/utils/homeHelpers";
+
 import { HomeStatCard } from "../../features/home/components/HomeStatCard";
 import { HomePanel } from "../../features/home/components/HomePanel";
 import { HomeListItem } from "../../features/home/components/HomeListItem";
@@ -35,6 +43,7 @@ export default function HomePage({
 
   const isPremium = !!subscription.isPremium;
   const subscriptionLoading = !!subscription.loading;
+
   const {
     loading,
     firstName,
@@ -44,7 +53,6 @@ export default function HomePage({
     latestRecipes,
     latestSharedRecipes,
   } = useHomeData(isPremium);
-
 
   useEffect(() => {
     unlockPageScroll();
@@ -57,11 +65,13 @@ export default function HomePage({
     };
   }, []);
 
-    
   function handleOpenRecipe(recipeId: string) {
     sessionStorage.setItem("selectedRecipeId", recipeId);
+
     window.dispatchEvent(
-      new CustomEvent("kitchn:open-recipe", { detail: { recipeId } }),
+      new CustomEvent("kitchn:open-recipe", {
+        detail: { recipeId },
+      }),
     );
 
     if (openRecipe) {
@@ -72,10 +82,23 @@ export default function HomePage({
     navigateTo("/recipes");
   }
 
-  function handleOpenSharedRecipe(recipeId: string, groupId: string) {
-    sessionStorage.setItem("selectedSharedRecipeId", recipeId);
-    sessionStorage.setItem("selectedWorkGroupId", groupId);
-    sessionStorage.setItem("selectedSharedGroupId", groupId);
+  function handleOpenSharedRecipe(
+    recipeId: string,
+    groupId: string,
+  ) {
+    sessionStorage.setItem(
+      "selectedSharedRecipeId",
+      recipeId,
+    );
+    sessionStorage.setItem(
+      "selectedWorkGroupId",
+      groupId,
+    );
+    sessionStorage.setItem(
+      "selectedSharedGroupId",
+      groupId,
+    );
+
     window.dispatchEvent(
       new CustomEvent("kitchn:open-shared-recipe", {
         detail: { recipeId, groupId },
@@ -93,8 +116,16 @@ export default function HomePage({
   const importValue = useMemo(() => {
     if (subscriptionLoading) return "...";
     if (isPremium) return importCount;
-    return Math.max(FREE_IMPORT_LIMIT - importCount, 0);
-  }, [subscriptionLoading, isPremium, importCount]);
+
+    return Math.max(
+      FREE_IMPORT_LIMIT - importCount,
+      0,
+    );
+  }, [
+    subscriptionLoading,
+    isPremium,
+    importCount,
+  ]);
 
   const importLabel = subscriptionLoading
     ? "Imports IA"
@@ -103,53 +134,95 @@ export default function HomePage({
       : "Imports IA restants";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 text-white">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="mt-2 text-3xl font-bold">
-            Bonjour <span className="text-[#D4AF37]">{firstName}</span>
-          </h1>
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 text-[#173E31] sm:px-6">
+      {/* HERO */}
+      <section
+        className="
+          overflow-hidden
+          rounded-[32px]
+          bg-[#184C3A]
+          px-5 py-6
+          text-[#F7F3EA]
+          shadow-[0_18px_45px_rgba(23,62,49,0.14)]
+          sm:px-8 sm:py-8
+        "
+      >
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#C7A45D]">
+              Votre espace cuisine
+            </p>
+
+            <h1 className="font-serif text-4xl font-medium leading-tight sm:text-5xl">
+              Bonjour {firstName}
+            </h1>
+
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#F7F3EA]/70 sm:text-base">
+              Retrouvez vos recettes, vos créations
+              et vos outils culinaires.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigateTo("/recipes/new")
+            }
+            className={`${ui.btnPrimary} w-full md:w-auto`}
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle recette
+          </button>
         </div>
+      </section>
 
-        <button
-          type="button"
-          onClick={() => navigateTo("/recipes/new")}
-          className={ui.btnPrimary}
-        >
-          <Plus className="h-4 w-4" />
-          Nouvelle recette
-        </button>
-      </div>
-
+      {/* RÉSUMÉ */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Résumé</h2>
+          <h2 className="font-serif text-2xl font-semibold text-[#173E31]">
+            Résumé
+          </h2>
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <HomeStatCard icon={<BookOpen />} value={recipesCount} label="Recettes" />
+          <HomeStatCard
+            icon={<BookOpen />}
+            value={recipesCount}
+            label="Recettes"
+          />
+
           <HomeStatCard
             icon={<Users />}
             value={sharedCount}
             label="Recettes partagées"
           />
+
           <HomeStatCard
             icon={<Sparkles />}
-            value={subscriptionLoading ? "..." : importValue}
+            value={
+              subscriptionLoading
+                ? "..."
+                : importValue
+            }
             label={importLabel}
           />
         </div>
       </section>
 
+      {/* DERNIÈRES RECETTES */}
       <div className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
         <HomePanel
           title="Dernières recettes ajoutées"
-          onClick={() => navigateTo("/recipes")}
+          onClick={() =>
+            navigateTo("/recipes")
+          }
         >
           {loading ? (
             <HomeLoadingLine />
           ) : latestRecipes.length === 0 ? (
-            <HomeEmptyLine text="Aucune recette récente pour le moment." />
+            <HomeEmptyLine
+              text="Aucune recette récente pour le moment."
+            />
           ) : (
             <div className="space-y-3">
               {latestRecipes.map((recipe) => (
@@ -157,7 +230,9 @@ export default function HomePage({
                   key={recipe.id}
                   title={getRecipeTitle(recipe)}
                   subtitle={getRecipeSubtitle(recipe)}
-                  onClick={() => handleOpenRecipe(recipe.id)}
+                  onClick={() =>
+                    handleOpenRecipe(recipe.id)
+                  }
                 />
               ))}
             </div>
@@ -166,21 +241,31 @@ export default function HomePage({
 
         <HomePanel
           title="Dernières recettes partagées"
-          onClick={() => navigateTo("/shared")}
+          onClick={() =>
+            navigateTo("/shared")
+          }
         >
           {loading ? (
             <HomeLoadingLine />
           ) : latestSharedRecipes.length === 0 ? (
-            <HomeEmptyLine text="Aucune recette partagée pour le moment." />
+            <HomeEmptyLine
+              text="Aucune recette partagée pour le moment."
+            />
           ) : (
             <div className="space-y-3">
               {latestSharedRecipes.map((item) => (
                 <HomeListItem
                   key={item.id}
                   title={getRecipeTitle(item.recipe)}
-                  subtitle={item.group_name || "Groupe partagé"}
+                  subtitle={
+                    item.group_name ||
+                    "Groupe partagé"
+                  }
                   onClick={() =>
-                    handleOpenSharedRecipe(item.recipe_id, item.group_id)
+                    handleOpenSharedRecipe(
+                      item.recipe_id,
+                      item.group_id,
+                    )
                   }
                 />
               ))}
@@ -189,7 +274,12 @@ export default function HomePage({
         </HomePanel>
       </div>
 
-      <RecipeImportAIWidget onOpenFull={() => navigateTo("/import")} />
+      {/* IMPORT IA */}
+      <RecipeImportAIWidget
+        onOpenFull={() =>
+          navigateTo("/import")
+        }
+      />
     </div>
   );
 }

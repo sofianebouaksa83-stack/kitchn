@@ -5,6 +5,7 @@ import {
   Save,
   Tag,
 } from "lucide-react";
+
 import { PageShell } from "../../Layout/PageShell";
 import { ui } from "../../../styles/ui";
 import { useRecipeEditor } from "../../../features/recipe/hooks/useRecipeEditor";
@@ -37,8 +38,12 @@ export function RecipeEditorDesktop({
     <PageShell
       withPanel={false}
       title={title}
-      subtitle="Éditeur"
-      icon={<Tag className="w-5 h-5 text-amber-200" />}
+      subtitle={
+        editor.isEdit
+          ? "Modifier votre recette"
+          : "Créer une nouvelle recette"
+      }
+      icon={<Tag className="h-5 w-5" />}
       actions={
         <div className="flex items-center gap-2">
           <button
@@ -46,7 +51,7 @@ export function RecipeEditorDesktop({
             className={ui.btnGhost}
             type="button"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Retour
           </button>
 
@@ -56,22 +61,45 @@ export function RecipeEditorDesktop({
             className={ui.btnPrimary}
             type="button"
           >
-            <Save className="w-4 h-4" />
-            {editor.saving ? "Enregistrement…" : "Enregistrer"}
+            <Save className="h-4 w-4" />
+
+            {editor.saving
+              ? "Enregistrement…"
+              : "Enregistrer"}
           </button>
         </div>
       }
     >
       {editor.loading ? (
-        <div className="rounded-3xl bg-white/[0.06] ring-1 ring-white/10 p-10 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-amber-300" />
-          <div className="ml-3 text-slate-200">Chargement…</div>
+        <div
+          className="
+            flex items-center justify-center
+            rounded-[28px]
+            border border-[#173E31]/10
+            bg-[#FBFAF6]
+            p-10
+          "
+        >
+          <Loader2 className="h-6 w-6 animate-spin text-[#A8833E]" />
+
+          <div className="ml-3 text-[#617168]">
+            Chargement…
+          </div>
         </div>
       ) : (
         <div className="mx-auto w-full max-w-5xl">
           {editor.errorMsg ? (
-            <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
+            <div
+              className="
+                mb-5 flex items-center gap-2
+                rounded-2xl
+                border border-[#C05C56]/20
+                bg-[#F8EAE7]
+                px-4 py-3
+                text-sm text-[#9B4944]
+              "
+            >
+              <AlertCircle className="h-4 w-4" />
               {editor.errorMsg}
             </div>
           ) : null}
